@@ -14,7 +14,10 @@ import MapCreator from './components/MapCreator';
 import CharacterSheetModal from './components/CharacterSheetModal';
 import HomeScreen from './components/HomeScreen';
 import EncyclopediaView, { getClassificationMeta } from './components/EncyclopediaView';
+import ObjectNotesModal from './components/ObjectNotesModal';
+import MasterNotesDrawer from './components/MasterNotesDrawer';
 import { WEATHER_TYPES, AMBIENT_TINTS } from './components/WeatherOverlay';
+import { DEFAULT_COMMON_ITEMS } from './constants/commonItems';
 import useLocalStorage from './hooks/useLocalStorage';
 import { saveCampaignToDB, loadCampaignFromDB, exportCampaignJSON } from './utils/campaignStorage';
 import { exportJSON, importJSON } from './utils/fileDialog';
@@ -194,8 +197,7 @@ const GLOBAL_VTT_STYLES = `
   }
   .vtt-retro-badge {
     font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    letter-spacing: 0.05em;
   }
   .vtt-wood-panel {
     background: linear-gradient(180deg, #181c24 0%, #101319 100%);
@@ -204,11 +206,11 @@ const GLOBAL_VTT_STYLES = `
   }
   .vtt-brass-btn {
     font-family: 'Inter', system-ui, sans-serif;
-    background: linear-gradient(180deg, #252a36 0%, #171a22 100%);
-    color: #e2e8f0;
-    border: 1px solid #3f475a;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    transition: all 0.16s ease;
+    background: #171b24;
+    color: #cbd5e1;
+    border: 1px solid #2e3546;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+    transition: all 0.15s ease;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
@@ -216,20 +218,22 @@ const GLOBAL_VTT_STYLES = `
     gap: 6px;
   }
   .vtt-brass-btn:hover:not(:disabled) {
-    background: linear-gradient(180deg, #2f3646 0%, #1e222d 100%);
-    border-color: #f59e0b;
-    color: #ffffff;
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.14);
-    transform: translateY(-1px);
+    background: #202634;
+    border-color: #4a5568;
+    color: #f8fafc;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  }
+  .vtt-brass-btn:active:not(:disabled) {
+    transform: translateY(1px);
   }
   .vtt-primary-cta {
     font-family: 'Inter', system-ui, sans-serif;
-    background: linear-gradient(180deg, #f59e0b 0%, #b45309 100%);
-    color: #0f1115;
-    border: 1px solid #fbbf24;
+    background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
+    color: #fef3c7;
+    border: 1px solid #f59e0b;
     font-weight: 700;
-    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.4);
-    transition: all 0.16s ease;
+    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.35);
+    transition: all 0.15s ease;
     white-space: nowrap;
     display: inline-flex;
     align-items: center;
@@ -237,9 +241,30 @@ const GLOBAL_VTT_STYLES = `
     gap: 6px;
   }
   .vtt-primary-cta:hover:not(:disabled) {
-    background: linear-gradient(180deg, #fbbf24 0%, #d97706 100%);
-    box-shadow: 0 6px 18px rgba(245, 158, 11, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.55);
-    transform: translateY(-1px);
+    background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+    border-color: #fbbf24;
+    color: #ffffff;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
+  }
+  .vtt-primary-cta:active:not(:disabled) {
+    transform: translateY(1px);
+  }
+  .vtt-btn-active {
+    background: rgba(245, 158, 11, 0.15) !important;
+    border-color: #f59e0b !important;
+    color: #fbbf24 !important;
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.25) !important;
+  }
+  .vtt-btn-danger {
+    background: rgba(239, 68, 68, 0.12);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+    transition: all 0.15s ease;
+  }
+  .vtt-btn-danger:hover:not(:disabled) {
+    background: #dc2626;
+    border-color: #ef4444;
+    color: #ffffff;
   }
   ::-webkit-scrollbar {
     width: 6px;
@@ -249,11 +274,11 @@ const GLOBAL_VTT_STYLES = `
     background: #0d0f14;
   }
   ::-webkit-scrollbar-thumb {
-    background: #333a4b;
+    background: #2b3140;
     border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #f59e0b;
+    background: #475569;
   }
 `;
 
@@ -424,6 +449,8 @@ function App() {
   const [syncCameraToPlayers, setSyncCameraToPlayers] = useLocalStorage('vtt_sync_camera', true);
   const [tutorialDismissed, setTutorialDismissed] = useLocalStorage('vtt_tutorial_dismissed', false);
   const [customSounds, setCustomSounds] = useLocalStorage('vtt_custom_sounds', []);
+  const [customObjects, setCustomObjects] = useLocalStorage('vtt_custom_objects', []);
+  const [commonItems, setCommonItems] = useLocalStorage('vtt_common_items', DEFAULT_COMMON_ITEMS);
 
   // Gestión de Múltiples Escenas y Proyector de Handouts
   const [scenes, setScenes] = useLocalStorage('vtt_scenes_list', [
@@ -465,8 +492,16 @@ function App() {
   const [pingActive, setPingActive] = useState(false);
   const [pings, setPings] = useState([]);
 
-  // Estado para Invocación Interactiva de Personajes en el Mapa
+  // Estado para Invocación Interactiva de Personajes y Objetos en el Mapa
   const [pendingTokenSpawn, setPendingTokenSpawn] = useState(null);
+  const [pendingMapSpawn, setPendingMapSpawn] = useState(null);
+  const [draggedMapElement, setDraggedMapElement] = useState(null);
+  const [objectNotesModalState, setObjectNotesModalState] = useState({ isOpen: false, objectItem: null });
+
+  // Estados para el Diario & Bloc de Notas del Máster (Punto 1)
+  const [isMasterNotesOpen, setIsMasterNotesOpen] = useState(false);
+  const [sceneNotes, setSceneNotes] = useLocalStorage('vtt_scene_notes', {});
+  const [campaignNotes, setCampaignNotes] = useLocalStorage('vtt_campaign_notes', '');
 
   const [holdProgress, setHoldProgress] = useState(null);
   const [radialMenu, setRadialMenu] = useState(null);
@@ -487,6 +522,9 @@ function App() {
   const [isCombatActive, setIsCombatActive] = useState(false);
   const [combatRound, setCombatRound] = useState(1);
   const [activeTurnTokenId, setActiveTurnTokenId] = useState(null);
+  const [movementLimitsEnabled, setMovementLimitsEnabled] = useLocalStorage('vtt_movement_limits_enabled', true);
+  const tokenDragOriginRef = useRef(null);
+  const [tokenDragMeasurement, setTokenDragMeasurement] = useState(null);
 
   const boardRef = useRef(null);
   const fowCanvasRef = useRef(null);
@@ -503,13 +541,13 @@ function App() {
     latestStateRef.current = {
       tokens, maps, fowEnabled, fowVisionRadius, fowMemoryEnabled, fowAutoHideEnemies,
       fowActions, snapToGrid, gridSize, customStatuses, weatherEffect, ambientTint,
-      activeHandout, isCombatActive, combatRound, activeTurnTokenId,
+      activeHandout, isCombatActive, combatRound, activeTurnTokenId, movementLimitsEnabled,
       camera: syncCameraToPlayers ? { pan, scale } : null
     };
   }, [
     tokens, maps, fowEnabled, fowVisionRadius, fowMemoryEnabled, fowAutoHideEnemies,
     fowActions, snapToGrid, gridSize, customStatuses, weatherEffect, ambientTint,
-    activeHandout, isCombatActive, combatRound, activeTurnTokenId, syncCameraToPlayers, pan, scale
+    activeHandout, isCombatActive, combatRound, activeTurnTokenId, movementLimitsEnabled, syncCameraToPlayers, pan, scale
   ]);
 
   // Función auxiliar para emitir eventos tanto por BroadcastChannel (Web) como por Tauri Events (Desktop)
@@ -575,6 +613,8 @@ function App() {
         if (Array.isArray(saved.handouts)) setHandouts(saved.handouts);
         if (saved.activeHandout !== undefined) setActiveHandout(saved.activeHandout);
         if (Array.isArray(saved.graveyard)) setGraveyard(saved.graveyard);
+        if (Array.isArray(saved.customObjects)) setCustomObjects(saved.customObjects);
+        if (Array.isArray(saved.commonItems)) setCommonItems(saved.commonItems);
       }
       setDbLoaded(true);
     });
@@ -605,7 +645,9 @@ function App() {
         activeSceneId,
         handouts,
         activeHandout,
-        graveyard
+        graveyard,
+        customObjects,
+        commonItems
       });
     }, 350);
     return () => clearTimeout(timer);
@@ -613,7 +655,7 @@ function App() {
     dbLoaded, isPlayerView, characters, tokens, maps,
     fowEnabled, fowBrushSize, fowVisionRadius, fowMemoryEnabled, fowAutoHideEnemies,
     fowActions, snapToGrid, gridSize, customStatuses, weatherEffect, ambientTint,
-    customSounds, scenes, activeSceneId, handouts, activeHandout, graveyard
+    customSounds, scenes, activeSceneId, handouts, activeHandout, graveyard, customObjects, commonItems
   ]);
 
   // 3. Sincronización en tiempo real entre ventana de Master y ventana de Jugador
@@ -647,6 +689,9 @@ function App() {
         }
 
         if (msg.type === 'CLOSE_3D_ROLL') {
+          document.querySelectorAll('.dice-box-canvas').forEach(c => {
+            try { c.remove(); } catch (e) {}
+          });
           setPublicRollResult(null);
           setMaster3DRoll(null);
           setWaitingForPlayerRoll(false);
@@ -684,8 +729,14 @@ function App() {
             if (isMounted) setPings(prev => prev.filter(p => p.id !== msg.payload.id));
           }, 3600);
         } else if (msg.type === 'TRIGGER_3D_ROLL') {
+          document.querySelectorAll('.dice-box-canvas').forEach(c => {
+            try { c.remove(); } catch (e) {}
+          });
           setPlayer3DRoll(msg.payload);
         } else if (msg.type === 'CLOSE_3D_ROLL') {
+          document.querySelectorAll('.dice-box-canvas').forEach(c => {
+            try { c.remove(); } catch (e) {}
+          });
           setPlayer3DRoll(null);
         } else if (msg.type === 'SOUND_PLAY') {
           playerSoundEngine.play(msg.payload);
@@ -749,17 +800,32 @@ function App() {
     weatherEffect, ambientTint, activeHandout, isCombatActive, combatRound, activeTurnTokenId, syncCameraToPlayers, pan, scale
   ]);
 
-  // Permitir cancelar la invocación de ficha con la tecla Escape
+  // Permitir cancelar la invocación de ficha u objeto con la tecla Escape
   useEffect(() => {
-    if (!pendingTokenSpawn) return;
+    if (!pendingTokenSpawn && !pendingMapSpawn) return;
     const onKeyDown = (e) => {
       if (e.key === 'Escape') {
-        setPendingTokenSpawn(null);
+        if (pendingTokenSpawn) setPendingTokenSpawn(null);
+        if (pendingMapSpawn) setPendingMapSpawn(null);
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [pendingTokenSpawn]);
+  }, [pendingTokenSpawn, pendingMapSpawn]);
+
+  // Atajo de teclado: Tecla 'N' para alternar el Diario & Notas del Máster
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'n' || e.key === 'N') {
+        if (!isPlayerView) {
+          setIsMasterNotesOpen(prev => !prev);
+        }
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isPlayerView]);
 
   const showMasterFeedback = (label, icon = '⚜️') => {
     setMasterToast({ label, icon });
@@ -804,9 +870,54 @@ function App() {
     }
   };
 
-  const handleOpenTokenSheet = (token) => {
-    const linkedChar = characters.find(c => c.id === token.characterId) || token;
-    setEditingCharacter({ mode: 'edit', character: linkedChar });
+  const handleOpenTokenSheet = (tokenOrId) => {
+    const targetToken = typeof tokenOrId === 'object' && tokenOrId !== null
+      ? tokenOrId
+      : tokens.find(t => t.id === tokenOrId) || characters.find(c => c.id === tokenOrId);
+    if (!targetToken) return;
+
+    const linkedChar = characters.find(c => c.id === targetToken.characterId || c.id === targetToken.id || c.name === targetToken.name);
+    const mergedChar = {
+      ...(linkedChar || {}),
+      ...targetToken,
+      id: linkedChar ? linkedChar.id : targetToken.id,
+      characterId: linkedChar ? linkedChar.id : targetToken.characterId,
+      inventory: Array.isArray(targetToken.inventory) ? targetToken.inventory : (linkedChar?.inventory || []),
+      hp: targetToken.hp ?? linkedChar?.hp,
+      maxHp: targetToken.maxHp ?? linkedChar?.maxHp,
+      mp: targetToken.mp ?? linkedChar?.mp,
+      maxMp: targetToken.maxMp ?? linkedChar?.maxMp,
+      san: targetToken.san ?? linkedChar?.san,
+      maxSan: targetToken.maxSan ?? linkedChar?.maxSan,
+      hasArmor: targetToken.hasArmor ?? linkedChar?.hasArmor,
+      armorType: targetToken.armorType ?? linkedChar?.armorType,
+      isGraveWound: targetToken.isGraveWound ?? linkedChar?.isGraveWound,
+    };
+
+    setEditingCharacter({
+      mode: 'edit',
+      character: mergedChar,
+      linkedTokenId: targetToken.id
+    });
+  };
+
+  const handleEditCharacter = (char) => {
+    if (!char) return;
+    const matchingToken = tokens.find(t => t.characterId === char.id || t.id === char.id || t.name === char.name);
+    const charData = matchingToken ? {
+      ...char,
+      inventory: Array.isArray(matchingToken.inventory) ? matchingToken.inventory : (char.inventory || []),
+      hp: matchingToken.hp ?? char.hp,
+      maxHp: matchingToken.maxHp ?? char.maxHp,
+      mp: matchingToken.mp ?? char.mp,
+      maxMp: matchingToken.maxMp ?? char.maxMp,
+      san: matchingToken.san ?? char.san,
+      maxSan: matchingToken.maxSan ?? char.maxSan,
+      hasArmor: matchingToken.hasArmor ?? char.hasArmor,
+      armorType: matchingToken.armorType ?? char.armorType,
+      isGraveWound: matchingToken.isGraveWound ?? char.isGraveWound,
+    } : char;
+    setEditingCharacter({ mode: 'edit', character: charData, linkedTokenId: matchingToken?.id });
   };
 
   const handleSelectScene = (targetSceneId) => {
@@ -960,6 +1071,9 @@ function App() {
 
   // Funciones de los Dados 3D
   const handleTriggerPublicRoll = (rollReq) => {
+    document.querySelectorAll('.dice-box-canvas').forEach(c => {
+      try { c.remove(); } catch (e) {}
+    });
     const isPlayerViewConnected = (Date.now() - lastPlayerPingRef.current) < 6500;
 
     if (isPlayerViewConnected) {
@@ -975,6 +1089,9 @@ function App() {
   };
 
   const handleTriggerHiddenRoll = (rollReq) => {
+    document.querySelectorAll('.dice-box-canvas').forEach(c => {
+      try { c.remove(); } catch (e) {}
+    });
     // Tirada secreta: siempre rueda únicamente en la pantalla del Master
     setMaster3DRoll(rollReq);
     showMasterFeedback(`Tirada oculta: ${rollReq.formula}`, '🎲');
@@ -1108,11 +1225,39 @@ function App() {
         setPendingTokenSpawn(null);
         return;
       }
+      if (pendingMapSpawn) {
+        setPendingMapSpawn(null);
+        return;
+      }
       setIsDraggingPan(true);
       return;
     }
 
     if (e.button === 0) {
+      // MODO COLOCACIÓN DE OBJETO / ESTRUCTURA: Coloca el elemento donde el Máster haga clic
+      if (!isPlayerView && pendingMapSpawn) {
+        const coords = getLogicalCoords(e);
+        const w = pendingMapSpawn.width || (pendingMapSpawn.type === 'door' || pendingMapSpawn.type === 'window' ? 60 : 48);
+        const h = pendingMapSpawn.height || (pendingMapSpawn.type === 'door' ? 16 : pendingMapSpawn.type === 'window' ? 14 : 48);
+        const spawnX = snapToGrid ? Math.round(coords.x / gridSize) * gridSize : coords.x - w / 2;
+        const spawnY = snapToGrid ? Math.round(coords.y / gridSize) * gridSize : coords.y - h / 2;
+
+        const newMapEl = {
+          ...pendingMapSpawn,
+          id: Date.now() + Math.random(),
+          x: Math.round(spawnX),
+          y: Math.round(spawnY),
+          width: w,
+          height: h,
+          isLocked: false
+        };
+
+        setMaps(prev => [...prev, newMapEl]);
+        showMasterFeedback(`${pendingMapSpawn.name} colocado en el tablero`, pendingMapSpawn.icon || '📦');
+        setPendingMapSpawn(null);
+        return;
+      }
+
       // MODO INVOCACIÓN: Coloca el personaje donde el Master haga clic izquierdo
       if (!isPlayerView && pendingTokenSpawn) {
         const coords = getLogicalCoords(e);
@@ -1153,6 +1298,8 @@ function App() {
           hasArmor: Boolean(pendingTokenSpawn.hasArmor),
           armorType: pendingTokenSpawn.armorType || 'Ninguna',
           isGraveWound: Boolean(pendingTokenSpawn.isGraveWound),
+          speed: pendingTokenSpawn.speed || 6,
+          turnMovementUsed: 0,
           history: pendingTokenSpawn.history || '',
           notes: pendingTokenSpawn.notes || '',
           inventory: pendingTokenSpawn.inventory || [],
@@ -1221,6 +1368,26 @@ function App() {
     if (!isPlayerView && fowEnabled && fowMode !== 'none') return;
     if (rulerActive) return;
 
+    // Comprobación de límites de movimiento en combate si no se mantiene Ctrl
+    if (isCombatActive && movementLimitsEnabled && !e.ctrlKey && !token.isLocked) {
+      if (activeTurnTokenId && token.id !== activeTurnTokenId) {
+        const activeTok = tokens.find(t => t.id === activeTurnTokenId);
+        showMasterFeedback(
+          activeTok ? `Turno de "${activeTok.name}". Mantén Ctrl para mover a otros.` : 'No es el turno de este combatiente.',
+          '⚠️'
+        );
+        return;
+      }
+      const baseSpeed = token.speed || 6;
+      const maxSpeed = token.isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
+      const used = token.turnMovementUsed || 0;
+      const remaining = Math.max(0, maxSpeed - used);
+      if (remaining <= 0) {
+        showMasterFeedback(`"${token.name}" agotó su movimiento este turno (${used}/${maxSpeed} casillas). Mantén Ctrl para forzar.`, '🛑');
+        return;
+      }
+    }
+
     const activeTokenStatuses = token.statuses || [];
     const isImmobilized = activeTokenStatuses.some(statusId => {
       const statusObj = customStatuses.find(s => s.id === statusId);
@@ -1235,6 +1402,12 @@ function App() {
       }
     } catch (err) {}
 
+    tokenDragOriginRef.current = {
+      x: token.x,
+      y: token.y,
+      tokenId: token.id,
+      isCtrl: Boolean(e.ctrlKey)
+    };
     setDraggedToken(token.id);
   };
 
@@ -1289,12 +1462,49 @@ function App() {
 
     if (draggedToken !== null && boardRef.current) {
       const coords = getLogicalCoords(e);
+      const currentToken = tokens.find(t => t.id === draggedToken);
+      const size = currentToken?.size || 50;
+      let targetX = coords.x - size / 2;
+      let targetY = coords.y - size / 2;
+
+      // Limitación elástica de movimiento en combate
+      if (isCombatActive && movementLimitsEnabled && !e.ctrlKey && tokenDragOriginRef.current && currentToken) {
+        const originX = tokenDragOriginRef.current.x;
+        const originY = tokenDragOriginRef.current.y;
+        const baseSpeed = currentToken.speed || 6;
+        const maxSpeed = currentToken.isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
+        const used = currentToken.turnMovementUsed || 0;
+        const remaining = Math.max(0, maxSpeed - used);
+        const maxPixelDist = remaining * gridSize;
+
+        const dx = targetX - originX;
+        const dy = targetY - originY;
+        const currentDist = Math.hypot(dx, dy);
+
+        if (currentDist > maxPixelDist && currentDist > 0) {
+          const angle = Math.atan2(dy, dx);
+          targetX = originX + Math.cos(angle) * maxPixelDist;
+          targetY = originY + Math.sin(angle) * maxPixelDist;
+        }
+
+        const currentMovedSquares = Math.round(Math.hypot(targetX - originX, targetY - originY) / gridSize);
+        setTokenDragMeasurement({
+          startX: originX + size / 2,
+          startY: originY + size / 2,
+          currentX: targetX + size / 2,
+          currentY: targetY + size / 2,
+          movedSquares: currentMovedSquares,
+          maxSquares: remaining,
+          totalSpeed: maxSpeed,
+          isGraveWound: Boolean(currentToken.isGraveWound)
+        });
+      } else if (tokenDragMeasurement) {
+        setTokenDragMeasurement(null);
+      }
+
       setTokens(prevTokens =>
         prevTokens.map(t => {
           if (t.id !== draggedToken) return t;
-          const size = t.size || 50;
-          const targetX = coords.x - size / 2;
-          const targetY = coords.y - size / 2;
 
           const fromCenterX = t.x + size / 2;
           const fromCenterY = t.y + size / 2;
@@ -1316,35 +1526,95 @@ function App() {
       return;
     }
 
-    if (isDraggingPan && draggedToken === null && rotatingToken === null) {
+    // Arrastre libre de objetos y estructuras en el mapa
+    if (draggedMapElement !== null && boardRef.current) {
+      const coords = getLogicalCoords(e);
+      setMaps(prevMaps =>
+        prevMaps.map(m => {
+          if (m.id !== draggedMapElement) return m;
+          const w = m.width || 48;
+          const h = m.height || 48;
+          return {
+            ...m,
+            x: Math.round(coords.x - w / 2),
+            y: Math.round(coords.y - h / 2)
+          };
+        })
+      );
+      return;
+    }
+
+    if (isDraggingPan && draggedToken === null && draggedMapElement === null && rotatingToken === null) {
       setPan(prev => ({ x: prev.x + e.movementX, y: prev.y + e.movementY }));
     }
   };
 
-  const handlePointerUp = () => {
+  const handlePointerUp = (e) => {
     cancelHoldTimer();
     if (rulerMeasure) setRulerMeasure(null);
 
-    if (draggedToken !== null && snapToGrid) {
+    if (draggedToken !== null) {
+      const origin = tokenDragOriginRef.current;
+      const isCtrlOverride = Boolean(e?.ctrlKey || origin?.isCtrl);
+
       setTokens(prevTokens =>
         prevTokens.map(t => {
           if (t.id === draggedToken) {
-            const snappedX = Math.floor((t.x + (t.size || gridSize) / 2) / gridSize) * gridSize;
-            const snappedY = Math.floor((t.y + (t.size || gridSize) / 2) / gridSize) * gridSize;
-            const size = t.size || 50;
-            if (!isMovementBlocked(t.x + size / 2, t.y + size / 2, snappedX + size / 2, snappedY + size / 2)) {
-              return { ...t, x: snappedX, y: snappedY };
+            let finalX = t.x;
+            let finalY = t.y;
+            if (snapToGrid) {
+              const snappedX = Math.floor((t.x + (t.size || gridSize) / 2) / gridSize) * gridSize;
+              const snappedY = Math.floor((t.y + (t.size || gridSize) / 2) / gridSize) * gridSize;
+              const size = t.size || 50;
+              if (!isMovementBlocked(t.x + size / 2, t.y + size / 2, snappedX + size / 2, snappedY + size / 2)) {
+                finalX = snappedX;
+                finalY = snappedY;
+              }
             }
+
+            if (isCombatActive && movementLimitsEnabled && origin && !isCtrlOverride) {
+              const pixelDist = Math.hypot(finalX - origin.x, finalY - origin.y);
+              const squaresMoved = Math.round(pixelDist / gridSize);
+              if (squaresMoved > 0) {
+                const baseSpeed = t.speed || 6;
+                const maxSpeed = t.isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
+                const currentUsed = t.turnMovementUsed || 0;
+                const remainingBefore = Math.max(0, maxSpeed - currentUsed);
+                const actualSquares = Math.min(squaresMoved, remainingBefore);
+                const newUsed = currentUsed + actualSquares;
+                const remainingAfter = Math.max(0, maxSpeed - newUsed);
+                showMasterFeedback(`🚶 ${t.name}: avanzó ${actualSquares} casillas (${remainingAfter} restantes)`, '🚶');
+                return { ...t, x: finalX, y: finalY, turnMovementUsed: newUsed };
+              }
+            }
+            return { ...t, x: finalX, y: finalY };
           }
           return t;
         })
       );
+      tokenDragOriginRef.current = null;
+      setTokenDragMeasurement(null);
     }
+
+    if (draggedMapElement !== null && snapToGrid) {
+      setMaps(prevMaps =>
+        prevMaps.map(m => {
+          if (m.id !== draggedMapElement) return m;
+          const snappedX = Math.round(m.x / gridSize) * gridSize;
+          const snappedY = Math.round(m.y / gridSize) * gridSize;
+          return { ...m, x: snappedX, y: snappedY };
+        })
+      );
+    }
+
     setIsDraggingPan(false);
     setDraggedToken(null);
+    setDraggedMapElement(null);
     setRotatingToken(null);
     lastFowPointRef.current = null;
     setIsPaintingFow(false);
+    tokenDragOriginRef.current = null;
+    setTokenDragMeasurement(null);
   };
 
   const handleAddToken = (char) => {
@@ -1356,18 +1626,256 @@ function App() {
     showMasterFeedback(`Haz clic en el mapa para colocar a ${char.name}`, '🎯');
   };
 
-  const handleAddMapElementLive = (newElement) => {
-    const rect = boardRef.current ? boardRef.current.getBoundingClientRect() : { width: 900, height: 600 };
-    const centerX = -pan.x / scale + rect.width / 2 / scale;
-    const centerY = -pan.y / scale + rect.height / 2 / scale;
-    const elWithCoords = {
-      ...newElement,
-      x: Math.round(centerX - (newElement.width || 48) / 2),
-      y: Math.round(centerY - (newElement.height || 48) / 2),
-      zIndex: maps.length + 10
+  const handleStartPlaceMapElement = (newElement) => {
+    setRulerActive(false);
+    setPingActive(false);
+    setFowMode('none');
+    setIsSettingsOpen(false);
+    setPendingTokenSpawn(null);
+    setPendingMapSpawn(newElement);
+    showMasterFeedback(`Haz clic en el mapa para colocar ${newElement.name}`, newElement.icon || '📦');
+  };
+
+  const handleMapElementPointerDown = (e, element) => {
+    cancelHoldTimer();
+    if (isPlayerView || element.isLocked) return;
+    setDraggedMapElement(element.id);
+  };
+
+  const handleRotateMapElement = (elId) => {
+    setMaps(prev => prev.map(m => {
+      if (m.id === elId) {
+        const oldW = m.width || 60;
+        const oldH = m.height || 16;
+        return {
+          ...m,
+          width: oldH,
+          height: oldW,
+          isVertical: !m.isVertical
+        };
+      }
+      return m;
+    }));
+    showMasterFeedback('Orientación rotada 90º', '🔄');
+  };
+
+  const handleToggleMapElementLock = (elId) => {
+    setMaps(prev => prev.map(m => {
+      if (m.id === elId) {
+        const next = !m.isLocked;
+        showMasterFeedback(next ? 'Posición bloqueada' : 'Posición desbloqueada', next ? '🔒' : '🔓');
+        return { ...m, isLocked: next };
+      }
+      return m;
+    }));
+  };
+
+  const handleInspectObject = (objectItem) => {
+    setObjectNotesModalState({ isOpen: true, objectItem });
+  };
+
+  const handleUpdateObject = (objectId, updatedFields) => {
+    setMaps(prev => prev.map(m => {
+      if (m.id === objectId) {
+        return { ...m, ...updatedFields };
+      }
+      return m;
+    }));
+    showMasterFeedback('Objeto y notas actualizados', '💾');
+  };
+
+  const handleUpdateSceneNotes = (sceneId, notesObj) => {
+    setSceneNotes(prev => ({ ...prev, [sceneId]: notesObj }));
+  };
+
+  const handleSaveCustomObject = (obj) => {
+    setCustomObjects(prev => {
+      const exists = prev.some(o => o.id === obj.id);
+      return exists ? prev.map(o => o.id === obj.id ? obj : o) : [...prev, obj];
+    });
+    showMasterFeedback(`Plantilla "${obj.name}" guardada en el catálogo`, '⭐');
+  };
+
+  const handleDeleteCustomObject = (id) => {
+    setCustomObjects(prev => prev.filter(o => o.id !== id));
+    showMasterFeedback('Plantilla eliminada del catálogo', '🗑️');
+  };
+
+  const handleGiveItemToCharacter = (targetId, itemData) => {
+    // Si no se especifica targetId pero hay activeTurnTokenId:
+    const resolvedId = targetId || activeTurnTokenId || (tokens.length === 1 ? tokens[0].id : null);
+    if (!resolvedId) {
+      showMasterFeedback('No hay combatiente seleccionado ni turno activo para recibir el objeto', '⚠️');
+      return false;
+    }
+
+    const newItem = {
+      id: Date.now() + Math.random(),
+      name: itemData.name,
+      icon: itemData.icon || '📦',
+      category: itemData.category || 'Herramienta',
+      state: itemData.state || 'equipped',
+      notes: itemData.notes || ''
     };
-    setMaps(prev => [...prev, elWithCoords]);
-    showMasterFeedback(`${newElement.name} añadido a la mesa`, newElement.icon || '📦');
+
+    const targetToken = tokens.find(t => t.id === resolvedId || t.characterId === resolvedId);
+    const linkedCharId = targetToken?.characterId || resolvedId;
+    let assignedName = targetToken?.name || '';
+
+    // 1. Actualizar en tokens del tablero
+    setTokens(prev => prev.map(t => {
+      if (t.id === resolvedId || t.characterId === resolvedId || (targetToken && t.characterId === targetToken.characterId)) {
+        if (!assignedName) assignedName = t.name;
+        const currentInv = Array.isArray(t.inventory) ? t.inventory : [];
+        return { ...t, inventory: [...currentInv, newItem] };
+      }
+      return t;
+    }));
+
+    // 2. Actualizar en biblioteca de personajes
+    setCharacters(prev => prev.map(c => {
+      if (c.id === linkedCharId || c.id === resolvedId || (targetToken && c.name === targetToken.name)) {
+        if (!assignedName) assignedName = c.name;
+        const currentInv = Array.isArray(c.inventory) ? c.inventory : [];
+        return { ...c, inventory: [...currentInv, newItem] };
+      }
+      return c;
+    }));
+
+    if (!assignedName) {
+      const found = characters.find(c => c.id === linkedCharId || c.id === resolvedId);
+      assignedName = found ? found.name : 'combatiente';
+    }
+
+    showMasterFeedback(`🎁 "${newItem.name}" entregado a ${assignedName}`, newItem.icon || '🎁');
+    return true;
+  };
+
+  const handleSaveCommonItem = (item) => {
+    setCommonItems(prev => {
+      const exists = prev.some(it => it.id === item.id);
+      return exists ? prev.map(it => it.id === item.id ? item : it) : [...prev, item];
+    });
+    showMasterFeedback(`Objeto "${item.name}" guardado en el catálogo`, '⭐');
+  };
+
+  const handleDeleteCommonItem = (id) => {
+    setCommonItems(prev => prev.filter(it => it.id !== id));
+    showMasterFeedback('Objeto retirado del catálogo común', '🗑️');
+  };
+
+  const handlePickUpItem = (itemElement, targetId) => {
+    const resolvedId = targetId || activeTurnTokenId || (tokens.length === 1 ? tokens[0].id : null);
+    if (!resolvedId) {
+      showMasterFeedback('Selecciona qué combatiente recoge el objeto', '⚠️');
+      return false;
+    }
+
+    const newItem = {
+      id: Date.now() + Math.random(),
+      name: itemElement.name,
+      icon: itemElement.icon || '📦',
+      category: itemElement.category || 'Herramienta',
+      state: itemElement.state || 'equipped',
+      notes: itemElement.notes || ''
+    };
+
+    const targetToken = tokens.find(t => t.id === resolvedId || t.characterId === resolvedId);
+    const linkedCharId = targetToken?.characterId || resolvedId;
+    let collectorName = targetToken?.name || '';
+
+    // 1. Actualizar en tokens del tablero
+    setTokens(prev => prev.map(t => {
+      if (t.id === resolvedId || t.characterId === resolvedId || (targetToken && t.characterId === targetToken.characterId)) {
+        if (!collectorName) collectorName = t.name;
+        const currentInv = Array.isArray(t.inventory) ? t.inventory : [];
+        return { ...t, inventory: [...currentInv, newItem] };
+      }
+      return t;
+    }));
+
+    // 2. Actualizar en la biblioteca de personajes
+    setCharacters(prev => prev.map(c => {
+      if (c.id === linkedCharId || c.id === resolvedId || (targetToken && c.name === targetToken.name)) {
+        if (!collectorName) collectorName = c.name;
+        const currentInv = Array.isArray(c.inventory) ? c.inventory : [];
+        return { ...c, inventory: [...currentInv, newItem] };
+      }
+      return c;
+    }));
+
+    // 3. Retirar del mapa
+    setMaps(prev => prev.filter(m => m.id !== itemElement.id));
+
+    if (!collectorName) {
+      const found = characters.find(c => c.id === linkedCharId || c.id === resolvedId);
+      collectorName = found ? found.name : 'Combatiente';
+    }
+    showMasterFeedback(`🤲 ${collectorName} recogió "${itemElement.name}"`, itemElement.icon || '🤲');
+    return true;
+  };
+
+  const handleDropItemToFloor = (characterOrTokenId, itemToDrop) => {
+    const targetToken = tokens.find(t => t.id === characterOrTokenId || t.characterId === characterOrTokenId);
+    const linkedCharId = targetToken?.characterId || characterOrTokenId;
+
+    let dropX = targetToken ? targetToken.x + (targetToken.size || 50) + 8 : (-pan.x / scale + 250);
+    let dropY = targetToken ? targetToken.y : (-pan.y / scale + 250);
+
+    if (snapToGrid) {
+      dropX = Math.round(dropX / gridSize) * gridSize;
+      dropY = Math.round(dropY / gridSize) * gridSize;
+    }
+
+    const floorItem = {
+      id: Date.now() + Math.random(),
+      type: 'item',
+      name: itemToDrop.name,
+      icon: itemToDrop.icon || '📦',
+      category: itemToDrop.category || 'Herramienta',
+      notes: itemToDrop.notes || '',
+      state: itemToDrop.state || 'equipped',
+      x: dropX,
+      y: dropY,
+      width: 38,
+      height: 38,
+      isLocked: false
+    };
+
+    setMaps(prev => [...prev, floorItem]);
+
+    setTokens(prev => prev.map(t => {
+      if (t.id === characterOrTokenId || t.characterId === characterOrTokenId || (targetToken && t.characterId === targetToken.characterId)) {
+        const inv = Array.isArray(t.inventory) ? t.inventory : [];
+        return { ...t, inventory: inv.filter(i => i.id !== itemToDrop.id && i.name !== itemToDrop.name) };
+      }
+      return t;
+    }));
+
+    setCharacters(prev => prev.map(c => {
+      if (c.id === linkedCharId || c.id === characterOrTokenId || (targetToken && c.name === targetToken.name)) {
+        const inv = Array.isArray(c.inventory) ? c.inventory : [];
+        return { ...c, inventory: inv.filter(i => i.id !== itemToDrop.id && i.name !== itemToDrop.name) };
+      }
+      return c;
+    }));
+
+    const charName = targetToken ? targetToken.name : 'Personaje';
+    showMasterFeedback(`🫳 ${charName} descartó "${itemToDrop.name}" al suelo`, '🫳');
+  };
+
+  const handleStartPlaceGroundItem = (itemData) => {
+    handleStartPlaceMapElement({
+      type: 'item',
+      name: itemData.name,
+      icon: itemData.icon || '📦',
+      category: itemData.category || 'Herramienta',
+      notes: itemData.notes || '',
+      state: itemData.state || 'equipped',
+      width: 38,
+      height: 38,
+      isLocked: false
+    });
   };
 
   const handleToggleMapElementState = (elId) => {
@@ -1444,7 +1952,12 @@ function App() {
     setIsCombatActive(true);
     setCombatRound(1);
     setActiveTurnTokenId(tokens[0].id);
-    showMasterFeedback(`¡Combate iniciado! Turno de ${tokens[0].name}`, '⚔️');
+    setTokens(prev => prev.map(t => ({ ...t, turnMovementUsed: 0 })));
+    tokenDragOriginRef.current = null;
+    setTokenDragMeasurement(null);
+    const baseSpeed = tokens[0].speed || 6;
+    const speed = tokens[0].isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
+    showMasterFeedback(`¡Combate iniciado! Turno de ${tokens[0].name} (${speed} casillas)`, '⚔️');
   };
 
   const handleNextTurn = () => {
@@ -1463,15 +1976,52 @@ function App() {
     const nextToken = tokens[nextIndex];
     if (nextToken) {
       setActiveTurnTokenId(nextToken.id);
-      showMasterFeedback(`Turno de: ${nextToken.name}`, '⚔️');
+      setTokens(prev => prev.map(t => t.id === nextToken.id ? { ...t, turnMovementUsed: 0 } : t));
+      tokenDragOriginRef.current = null;
+      setTokenDragMeasurement(null);
+      const baseSpeed = nextToken.speed || 6;
+      const speed = nextToken.isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
+      showMasterFeedback(`Turno de: ${nextToken.name} (${speed} casillas)`, '⚔️');
     }
+  };
+
+  const handleSelectActiveTurn = (tokenId) => {
+    const targetToken = tokens.find(t => t.id === tokenId);
+    if (!targetToken) return;
+    setActiveTurnTokenId(tokenId);
+    setTokens(prev => prev.map(t => t.id === tokenId ? { ...t, turnMovementUsed: 0 } : t));
+    tokenDragOriginRef.current = null;
+    setTokenDragMeasurement(null);
+    const baseSpeed = targetToken.speed || 6;
+    const speed = targetToken.isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
+    showMasterFeedback(`Turno asignado a: ${targetToken.name} (${speed} casillas)`, '⚔️');
   };
 
   const handleEndCombat = () => {
     setIsCombatActive(false);
     setActiveTurnTokenId(null);
     setCombatRound(1);
+    setTokens(prev => prev.map(t => ({ ...t, turnMovementUsed: 0 })));
+    tokenDragOriginRef.current = null;
+    setTokenDragMeasurement(null);
     showMasterFeedback('Combate finalizado', '🛡️');
+  };
+
+  const handleToggleMovementLimits = () => {
+    setMovementLimitsEnabled(prev => {
+      const next = !prev;
+      showMasterFeedback(
+        next ? 'Límites de movimiento en combate: ACTIVADOS' : 'Límites de movimiento: DESACTIVADOS (Movimiento libre)',
+        next ? '🚶' : '🔓'
+      );
+      return next;
+    });
+  };
+
+  const handleResetTokenMovement = (tokenId) => {
+    setTokens(prev => prev.map(t => t.id === tokenId ? { ...t, turnMovementUsed: 0 } : t));
+    setTokenDragMeasurement(null);
+    showMasterFeedback('Presupuesto de movimiento restablecido', '↺');
   };
 
   const handleRollAllInitiatives = () => {
@@ -1548,6 +2098,10 @@ function App() {
     if (Array.isArray(d.handouts)) setHandouts(d.handouts);
     if (d.activeHandout !== undefined) setActiveHandout(d.activeHandout);
     if (Array.isArray(d.graveyard)) setGraveyard(d.graveyard);
+    if (Array.isArray(d.customObjects)) setCustomObjects(d.customObjects);
+    if (Array.isArray(d.commonItems)) setCommonItems(d.commonItems);
+    if (d.sceneNotes) setSceneNotes(d.sceneNotes);
+    if (d.campaignNotes !== undefined) setCampaignNotes(d.campaignNotes);
     saveCampaignToDB(d, true);
     setTimeout(() => {
       isSwitchingSceneRef.current = false;
@@ -1575,7 +2129,11 @@ function App() {
       activeSceneId,
       handouts,
       activeHandout,
-      graveyard
+      graveyard,
+      customObjects,
+      commonItems,
+      sceneNotes,
+      campaignNotes
     });
     if (res?.success) {
       showMasterFeedback(`Crónica guardada: ${res.filename}`, '💾');
@@ -1742,7 +2300,45 @@ function App() {
           tokens={tokens}
           customStatuses={customStatuses}
           pings={pings}
+          onPickUpItem={handlePickUpItem}
+          isCombatActive={isCombatActive}
+          movementLimitsEnabled={movementLimitsEnabled}
         />
+
+        {/* Indicador de Turnos para la Pantalla de Jugadores */}
+        {isCombatActive && (
+          <div style={{
+            position: 'fixed',
+            top: '16px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 9000,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            backgroundColor: 'rgba(17, 21, 32, 0.94)',
+            border: '1px solid rgba(245, 158, 11, 0.6)',
+            borderRadius: '999px',
+            padding: '6px 18px',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.8), 0 0 16px rgba(245, 158, 11, 0.3)',
+            backdropFilter: 'blur(8px)',
+            pointerEvents: 'none',
+            userSelect: 'none'
+          }}>
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f59e0b', boxShadow: '0 0 8px #f59e0b' }} />
+            <span style={{ fontSize: '12px', fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
+              RONDA {combatRound}
+            </span>
+            {tokens.find(t => t.id === activeTurnTokenId && (!t.isHidden || !fowAutoHideEnemies)) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '10px' }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>Turno:</span>
+                <strong style={{ fontSize: '12px', color: tokens.find(t => t.id === activeTurnTokenId)?.faction === 'enemy' ? '#fca5a5' : '#93c5fd' }}>
+                  {tokens.find(t => t.id === activeTurnTokenId)?.name}
+                </strong>
+              </div>
+            )}
+          </div>
+        )}
 
         {player3DRoll && (
           <Dice3D
@@ -1785,6 +2381,12 @@ function App() {
           onOpenHome={() => setIsHomeOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(!isSettingsOpen)}
           onOpenPlayerView={handleOpenPlayerView}
+          onOpenMasterNotes={() => setIsMasterNotesOpen(!isMasterNotesOpen)}
+          isCombatActive={isCombatActive}
+          combatRound={combatRound}
+          activeTurnToken={tokens.find(t => t.id === activeTurnTokenId)}
+          onNextTurn={handleNextTurn}
+          onEndCombat={handleEndCombat}
         />
       </div>
 
@@ -1844,7 +2446,7 @@ function App() {
             }
           });
         }}
-        onEditCharacter={(char) => setEditingCharacter({ mode: 'edit', character: char })}
+        onEditCharacter={handleEditCharacter}
         onDeleteCharacter={(id) => {
           setCharacters(prev => prev.filter(c => c.id !== id));
           showMasterFeedback('Registro eliminado de la biblioteca', '🗑️');
@@ -1907,6 +2509,7 @@ function App() {
       {/* Modal Dedicado de Creación / Edición de Personaje */}
       {editingCharacter && (
         <CharacterSheetModal
+          key={editingCharacter.character?.id || editingCharacter.linkedTokenId || 'modal'}
           mode={editingCharacter.mode}
           initialData={editingCharacter.character}
           onSave={(savedChar) => {
@@ -1914,36 +2517,47 @@ function App() {
               setCharacters(prev => [...prev, savedChar]);
               showMasterFeedback(`"${savedChar.name}" inscrito en la biblioteca`, '📜');
             } else {
-              setCharacters(prev => prev.map(c => c.id === savedChar.id ? savedChar : c));
-              setTokens(prev => prev.map(t => (t.characterId === savedChar.id || t.id === savedChar.id) ? {
-                ...t,
-                firstName: savedChar.firstName,
-                lastName: savedChar.lastName,
-                birthYear: savedChar.birthYear,
-                name: savedChar.name,
-                entityType: savedChar.entityType,
-                color: savedChar.color,
-                avatar: savedChar.avatar,
-                faction: savedChar.faction,
-                hp: savedChar.hp,
-                maxHp: savedChar.maxHp,
-                mp: savedChar.mp,
-                maxMp: savedChar.maxMp,
-                san: savedChar.san,
-                maxSan: savedChar.maxSan,
-                hasArmor: savedChar.hasArmor,
-                armorType: savedChar.armorType,
-                isGraveWound: savedChar.isGraveWound,
-                history: savedChar.history,
-                notes: savedChar.notes,
-                inventory: savedChar.inventory,
-                spells: savedChar.spells
-              } : t));
+              setCharacters(prev => prev.map(c => {
+                if (c.id === savedChar.id || (editingCharacter.linkedTokenId && c.id === savedChar.characterId) || c.name === savedChar.name) {
+                  return savedChar;
+                }
+                return c;
+              }));
+              setTokens(prev => prev.map(t => {
+                if (t.characterId === savedChar.id || t.id === savedChar.id || (editingCharacter.linkedTokenId && t.id === editingCharacter.linkedTokenId) || t.name === savedChar.name) {
+                  return {
+                    ...t,
+                    firstName: savedChar.firstName,
+                    lastName: savedChar.lastName,
+                    birthYear: savedChar.birthYear,
+                    name: savedChar.name,
+                    entityType: savedChar.entityType,
+                    color: savedChar.color,
+                    avatar: savedChar.avatar,
+                    faction: savedChar.faction,
+                    hp: savedChar.hp,
+                    maxHp: savedChar.maxHp,
+                    mp: savedChar.mp,
+                    maxMp: savedChar.maxMp,
+                    san: savedChar.san,
+                    maxSan: savedChar.maxSan,
+                    hasArmor: savedChar.hasArmor,
+                    armorType: savedChar.armorType,
+                    isGraveWound: savedChar.isGraveWound,
+                    history: savedChar.history,
+                    notes: savedChar.notes,
+                    inventory: savedChar.inventory,
+                    spells: savedChar.spells
+                  };
+                }
+                return t;
+              }));
               showMasterFeedback(`Ficha de "${savedChar.name}" actualizada`, '✏️');
             }
             setEditingCharacter(null);
           }}
           onClose={() => setEditingCharacter(null)}
+          onDropItemToFloor={handleDropItemToFloor}
         />
       )}
 
@@ -1955,12 +2569,12 @@ function App() {
           onOpenGraveyard={() => setEncyclopediaState({ isOpen: true, category: 'graveyard' })}
           onSendToGraveyard={handleSendToGraveyard}
           onAddToken={handleAddToken}
-          onAddMapElement={handleAddMapElementLive}
+          onAddMapElement={handleStartPlaceMapElement}
           onOpenMapCreator={() => setIsMapCreatorOpen(true)}
           onOpenEncyclopedia={(category) => setEncyclopediaState({ isOpen: true, category: category || 'character' })}
           onRemoveToken={(id) => setTokens(prev => prev.filter(t => t.id !== id))}
           onRemoveCharacter={(id) => setCharacters(prev => prev.filter(c => c.id !== id))}
-          onEditCharacter={(char) => setEditingCharacter({ mode: 'edit', character: char })}
+          onEditCharacter={handleEditCharacter}
           onCreateNewCharacter={(defaultEntityType = 'human') => {
             const isMonster = defaultEntityType !== 'human' && defaultEntityType !== 'npc' && defaultEntityType !== 'cultist';
             setEditingCharacter({
@@ -1978,6 +2592,12 @@ function App() {
           onToggleTokenHidden={handleToggleTokenHidden}
           onToggleTokenFaction={handleToggleTokenFaction}
           customStatuses={customStatuses}
+          customObjects={customObjects}
+          commonItems={commonItems}
+          onGiveItemToCharacter={handleGiveItemToCharacter}
+          onPlaceGroundItem={handleStartPlaceGroundItem}
+          onDropItemToFloor={handleDropItemToFloor}
+          onOpenTokenSheet={handleOpenTokenSheet}
           onReorderTokens={handleReorderTokens}
           onMoveTokenOrder={handleMoveTokenOrder}
           onCenterOnToken={handleCenterOnToken}
@@ -1988,6 +2608,10 @@ function App() {
           onNextTurn={handleNextTurn}
           onEndCombat={handleEndCombat}
           onRollAllInitiatives={handleRollAllInitiatives}
+          movementLimitsEnabled={movementLimitsEnabled}
+          onToggleMovementLimits={handleToggleMovementLimits}
+          onResetTokenMovement={handleResetTokenMovement}
+          onSelectActiveTurn={handleSelectActiveTurn}
         />
 
         {/* Aviso Superior de Modo Invocación Activo */}
@@ -2030,6 +2654,46 @@ function App() {
           </div>
         )}
 
+        {/* Aviso Superior de Modo Colocación de Objeto Activo */}
+        {pendingMapSpawn && (
+          <div
+            onPointerDown={(e) => e.stopPropagation()}
+            style={{
+              position: 'fixed',
+              top: '70px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 9600,
+              background: 'linear-gradient(180deg, rgba(24, 28, 38, 0.96) 0%, rgba(14, 16, 22, 0.98) 100%)',
+              border: '1px solid #f59e0b',
+              borderRadius: '10px',
+              padding: '8px 18px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '14px',
+              color: '#f8fafc',
+              boxShadow: '0 10px 25px rgba(0,0,0,0.9)'
+            }}
+          >
+            <span style={{ fontSize: '13px', fontWeight: 600 }}>
+              {pendingMapSpawn.icon || '📦'} Haz clic en el mapa para colocar: <strong style={{ color: '#fbbf24' }}>{pendingMapSpawn.name}</strong>
+            </span>
+            <button
+              onClick={() => setPendingMapSpawn(null)}
+              className="vtt-brass-btn"
+              style={{
+                padding: '4px 10px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                cursor: 'pointer'
+              }}
+            >
+              Cancelar (Esc)
+            </button>
+          </div>
+        )}
+
         <GameBoard
           boardRef={boardRef}
           scale={scale}
@@ -2047,6 +2711,13 @@ function App() {
           rulerActive={rulerActive}
           pingActive={pingActive}
           pendingTokenSpawn={pendingTokenSpawn}
+          pendingMapSpawn={pendingMapSpawn}
+          draggedMapElement={draggedMapElement}
+          onMapElementPointerDown={handleMapElementPointerDown}
+          onRotateMapElement={handleRotateMapElement}
+          onToggleMapElementLock={handleToggleMapElementLock}
+          onInspectObject={handleInspectObject}
+          onRemoveMapElement={handleRemoveMapElement}
           handlePointerDown={handlePointerDown}
           handlePointerMove={handlePointerMove}
           handlePointerUp={handlePointerUp}
@@ -2086,9 +2757,14 @@ function App() {
           onToggleObject={handleToggleObject}
           onToggleLight={handleToggleLight}
           onProjectHandout={handleProjectHandout}
+          onPickUpItem={handlePickUpItem}
+          isCombatActive={isCombatActive}
+          movementLimitsEnabled={movementLimitsEnabled}
+          tokenDragOriginRef={tokenDragOriginRef}
+          tokenDragMeasurement={tokenDragMeasurement}
         />
 
-        {/* Dock Central Flotante Inferior con Ecos, Dados 3D, Herramientas y Limpiar Mesa */}
+        {/* Dock Central Flotante Inferior Reorganizado y Compacto */}
         <div
           onPointerDown={(e) => e.stopPropagation()}
           onWheel={(e) => e.stopPropagation()}
@@ -2100,122 +2776,88 @@ function App() {
             transition: 'left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
             zIndex: 4000,
             display: 'flex',
-            gap: '7px',
+            gap: '6px',
             alignItems: 'center',
-            background: 'rgba(18, 21, 28, 0.94)',
-            padding: '8px 14px',
-            borderRadius: '14px',
-            border: '1px solid #383f52',
-            boxShadow: '0 16px 40px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.08)',
+            background: 'rgba(15, 18, 25, 0.95)',
+            padding: '6px 12px',
+            borderRadius: '12px',
+            border: '1px solid #2d3446',
+            boxShadow: '0 12px 35px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06)',
             backdropFilter: 'blur(12px)',
             whiteSpace: 'nowrap'
           }}
         >
-          {/* Botones de Ecos y Dados 3D ahora en la barra inferior */}
-          <button
-            onClick={() => {
-              setIsSoundboardOpen(!isSoundboardOpen);
-              setIsDiceOpen(false);
-            }}
-            className="vtt-brass-btn"
-            style={{
-              padding: '7px 12px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '12px',
-              borderColor: isSoundboardOpen || activeLoops.length > 0 ? '#f59e0b' : undefined,
-              background: isSoundboardOpen ? 'linear-gradient(180deg, #d97706 0%, #92400e 100%)' : undefined,
-              color: isSoundboardOpen ? '#fff' : undefined
-            }}
-            title="Abrir Órgano de Ecos y Sonidos Atmosféricos"
-          >
-            <span>🎵</span> Ecos
-            {activeLoops.length > 0 && (
-              <span style={{ backgroundColor: '#fbbf24', color: '#0f1115', borderRadius: '999px', padding: '1px 6px', fontSize: '10px', fontWeight: 800 }}>
-                {activeLoops.length}
-              </span>
-            )}
-          </button>
-
+          {/* Herramientas de Juego */}
           <button
             onClick={() => {
               setIsDiceOpen(!isDiceOpen);
               setIsSoundboardOpen(false);
             }}
-            className="vtt-brass-btn"
-            style={{
-              padding: '7px 12px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '12px',
-              borderColor: isDiceOpen ? '#f59e0b' : undefined,
-              background: isDiceOpen ? 'linear-gradient(180deg, #d97706 0%, #92400e 100%)' : undefined,
-              color: isDiceOpen ? '#fff' : undefined
-            }}
+            className={`vtt-brass-btn ${isDiceOpen ? 'vtt-btn-active' : ''}`}
+            style={{ padding: '6px 11px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
             title="Abrir Cubilete de Dados Físicos 3D"
           >
-            <span>🎲</span> Dados 3D
+            🎲 Dados
           </button>
 
-          <div style={{ width: '1px', height: '22px', backgroundColor: '#2e3446' }}></div>
+          <button
+            onClick={() => {
+              setIsSoundboardOpen(!isSoundboardOpen);
+              setIsDiceOpen(false);
+            }}
+            className={`vtt-brass-btn ${isSoundboardOpen || activeLoops.length > 0 ? 'vtt-btn-active' : ''}`}
+            style={{ padding: '6px 11px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
+            title="Abrir Órgano de Ecos y Sonidos Atmosféricos"
+          >
+            🎵 Ecos
+            {activeLoops.length > 0 && (
+              <span style={{ backgroundColor: '#fbbf24', color: '#0f1115', borderRadius: '999px', padding: '1px 5px', fontSize: '9px', fontWeight: 800 }}>
+                {activeLoops.length}
+              </span>
+            )}
+          </button>
+
+          <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
 
           <button
             onClick={() => { setRulerActive(!rulerActive); setPingActive(false); setFowMode('none'); }}
-            className="vtt-brass-btn"
-            style={{
-              padding: '7px 12px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '12px',
-              borderColor: rulerActive ? '#f59e0b' : undefined,
-              background: rulerActive ? 'linear-gradient(180deg, #d97706 0%, #92400e 100%)' : undefined,
-              color: rulerActive ? '#fff' : undefined
-            }}
-            title="Arrastra en el mapa para medir distancia en casillas, pies y metros"
+            className={`vtt-brass-btn ${rulerActive ? 'vtt-btn-active' : ''}`}
+            style={{ padding: '6px 11px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
+            title="Medir distancia en el mapa (pies, metros y casillas)"
           >
-            <span>📏</span> Regla
+            📏 Regla
           </button>
 
           <button
             onClick={() => { setPingActive(!pingActive); setRulerActive(false); setFowMode('none'); }}
-            className="vtt-brass-btn"
-            style={{
-              padding: '7px 12px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '12px',
-              borderColor: pingActive ? '#f59e0b' : undefined,
-              background: pingActive ? 'linear-gradient(180deg, #d97706 0%, #92400e 100%)' : undefined,
-              color: pingActive ? '#fff' : undefined
-            }}
-            title="Haz clic en el mapa (o Alt + Clic) para señalar un punto a los jugadores"
+            className={`vtt-brass-btn ${pingActive ? 'vtt-btn-active' : ''}`}
+            style={{ padding: '6px 11px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
+            title="Señalar punto en el mapa a los jugadores (o Alt + Clic)"
           >
-            <span>🔔</span> Señal
+            🔔 Señal
           </button>
 
-          <div style={{ width: '1px', height: '22px', backgroundColor: '#2e3446' }}></div>
+          <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
 
+          {/* Atmósfera y Ambiente */}
           <select
             value={weatherEffect}
             onChange={(e) => setWeatherEffect(e.target.value)}
             style={{
-              padding: '7px 10px',
-              borderRadius: '8px',
-              backgroundColor: '#161922',
-              color: '#e2e8f0',
-              border: '1px solid #383f52',
-              fontSize: '12px',
+              padding: '6px 8px',
+              borderRadius: '7px',
+              backgroundColor: '#141822',
+              color: '#cbd5e1',
+              border: '1px solid #2d3546',
+              fontSize: '11px',
               fontWeight: 600,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              outline: 'none'
             }}
-            title="Clima atmosférico en tiempo real"
+            title="Efecto de clima atmosférico"
           >
             {WEATHER_TYPES.map(w => (
-              <option key={w.id} value={w.id}>🌦️ {w.label}</option>
+              <option key={w.id} value={w.id}>{w.label}</option>
             ))}
           </select>
 
@@ -2223,31 +2865,33 @@ function App() {
             value={ambientTint}
             onChange={(e) => setAmbientTint(e.target.value)}
             style={{
-              padding: '7px 10px',
-              borderRadius: '8px',
-              backgroundColor: '#161922',
-              color: '#e2e8f0',
-              border: '1px solid #383f52',
-              fontSize: '12px',
+              padding: '6px 8px',
+              borderRadius: '7px',
+              backgroundColor: '#141822',
+              color: '#cbd5e1',
+              border: '1px solid #2d3546',
+              fontSize: '11px',
               fontWeight: 600,
-              cursor: 'pointer'
+              cursor: 'pointer',
+              outline: 'none'
             }}
             title="Iluminación ambiental del mapa"
           >
             {AMBIENT_TINTS.map(t => (
-              <option key={t.id} value={t.id}>🕯️ {t.label}</option>
+              <option key={t.id} value={t.id}>{t.label}</option>
             ))}
           </select>
 
-          <div style={{ width: '1px', height: '22px', backgroundColor: '#2e3446' }}></div>
+          <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
 
+          {/* Navegación y Cámara */}
           <button
             onClick={() => { setPan({ x: 0, y: 0 }); setScale(1); }}
             className="vtt-brass-btn"
-            style={{ padding: '7px 11px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
-            title="Restablecer vista al centro (Zoom 100%)"
+            style={{ padding: '6px 10px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
+            title="Centrar tablero y restablecer zoom al 100%"
           >
-            <span>🎯</span> Centrar
+            🎯 Centrar
           </button>
 
           <button
@@ -2256,24 +2900,16 @@ function App() {
               setSyncCameraToPlayers(nextSync);
               showMasterFeedback(
                 nextSync
-                  ? 'Encuadre vinculado: La Pantalla de Jugadores sigue tu cámara'
-                  : 'Encuadre libre: Puedes mover tu cámara sin afectar a los jugadores',
-                nextSync ? '🔒' : '🔓'
+                  ? 'Cámara sincronizada con la pantalla de jugadores'
+                  : 'Cámara libre (desvinculada de los jugadores)',
+                nextSync ? '🔗' : '🔓'
               );
             }}
-            className="vtt-brass-btn"
-            style={{
-              padding: '7px 11px',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '12px',
-              borderColor: syncCameraToPlayers ? '#10b981' : '#383f52',
-              color: syncCameraToPlayers ? '#34d399' : '#94a3b8'
-            }}
-            title="Activado: cuando mueves o haces zoom en el mapa, la Pantalla de Jugadores te sigue. Desactivado: puedes inspeccionar otras zonas del mapa en secreto sin moverles la vista."
+            className={`vtt-brass-btn ${syncCameraToPlayers ? 'vtt-btn-active' : ''}`}
+            style={{ padding: '6px 10px', borderRadius: '7px', fontSize: '11px', cursor: 'pointer' }}
+            title={syncCameraToPlayers ? "Cámara vinculada: los jugadores ven tus movimientos de pantalla" : "Cámara libre: navega en secreto sin mover la pantalla de los jugadores"}
           >
-            <span>{syncCameraToPlayers ? '🔒' : '🔓'}</span> {syncCameraToPlayers ? 'Seguir Vista: ON' : 'Seguir Vista: OFF'}
+            {syncCameraToPlayers ? '🔗 Vista: ON' : '🔓 Vista: OFF'}
           </button>
 
           <button
@@ -2288,27 +2924,25 @@ function App() {
                 setTimeout(() => setConfirmResetBoard(false), 3000);
               }
             }}
+            className={confirmResetBoard ? 'vtt-btn-danger' : 'vtt-brass-btn'}
             style={{
-              padding: '7px 12px',
-              background: confirmResetBoard ? 'linear-gradient(180deg, #ef4444 0%, #b91c1c 100%)' : 'rgba(127, 29, 29, 0.28)',
-              color: confirmResetBoard ? '#ffffff' : '#fca5a5',
-              borderRadius: '8px',
-              border: confirmResetBoard ? '1px solid #f87171' : '1px solid rgba(239, 68, 68, 0.38)',
+              padding: '6px 9px',
+              borderRadius: '7px',
+              fontSize: '11px',
               cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: '12px',
-              transition: 'all 0.15s'
+              borderColor: confirmResetBoard ? '#ef4444' : undefined,
+              color: confirmResetBoard ? '#ffffff' : '#94a3b8'
             }}
-            title="Retira las fichas activas y reinicia la niebla de la escena actual"
+            title="Limpiar fichas y niebla de la mesa activa"
           >
-            {confirmResetBoard ? '⚠️ ¿Confirmar?' : '🗑️ Limpiar Tablero'}
+            {confirmResetBoard ? '⚠️ ¿Limpiar?' : '🗑️'}
           </button>
 
           <button
             onClick={() => setIsTutorialOpen(true)}
             className="vtt-brass-btn"
-            style={{ padding: '7px 10px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
-            title="Abrir Guía Rápida del Grimorio VTT"
+            style={{ padding: '6px 8px', borderRadius: '7px', fontSize: '11px', cursor: 'pointer', color: '#94a3b8' }}
+            title="Guía de uso rápido del Grimorio VTT"
           >
             ❓
           </button>
@@ -2350,7 +2984,7 @@ function App() {
         onAddToken={handleAddToken}
         onRemoveCharacter={(id) => setCharacters(prev => prev.filter(c => c.id !== id))}
         onOpenCharacterCreator={() => setEditingCharacter({ mode: 'create', character: null })}
-        onEditCharacter={(char) => setEditingCharacter({ mode: 'edit', character: char })}
+        onEditCharacter={handleEditCharacter}
         customStatuses={customStatuses}
         onAddCustomStatus={(newSt) => setCustomStatuses(prev => [...prev, newSt])}
         onRemoveCustomStatus={(id) => setCustomStatuses(prev => prev.filter(s => s.id !== id))}
@@ -2367,7 +3001,7 @@ function App() {
         gridSize={gridSize} setGridSize={setGridSize}
         openMapCreator={() => setIsMapCreatorOpen(true)}
         maps={maps}
-        onAddMapElement={handleAddMapElementLive}
+        onAddMapElement={handleStartPlaceMapElement}
         onToggleMapElementState={handleToggleMapElementState}
         onRemoveMapElement={handleRemoveMapElement}
         onClearAllMaps={() => setMaps([])}
@@ -2386,6 +3020,17 @@ function App() {
           if (activeHandout && activeHandout.id === id) setActiveHandout(null);
         }}
         onProjectHandout={handleProjectHandout}
+        customObjects={customObjects}
+        onSaveCustomObject={handleSaveCustomObject}
+        onDeleteCustomObject={handleDeleteCustomObject}
+        onInspectObject={handleInspectObject}
+        tokens={tokens}
+        activeTurnTokenId={activeTurnTokenId}
+        commonItems={commonItems}
+        onGiveItemToCharacter={handleGiveItemToCharacter}
+        onSaveCommonItem={handleSaveCommonItem}
+        onDeleteCommonItem={handleDeleteCommonItem}
+        onPlaceGroundItem={handleStartPlaceGroundItem}
       />
 
       <TutorialModal
@@ -2400,6 +3045,9 @@ function App() {
           rollReq={master3DRoll} 
           isPlayerView={false} 
           onComplete={(res) => {
+            document.querySelectorAll('.dice-box-canvas').forEach(c => {
+              try { c.remove(); } catch (e) {}
+            });
             setMaster3DRoll(null);
             setIncomingRollResult(res);
           }} 
@@ -2413,6 +3061,9 @@ function App() {
           resultData={publicRollResult}
           isPlayerView={false}
           onComplete={() => {
+            document.querySelectorAll('.dice-box-canvas').forEach(c => {
+              try { c.remove(); } catch (e) {}
+            });
             setPublicRollResult(null);
             postSyncMessage({ type: 'CLOSE_3D_ROLL' });
           }}
@@ -2452,6 +3103,30 @@ function App() {
           </button>
         </div>
       )}
+
+      {/* Modal de Notas & Pistas de Objetos */}
+      <ObjectNotesModal
+        isOpen={objectNotesModalState.isOpen}
+        onClose={() => setObjectNotesModalState({ isOpen: false, objectItem: null })}
+        objectItem={objectNotesModalState.objectItem}
+        handouts={handouts}
+        onUpdateObject={handleUpdateObject}
+        onProjectHandout={handleProjectHandout}
+        onRemoveObject={handleRemoveMapElement}
+      />
+
+      {/* Diario & Notas del Máster (Punto 1) */}
+      <MasterNotesDrawer
+        isOpen={isMasterNotesOpen}
+        onClose={() => setIsMasterNotesOpen(false)}
+        activeSceneId={activeSceneId}
+        scenes={scenes}
+        sceneNotes={sceneNotes}
+        onUpdateSceneNotes={handleUpdateSceneNotes}
+        campaignNotes={campaignNotes}
+        onUpdateCampaignNotes={setCampaignNotes}
+        onSaveCharacter={(newChar) => setCharacters(prev => [...prev, newChar])}
+      />
     </div>
   );
 }

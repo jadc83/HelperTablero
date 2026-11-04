@@ -21,6 +21,10 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
     // Si ya recibimos datos de resultado (modo visualización en espejo), no iniciamos el motor 3D
     if (resultData) {
       setResult(resultData);
+      // Limpiar de inmediato cualquier lienzo 3D residual huérfano en segundo plano
+      document.querySelectorAll('.dice-box-canvas').forEach(canvas => {
+        try { canvas.remove(); } catch (e) {}
+      });
       return;
     }
 
@@ -127,16 +131,29 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
 
     return () => {
       isCancelled = true;
-      if (diceBoxRef.current && typeof diceBoxRef.current.clear === 'function') {
+      if (diceBoxRef.current) {
         try {
-          diceBoxRef.current.clear();
+          if (typeof diceBoxRef.current.clear === 'function') diceBoxRef.current.clear();
+          if (typeof diceBoxRef.current.hide === 'function') diceBoxRef.current.hide();
         } catch (e) {}
       }
+      document.querySelectorAll('.dice-box-canvas').forEach(c => {
+        try { c.remove(); } catch (e) {}
+      });
       if (containerEl) {
         containerEl.innerHTML = '';
       }
     };
   }, [rollReq?.id, containerId, resultData]);
+
+  const handleCloseRoll = (finalVal = null) => {
+    document.querySelectorAll('.dice-box-canvas').forEach(c => {
+      try { c.remove(); } catch (e) {}
+    });
+    if (onCompleteRef.current) {
+      onCompleteRef.current(finalVal);
+    }
+  };
 
   const isSingle = result?.rolls?.length === 1;
   const v = isSingle ? result.rolls[0] : null;
@@ -242,7 +259,7 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
         }}>
           <span>🎲 Los dados giran... ({rollReq?.formula})</span>
           <button
-            onClick={() => onCompleteRef.current && onCompleteRef.current(null)}
+            onClick={() => handleCloseRoll(null)}
             className="vtt-brass-btn"
             style={{
               padding: '4px 10px',
@@ -307,7 +324,7 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
             </div>
 
             <button
-              onClick={() => onCompleteRef.current && onCompleteRef.current(result)}
+              onClick={() => handleCloseRoll(result)}
               className="vtt-brass-btn"
               style={{
                 marginTop: '28px',

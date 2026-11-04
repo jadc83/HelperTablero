@@ -12,7 +12,7 @@ const GameBoard = ({
   boardRef, scale, pan = { x: 0, y: 0 }, isDraggingPan = false, isPlayerView = false,
   fowEnabled, fowMode = 'none', fowVisionRadius = 180, fowMemoryEnabled = true, fowAutoHideEnemies = true,
   weatherEffect = 'none', ambientTint = 'none',
-  rulerActive = false, pingActive = false, pendingTokenSpawn = null,
+  rulerActive = false, pingActive = false, pendingTokenSpawn = null, pendingMapSpawn = null,
   handlePointerDown, handlePointerMove, handlePointerUp, handleWheel,
   snapToGrid, gridSize, maps, activeSceneId,
   fowCanvasRef, fowActions,
@@ -22,23 +22,30 @@ const GameBoard = ({
   onUpdateTokenStats, onOpenTokenSheet, customStatuses,
   rulerMeasure, pings = [], holdProgress = null, radialMenu = null, onCloseRadialMenu, onSelectSpatialSound,
   customSounds = [],
+  draggedMapElement = null, onMapElementPointerDown, onRotateMapElement, onToggleMapElementLock, onInspectObject, onRemoveMapElement,
   onToggleDoor, onToggleWindow, onToggleObject, onToggleLight,
   onProjectHandout,
-  activeTurnTokenId = null
+  activeTurnTokenId = null,
+  onPickUpItem,
+  isCombatActive = false,
+  movementLimitsEnabled = true,
+  tokenDragOriginRef = null,
+  tokenDragMeasurement = null
 }) => {
   const [spawnHoverPos, setSpawnHoverPos] = React.useState(null);
-  const isToolActive = rulerActive || pingActive || Boolean(pendingTokenSpawn) || (!isPlayerView && fowEnabled && fowMode !== 'none');
+  const isToolActive = rulerActive || pingActive || Boolean(pendingTokenSpawn) || Boolean(pendingMapSpawn) || (!isPlayerView && fowEnabled && fowMode !== 'none');
   const boardCursor = isDraggingPan ? 'grabbing' : (isToolActive ? 'crosshair' : 'grab');
 
   const onBoardPointerMove = (e) => {
-    if (pendingTokenSpawn && boardRef.current) {
+    if ((pendingTokenSpawn || pendingMapSpawn) && boardRef.current) {
       const rect = boardRef.current.getBoundingClientRect();
       const rawX = (e.clientX - rect.left - pan.x) / scale;
       const rawY = (e.clientY - rect.top - pan.y) / scale;
-      const size = gridSize || 50;
-      const x = snapToGrid ? Math.floor(rawX / size) * size : rawX - size / 2;
-      const y = snapToGrid ? Math.floor(rawY / size) * size : rawY - size / 2;
-      setSpawnHoverPos({ x, y });
+      const w = pendingMapSpawn ? (pendingMapSpawn.width || gridSize || 48) : (gridSize || 50);
+      const h = pendingMapSpawn ? (pendingMapSpawn.height || gridSize || 48) : (gridSize || 50);
+      const x = snapToGrid ? Math.floor(rawX / (gridSize || 50)) * (gridSize || 50) : rawX - w / 2;
+      const y = snapToGrid ? Math.floor(rawY / (gridSize || 50)) * (gridSize || 50) : rawY - h / 2;
+      setSpawnHoverPos({ x, y, w, h });
     } else if (spawnHoverPos) {
       setSpawnHoverPos(null);
     }
@@ -96,6 +103,128 @@ const GameBoard = ({
     );
   };
 
+  const renderMovementFloorRing = () => {
+    if (!isCombatActive || !movementLimitsEnabled || !activeTurnTokenId) return null;
+    const activeToken = tokens.find(t => t.id === activeTurnTokenId);
+    if (!activeToken) return null;
+
+    const baseSpeed = activeToken.speed || 6;
+    const isGraveWound = Boolean(activeToken.isGraveWound);
+    const maxSpeed = isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
+    const used = activeToken.turnMovementUsed || 0;
+    const remaining = Math.max(0, maxSpeed - used);
+
+    const tokenSize = activeToken.size || gridSize || 50;
+    const originX = (draggedToken === activeToken.id && tokenDragOriginRef?.current)
+      ? tokenDragOriginRef.current.x + tokenSize / 2
+      : activeToken.x + tokenSize / 2;
+    const originY = (draggedToken === activeToken.id && tokenDragOriginRef?.current)
+      ? tokenDragOriginRef.current.y + tokenSize / 2
+      : activeToken.y + tokenSize / 2;
+
+    const radius = remaining * (gridSize || 50);
+    const ringColor = isGraveWound ? '#ef4444' : '#10b981';
+    const ringFill = isGraveWound ? 'rgba(239, 68, 68, 0.09)' : 'rgba(16, 185, 129, 0.08)';
+
+    if (remaining <= 0) return null;
+
+    return (
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 120 }}>
+        <svg style={{ position: 'absolute', top: 0, left: 0, width: '10000px', height: '10000px', overflow: 'visible' }}>
+          <circle
+            cx={originX}
+            cy={originY}
+            r={radius}
+            fill={ringFill}
+            stroke={ringColor}
+            strokeWidth={2.5 / scale}
+            strokeDasharray={`${8 / scale},${6 / scale}`}
+          />
+          {/* Cruz central de origen */}
+          <line x1={originX - 6 / scale} y1={originY} x2={originX + 6 / scale} y2={originY} stroke={ringColor} strokeWidth={2 / scale} />
+          <line x1={originX} y1={originY - 6 / scale} x2={originX} y2={originY + 6 / scale} stroke={ringColor} strokeWidth={2 / scale} />
+        </svg>
+
+        {/* Insignia en el borde superior del radio */}
+        <div
+          style={{
+            position: 'absolute',
+            left: `${originX}px`,
+            top: `${originY - radius}px`,
+            transform: `translate(-50%, -120%) scale(${1 / scale})`,
+            backgroundColor: isGraveWound ? 'rgba(38, 12, 16, 0.96)' : 'rgba(12, 28, 22, 0.96)',
+            border: `1.5px solid ${ringColor}`,
+            color: isGraveWound ? '#fca5a5' : '#6ee7b7',
+            padding: '3px 10px',
+            borderRadius: '999px',
+            fontSize: '11px',
+            fontWeight: 800,
+            whiteSpace: 'nowrap',
+            boxShadow: '0 4px 14px rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '5px'
+          }}
+        >
+          <span>{isGraveWound ? '🩸' : '🏃'}</span>
+          <span>
+            {isGraveWound
+              ? `Herida Grave: ${remaining}/${maxSpeed} casillas (${remaining * 5} ft)`
+              : `Movimiento: ${remaining}/${maxSpeed} casillas (${remaining * 5} ft)`}
+          </span>
+        </div>
+      </div>
+    );
+  };
+
+  const renderMovementMeasurementOverlay = () => {
+    if (!tokenDragMeasurement) return null;
+    const { startX, startY, currentX, currentY, movedSquares, maxSquares } = tokenDragMeasurement;
+    const atLimit = movedSquares >= maxSquares;
+    const midX = (startX + currentX) / 2;
+    const midY = (startY + currentY) / 2;
+    const lineColor = atLimit ? '#ef4444' : '#fbbf24';
+
+    return (
+      <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 550 }}>
+        <svg style={{ position: 'absolute', top: 0, left: 0, width: '10000px', height: '10000px', overflow: 'visible' }}>
+          <line
+            x1={startX}
+            y1={startY}
+            x2={currentX}
+            y2={currentY}
+            stroke={lineColor}
+            strokeWidth={3 / scale}
+            strokeDasharray={`${6 / scale},${4 / scale}`}
+          />
+          <circle cx={startX} cy={startY} r={5 / scale} fill="#fbbf24" stroke="#ffffff" strokeWidth={1 / scale} />
+          <circle cx={currentX} cy={currentY} r={6 / scale} fill={atLimit ? '#ef4444' : '#10b981'} stroke="#ffffff" strokeWidth={1.5 / scale} />
+        </svg>
+
+        <div
+          style={{
+            position: 'absolute',
+            left: `${midX}px`,
+            top: `${midY}px`,
+            transform: `translate(-50%, -140%) scale(${1 / scale})`,
+            backgroundColor: atLimit ? 'rgba(40, 10, 10, 0.96)' : 'rgba(15, 20, 30, 0.96)',
+            border: `1.5px solid ${lineColor}`,
+            color: atLimit ? '#fca5a5' : '#fde047',
+            padding: '4px 10px',
+            borderRadius: '6px',
+            fontSize: '11px',
+            fontWeight: 800,
+            whiteSpace: 'nowrap',
+            boxShadow: '0 6px 16px rgba(0,0,0,0.92)'
+          }}
+        >
+          {atLimit ? '🔴 ¡Límite alcanzado! ' : '🟢 '}
+          {movedSquares} / {maxSquares} casillas ({movedSquares * 5} ft / {(movedSquares * 1.5).toFixed(1)} m)
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div 
       ref={boardRef}
@@ -139,11 +268,19 @@ const GameBoard = ({
           fowEnabled={fowEnabled}
           fowVisionRadius={fowVisionRadius}
           isPlayerView={isPlayerView}
+          draggedMapElement={draggedMapElement}
+          onMapElementPointerDown={onMapElementPointerDown}
+          onRotateMapElement={onRotateMapElement}
+          onToggleMapElementLock={onToggleMapElementLock}
+          onInspectObject={onInspectObject}
+          onRemoveMapElement={onRemoveMapElement}
           onToggleDoor={onToggleDoor}
           onToggleWindow={onToggleWindow}
           onToggleObject={onToggleObject}
           onToggleLight={onToggleLight}
           onProjectHandout={onProjectHandout}
+          activeTurnTokenId={activeTurnTokenId}
+          onPickUpItem={onPickUpItem}
         />
         
         <FogLayer
@@ -157,6 +294,8 @@ const GameBoard = ({
           fowMemoryEnabled={fowMemoryEnabled}
           isPlayerView={isPlayerView}
         />
+
+        {renderMovementFloorRing()}
 
         {tokens.map((token) => {
           if (isPlayerView) {
@@ -227,7 +366,34 @@ const GameBoard = ({
           </div>
         )}
 
+        {/* Previsualización Fantasma al Colocar un Objeto / Estructura */}
+        {!isPlayerView && pendingMapSpawn && spawnHoverPos && (
+          <div
+            style={{
+              position: 'absolute',
+              left: `${spawnHoverPos.x}px`,
+              top: `${spawnHoverPos.y}px`,
+              width: `${spawnHoverPos.w || 48}px`,
+              height: `${spawnHoverPos.h || 48}px`,
+              borderRadius: pendingMapSpawn.type === 'light' ? '50%' : '6px',
+              backgroundColor: 'rgba(245, 158, 11, 0.22)',
+              border: '2px dashed #fbbf24',
+              boxShadow: '0 0 16px rgba(245, 158, 11, 0.65)',
+              opacity: 0.85,
+              pointerEvents: 'none',
+              zIndex: 450,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '20px'
+            }}
+          >
+            {pendingMapSpawn.icon || '📦'}
+          </div>
+        )}
+
         {renderRuler()}
+        {renderMovementMeasurementOverlay()}
 
         {holdProgress && !isPlayerView && (
           <div

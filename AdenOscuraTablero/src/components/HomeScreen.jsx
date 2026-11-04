@@ -252,6 +252,7 @@ const HomeScreen = ({
               </div>
               <button
                 onClick={onOpenPlayerView}
+                className="vtt-brass-btn"
                 style={{
                   width: '100%',
                   padding: '10px',
@@ -259,9 +260,8 @@ const HomeScreen = ({
                   cursor: 'pointer',
                   fontSize: '12px',
                   fontWeight: 700,
-                  background: 'linear-gradient(180deg, #10b981 0%, #059669 100%)',
-                  color: '#052e16',
-                  border: '1px solid #34d399'
+                  borderColor: '#059669',
+                  color: '#6ee7b7'
                 }}
               >
                 🖥️ Lanzar Ventana Jugadores
@@ -311,8 +311,8 @@ const HomeScreen = ({
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => onOpenEncyclopedia && onOpenEncyclopedia('character')}
-                className="vtt-primary-cta"
-                style={{ flex: 1, padding: '11px', borderRadius: '9px', cursor: 'pointer', fontSize: '12px' }}
+                className="vtt-brass-btn"
+                style={{ flex: 1, padding: '11px', borderRadius: '9px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, borderColor: '#f59e0b', color: '#fbbf24' }}
               >
                 📖 Abrir Enciclopedia
               </button>
@@ -364,17 +364,17 @@ const HomeScreen = ({
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 onClick={() => onOpenEncyclopedia && onOpenEncyclopedia('monster')}
+                className="vtt-brass-btn"
                 style={{
                   flex: 1,
                   padding: '11px',
-                  borderRadius: '9px',
+                  borderRadius: '999px',
                   cursor: 'pointer',
                   fontSize: '12px',
                   fontWeight: 700,
-                  background: 'linear-gradient(180deg, #8b5cf6 0%, #6d28d9 100%)',
-                  color: '#ffffff',
-                  border: '1px solid #c4b5fd',
-                  boxShadow: '0 4px 14px rgba(139, 92, 246, 0.35)'
+                  borderColor: '#8b5cf6',
+                  color: '#c4b5fd',
+                  borderRadius: '9px'
                 }}
               >
                 👁️ Abrir Bestiario

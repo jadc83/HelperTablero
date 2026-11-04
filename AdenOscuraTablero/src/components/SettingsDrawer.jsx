@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { OBJECT_PRESETS, LIGHT_PRESETS } from './MapCreator';
 import { exportJSON, importJSON } from '../utils/fileDialog';
+import { ITEM_CATEGORIES, POPULAR_ITEM_ICONS } from '../constants/commonItems';
 
 const SettingsDrawer = ({ 
   isOpen, onClose, characters = [], onSaveCharacter, onImportCharacters,
@@ -15,7 +16,10 @@ const SettingsDrawer = ({
   maps = [], onAddMapElement, onToggleMapElementState, onRemoveMapElement, onClearAllMaps,
   scenes = [], activeSceneId = null, onSelectScene, onCreateNewScene, onRenameScene, onDeleteScene,
   onMoveSceneOrder, onReorderScenes,
-  handouts = [], activeHandout = null, onAddHandout, onRemoveHandout, onProjectHandout
+  handouts = [], activeHandout = null, onAddHandout, onRemoveHandout, onProjectHandout,
+  customObjects = [], onSaveCustomObject, onDeleteCustomObject, onInspectObject,
+  tokens = [], activeTurnTokenId = null,
+  commonItems = [], onGiveItemToCharacter, onSaveCommonItem, onDeleteCommonItem, onPlaceGroundItem
 }) => {
   const [activeTab, setActiveTab] = useState('escenario');
   const [bestiarySubTab, setBestiarySubTab] = useState('characters'); // 'characters' | 'statuses'
@@ -39,15 +43,32 @@ const SettingsDrawer = ({
   const charInputRef = useRef(null);
   const charAvatarInputRef = useRef(null);
 
-  // Estados para Creador de Objetos y Luces en vivo
-  const [objCategory, setObjCategory] = useState('object');
-  const [objName, setObjName] = useState(OBJECT_PRESETS[0].label);
-  const [objIcon, setObjIcon] = useState(OBJECT_PRESETS[0].icon);
-  const [objOpenIcon, setObjOpenIcon] = useState(OBJECT_PRESETS[0].openIcon);
+  // Estados para Creador de Objetos y Estructuras
+  const [objectsSubTab, setObjectsSubTab] = useState('creator'); // 'creator' | 'scene' | 'catalog'
+  const [objCategory, setObjCategory] = useState('object'); // 'object' | 'light' | 'door' | 'window'
+  const [objName, setObjName] = useState('Cofre Antiguo');
+  const [objIcon, setObjIcon] = useState('📦');
+  const [objOpenIcon, setObjOpenIcon] = useState('🪙');
+  const [objWidth, setObjWidth] = useState(48);
+  const [objHeight, setObjHeight] = useState(48);
   const [objBlocksMove, setObjBlocksMove] = useState(true);
   const [objBlocksVision, setObjBlocksVision] = useState(false);
+  const [objNotes, setObjNotes] = useState('');
   const [lightRadius, setLightRadius] = useState(220);
-  const [lightColor, setLightColor] = useState(LIGHT_PRESETS[0].color);
+  const [lightColor, setLightColor] = useState('#f59e0b');
+
+  const POPULAR_OBJECT_ICONS = ['📦', '🪙', '⚰️', '🪞', '🪦', '🏺', '🪤', '🗝️', '📜', '🔮', '🗡️', '🩸', '⚙️', '🚪', '🪟', '🕯️', '🔥', '🏮'];
+  const POPULAR_OPEN_ICONS = ['🪙', '🔓', '💥', '⚰️', '💨', '💀', '✨'];
+
+  // Estados para Objetos de Inventario y Equipo Común (Loot / Pertenencias)
+  const [itemsSubTab, setItemsSubTab] = useState('catalog'); // 'catalog' | 'creator'
+  const [commonItemName, setCommonItemName] = useState('');
+  const [commonItemIcon, setCommonItemIcon] = useState('🚬');
+  const [commonItemCategory, setCommonItemCategory] = useState('Herramienta');
+  const [commonItemState, setCommonItemState] = useState('equipped');
+  const [commonItemNotes, setCommonItemNotes] = useState('');
+  const [itemSearchQuery, setItemSearchQuery] = useState('');
+  const [selectedRecipientId, setSelectedRecipientId] = useState('');
 
   // Estados para Condiciones
   const [statusIcon, setStatusIcon] = useState('🩸');
@@ -120,49 +141,93 @@ const SettingsDrawer = ({
     notify('Personaje añadido al Bestiario');
   };
 
-  const handleSpawnObjectOnBoard = (e) => {
-    e.preventDefault();
+  const handlePlaceNewObject = (e) => {
+    if (e) e.preventDefault();
     if (!onAddMapElement) return;
 
+    let newEl = null;
     if (objCategory === 'object') {
-      onAddMapElement({
+      newEl = {
         id: Date.now() + Math.random(),
         type: 'object',
         name: objName.trim() || 'Objeto',
         icon: objIcon || '📦',
         openIcon: objOpenIcon || '🪙',
-        width: 48,
-        height: 48,
+        width: Number(objWidth) || 48,
+        height: Number(objHeight) || 48,
         isOpen: false,
         blocksMovement: objBlocksMove,
         blocksVision: objBlocksVision,
-        isHidden: false
-      });
-      notify(`Objeto "${objName}" colocado en la mesa`);
+        notes: objNotes.trim(),
+        isHidden: false,
+        isLocked: false
+      };
     } else if (objCategory === 'light') {
-      onAddMapElement({
+      newEl = {
         id: Date.now() + Math.random(),
         type: 'light',
-        name: objName.trim() || 'Antorcha',
+        name: objName.trim() || 'Fuente de Luz',
         icon: objIcon || '🔥',
         width: 38,
         height: 38,
-        radius: lightRadius,
+        radius: Number(lightRadius) || 220,
         color: lightColor,
-        isOn: true
-      });
-      notify(`Fuente de luz "${objName}" colocada en la mesa`);
-    } else if (objCategory === 'structure') {
-      onAddMapElement({
+        isOn: true,
+        isLocked: false
+      };
+    } else if (objCategory === 'door') {
+      newEl = {
         id: Date.now() + Math.random(),
-        type: objIcon === '🪟' ? 'window' : 'door',
-        name: objName.trim() || (objIcon === '🪟' ? 'Ventana' : 'Puerta'),
-        width: 60,
-        height: 16,
-        isOpen: false
-      });
-      notify(`${objName} colocada en el centro de la mesa`);
+        type: 'door',
+        name: objName.trim() || 'Puerta',
+        width: Number(objWidth) || 60,
+        height: Number(objHeight) || 16,
+        isOpen: false,
+        isLocked: false
+      };
+    } else if (objCategory === 'window') {
+      newEl = {
+        id: Date.now() + Math.random(),
+        type: 'window',
+        name: objName.trim() || 'Ventana',
+        width: Number(objWidth) || 60,
+        height: Number(objHeight) || 14,
+        isOpen: false,
+        isBroken: false,
+        isLocked: false
+      };
     }
+
+    if (newEl) {
+      onAddMapElement(newEl);
+      notify(`Haz clic en el mapa para colocar "${newEl.name}"`);
+      onClose();
+    }
+  };
+
+  const handleSaveToCatalog = (e) => {
+    if (e) e.preventDefault();
+    if (!onSaveCustomObject) return;
+
+    const catalogItem = {
+      id: 'custom_obj_' + Date.now(),
+      presetId: 'custom_' + Date.now(),
+      type: objCategory,
+      label: objName.trim() || (objCategory === 'light' ? 'Luz' : objCategory === 'door' ? 'Puerta' : 'Objeto'),
+      name: objName.trim() || (objCategory === 'light' ? 'Luz' : objCategory === 'door' ? 'Puerta' : 'Objeto'),
+      icon: objIcon,
+      openIcon: objOpenIcon,
+      width: Number(objWidth) || 48,
+      height: Number(objHeight) || 48,
+      blocksMovement: objBlocksMove,
+      blocksVision: objBlocksVision,
+      radius: Number(lightRadius) || 220,
+      color: lightColor,
+      notes: objNotes.trim()
+    };
+
+    onSaveCustomObject(catalogItem);
+    notify(`Plantilla "${catalogItem.name}" guardada en el catálogo`);
   };
 
   const handleStatusIconUpload = (e) => {
@@ -203,11 +268,12 @@ const SettingsDrawer = ({
 
   const TABS = [
     { id: 'escenario', icon: '🗺️', label: 'Escenas' },
-    { id: 'niebla', icon: '🕯️', label: 'Niebla y Luz' },
-    { id: 'bestiario', icon: '🛡️', label: 'Seres y Estados' },
+    { id: 'niebla', icon: '🕯️', label: 'Niebla & Luz' },
+    { id: 'bestiario', icon: '🛡️', label: 'Seres' },
+    { id: 'decorado', icon: '🪑', label: 'Decorado' },
+    { id: 'items', icon: '🎒', label: 'Objetos & Loot' },
     { id: 'proyector', icon: '🖼️', label: 'Proyector' },
-    { id: 'objetos', icon: '📦', label: 'En Escena' },
-    { id: 'campana', icon: '💾', label: 'Guardar / Cargar' }
+    { id: 'campana', icon: '💾', label: 'Guardar/Cargar' }
   ];
 
   const interactiveItemsOnBoard = maps.filter(
@@ -219,7 +285,7 @@ const SettingsDrawer = ({
       position: 'fixed',
       top: '58px',
       right: isOpen ? '0' : '-500px',
-      width: '480px',
+      width: '490px',
       bottom: '0',
       transition: 'right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
       zIndex: 4500,
@@ -236,7 +302,7 @@ const SettingsDrawer = ({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '14px 20px',
+        padding: '12px 18px',
         background: '#10131b',
         borderBottom: '1px solid #262c3a'
       }}>
@@ -255,12 +321,12 @@ const SettingsDrawer = ({
         </button>
       </div>
 
-      {/* Navegación en Píldoras Modernas (3x2 limpia y muy legible) */}
+      {/* Navegación en Píldoras Modernas y Espaciosas */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        gap: '6px',
-        padding: '10px 14px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
+        gap: '5px',
+        padding: '8px 12px',
         background: '#0d1016',
         borderBottom: '1px solid #262c3a'
       }}>
@@ -271,13 +337,13 @@ const SettingsDrawer = ({
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               style={{
-                padding: '8px 8px',
+                padding: '7px 4px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '6px',
-                borderRadius: '8px',
+                gap: '5px',
+                borderRadius: '7px',
                 background: isActive ? 'linear-gradient(180deg, rgba(245, 158, 11, 0.22) 0%, rgba(245, 158, 11, 0.08) 100%)' : '#151923',
                 border: isActive ? '1px solid #f59e0b' : '1px solid #242a38',
                 color: isActive ? '#fbbf24' : '#94a3b8',
@@ -286,7 +352,7 @@ const SettingsDrawer = ({
                 transition: 'all 0.15s ease'
               }}
             >
-              <span>{tab.icon}</span>
+              <span style={{ fontSize: '13px' }}>{tab.icon}</span>
               <span>{tab.label}</span>
             </button>
           );
@@ -596,70 +662,1109 @@ const SettingsDrawer = ({
           </div>
         )}
 
-        {/* PESTAÑA 3: OBJETOS Y ELEMENTOS INTERACTIVOS EN EL MAPA */}
-        {activeTab === 'objetos' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflow: 'hidden' }}>
-            <div className="vtt-wood-panel" style={{ padding: '12px 14px', borderRadius: '8px', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span className="vtt-gothic-title" style={{ fontSize: '12px', color: '#c5a059', fontWeight: 'bold' }}>
-                  Elementos en el Mapa ({interactiveItemsOnBoard.length})
-                </span>
-                <button
-                  onClick={() => { onClose(); openMapCreator(); }}
-                  style={{ background: 'none', border: 'none', color: '#fbbf24', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
-                >
-                  Abrir Editor de Mapas
-                </button>
-              </div>
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                {interactiveItemsOnBoard.map(item => (
-                  <div
-                    key={item.id}
+        {/* PESTAÑA: CREADOR DE DECORADO, MOBILIARIO Y ESTRUCTURAS */}
+        {activeTab === 'decorado' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflow: 'hidden' }}>
+            {/* Selector de Subpestañas */}
+            <div style={{ display: 'flex', gap: '6px', backgroundColor: '#0e1118', padding: '4px', borderRadius: '8px', border: '1px solid #262c3a' }}>
+              <button
+                type="button"
+                onClick={() => setObjectsSubTab('creator')}
+                style={{
+                  flex: 1,
+                  padding: '7px 4px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  backgroundColor: objectsSubTab === 'creator' ? '#f59e0b' : 'transparent',
+                  color: objectsSubTab === 'creator' ? '#0f1115' : '#94a3b8',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                🛠️ Forjar Decorado
+              </button>
+              <button
+                type="button"
+                onClick={() => setObjectsSubTab('scene')}
+                style={{
+                  flex: 1,
+                  padding: '7px 4px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  backgroundColor: objectsSubTab === 'scene' ? '#f59e0b' : 'transparent',
+                  color: objectsSubTab === 'scene' ? '#0f1115' : '#94a3b8',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                📋 En Escena ({interactiveItemsOnBoard.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setObjectsSubTab('catalog')}
+                style={{
+                  flex: 1,
+                  padding: '7px 4px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  backgroundColor: objectsSubTab === 'catalog' ? '#f59e0b' : 'transparent',
+                  color: objectsSubTab === 'catalog' ? '#0f1115' : '#94a3b8',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                📚 Catálogo Decorado ({customObjects.length})
+              </button>
+            </div>
+
+            {/* SUBPESTAÑA 1: CREADOR Y FORJA DE OBJETOS */}
+            {objectsSubTab === 'creator' && (
+              <div className="vtt-wood-panel" style={{ padding: '14px', borderRadius: '8px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Tipo de Elemento */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '6px' }}>
+                    Tipo de Elemento:
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+                    {[
+                      { id: 'object', label: 'Contenedor', icon: '📦' },
+                      { id: 'light', label: 'Luz', icon: '🔥' },
+                      { id: 'door', label: 'Puerta', icon: '🚪' },
+                      { id: 'window', label: 'Ventana', icon: '🪟' }
+                    ].map(type => (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() => {
+                          setObjCategory(type.id);
+                          if (type.id === 'object') {
+                            setObjName('Cofre Misterioso');
+                            setObjIcon('📦');
+                            setObjWidth(48); setObjHeight(48);
+                          } else if (type.id === 'light') {
+                            setObjName('Antorcha de Pared');
+                            setObjIcon('🔥');
+                          } else if (type.id === 'door') {
+                            setObjName('Puerta de Roble');
+                            setObjIcon('🚪');
+                            setObjWidth(60); setObjHeight(16);
+                          } else if (type.id === 'window') {
+                            setObjName('Ventana con Rejas');
+                            setObjIcon('🪟');
+                            setObjWidth(60); setObjHeight(14);
+                          }
+                        }}
+                        style={{
+                          padding: '6px 4px',
+                          borderRadius: '6px',
+                          border: objCategory === type.id ? '1px solid #f59e0b' : '1px solid #283042',
+                          backgroundColor: objCategory === type.id ? 'rgba(245, 158, 11, 0.15)' : '#141822',
+                          color: objCategory === type.id ? '#fbbf24' : '#cbd5e1',
+                          cursor: 'pointer',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: '2px'
+                        }}
+                      >
+                        <span style={{ fontSize: '16px' }}>{type.icon}</span>
+                        <span>{type.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Nombre */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
+                    Nombre del Elemento:
+                  </label>
+                  <input
+                    type="text"
+                    value={objName}
+                    onChange={(e) => setObjName(e.target.value)}
+                    placeholder="Ej: Sarcófago de alabastro, Escritorio antiguo..."
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '6px 10px',
-                      backgroundColor: '#120b07',
-                      border: '1px solid #4a331d',
-                      borderRadius: '4px',
+                      width: '100%',
+                      padding: '7px 10px',
+                      backgroundColor: '#0c0e14',
+                      border: '1px solid #283042',
+                      color: '#f8fafc',
+                      borderRadius: '6px',
                       fontSize: '12px'
                     }}
-                  >
-                    <span>
-                      {item.type === 'light' ? (item.icon || '🔥') : item.type === 'door' ? '🚪' : item.type === 'window' ? '🪟' : (item.icon || '📦')}{' '}
-                      <strong>{item.name || item.type}</strong>
-                    </span>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      {onToggleMapElementState && (
-                        <button
-                          onClick={() => onToggleMapElementState(item.id)}
-                          className="vtt-brass-btn"
-                          style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}
-                        >
-                          {item.type === 'light'
-                            ? (item.isOn !== false ? 'Apagar' : 'Encender')
-                            : (item.isOpen ? 'Cerrar' : 'Abrir')}
-                        </button>
-                      )}
-                      {onRemoveMapElement && (
-                        <button
-                          onClick={() => onRemoveMapElement(item.id)}
-                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                          ✕
-                        </button>
-                      )}
+                  />
+                </div>
+
+                {/* Selector de Iconos para Objetos */}
+                {objCategory === 'object' && (
+                  <>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
+                        Icono Cerrado / Inactivo:
+                      </label>
+                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                        {POPULAR_OBJECT_ICONS.map(ic => (
+                          <button
+                            key={ic}
+                            type="button"
+                            onClick={() => setObjIcon(ic)}
+                            style={{
+                              padding: '4px 6px',
+                              borderRadius: '5px',
+                              border: objIcon === ic ? '1px solid #f59e0b' : '1px solid #283042',
+                              backgroundColor: objIcon === ic ? 'rgba(245, 158, 11, 0.2)' : '#131620',
+                              cursor: 'pointer',
+                              fontSize: '15px'
+                            }}
+                          >
+                            {ic}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="text"
+                        value={objIcon}
+                        onChange={(e) => setObjIcon(e.target.value)}
+                        placeholder="O escribe un emoji / símbolo libre"
+                        style={{
+                          width: '100%',
+                          padding: '5px 8px',
+                          backgroundColor: '#0c0e14',
+                          border: '1px solid #283042',
+                          color: '#f8fafc',
+                          borderRadius: '6px',
+                          fontSize: '12px'
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
+                        Icono Abierto / Activado:
+                      </label>
+                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                        {POPULAR_OPEN_ICONS.map(ic => (
+                          <button
+                            key={ic}
+                            type="button"
+                            onClick={() => setObjOpenIcon(ic)}
+                            style={{
+                              padding: '4px 6px',
+                              borderRadius: '5px',
+                              border: objOpenIcon === ic ? '1px solid #f59e0b' : '1px solid #283042',
+                              backgroundColor: objOpenIcon === ic ? 'rgba(245, 158, 11, 0.2)' : '#131620',
+                              cursor: 'pointer',
+                              fontSize: '15px'
+                            }}
+                          >
+                            {ic}
+                          </button>
+                        ))}
+                      </div>
+                      <input
+                        type="text"
+                        value={objOpenIcon}
+                        onChange={(e) => setObjOpenIcon(e.target.value)}
+                        placeholder="O escribe un emoji libre"
+                        style={{
+                          width: '100%',
+                          padding: '5px 8px',
+                          backgroundColor: '#0c0e14',
+                          border: '1px solid #283042',
+                          color: '#f8fafc',
+                          borderRadius: '6px',
+                          fontSize: '12px'
+                        }}
+                      />
+                    </div>
+
+                    {/* Dimensiones y Casillas */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
+                        Tamaño en Cuadrícula:
+                      </label>
+                      <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
+                        {[
+                          { label: '1x1 Casilla', w: 48, h: 48 },
+                          { label: '2x1 Grande', w: 96, h: 48 },
+                          { label: '2x2 Enorme', w: 96, h: 96 }
+                        ].map(preset => (
+                          <button
+                            key={preset.label}
+                            type="button"
+                            onClick={() => { setObjWidth(preset.w); setObjHeight(preset.h); }}
+                            className="vtt-brass-btn"
+                            style={{
+                              padding: '4px 8px',
+                              fontSize: '10px',
+                              borderRadius: '4px',
+                              cursor: 'pointer',
+                              borderColor: (objWidth === preset.w && objHeight === preset.h) ? '#f59e0b' : undefined,
+                              color: (objWidth === preset.w && objHeight === preset.h) ? '#fbbf24' : undefined
+                            }}
+                          >
+                            {preset.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Bloqueos Físicos */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: '#0d1017', padding: '8px 10px', borderRadius: '6px', border: '1px solid #232938' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '11px', color: '#e2e8f0' }}>
+                        <input
+                          type="checkbox"
+                          checked={objBlocksMove}
+                          onChange={(e) => setObjBlocksMove(e.target.checked)}
+                        />
+                        <span>🛡️ <strong>Bloquea Movimiento:</strong> Los tokens no pueden atravesarlo mientras esté cerrado.</span>
+                      </label>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '11px', color: '#e2e8f0' }}>
+                        <input
+                          type="checkbox"
+                          checked={objBlocksVision}
+                          onChange={(e) => setObjBlocksVision(e.target.checked)}
+                        />
+                        <span>👁️ <strong>Bloquea Visión:</strong> Proyecta sombra y oculta lo que hay detrás en la niebla.</span>
+                      </label>
+                    </div>
+
+                    {/* Notas secretas / Botín */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
+                        Notas Secretas o Botín inicial (Solo Máster):
+                      </label>
+                      <textarea
+                        value={objNotes}
+                        onChange={(e) => setObjNotes(e.target.value)}
+                        placeholder="Anota qué contiene, qué cerradura tiene o qué pistas revela..."
+                        style={{
+                          width: '100%',
+                          height: '60px',
+                          backgroundColor: '#0c0e14',
+                          border: '1px solid #283042',
+                          color: '#f8fafc',
+                          borderRadius: '6px',
+                          padding: '6px 8px',
+                          fontSize: '11px',
+                          resize: 'none'
+                        }}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Opciones Específicas de Luz */}
+                {objCategory === 'light' && (
+                  <>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
+                        Radio de Iluminación: <strong>{lightRadius}px</strong>
+                      </label>
+                      <input
+                        type="range"
+                        min="100"
+                        max="500"
+                        step="20"
+                        value={lightRadius}
+                        onChange={(e) => setLightRadius(Number(e.target.value))}
+                        style={{ width: '100%', cursor: 'pointer' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
+                        Tono del Haz de Luz:
+                      </label>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {[
+                          { color: '#f59e0b', label: 'Cálido' },
+                          { color: '#38bdf8', label: 'Etéreo' },
+                          { color: '#ef4444', label: 'Carmesí' },
+                          { color: '#a855f7', label: 'Arcano' },
+                          { color: '#f8fafc', label: 'Claro' }
+                        ].map(c => (
+                          <button
+                            key={c.color}
+                            type="button"
+                            onClick={() => setLightColor(c.color)}
+                            style={{
+                              width: '28px',
+                              height: '28px',
+                              borderRadius: '50%',
+                              backgroundColor: c.color,
+                              border: lightColor === c.color ? '3px solid #ffffff' : '2px solid #283042',
+                              boxShadow: lightColor === c.color ? `0 0 10px ${c.color}` : 'none',
+                              cursor: 'pointer'
+                            }}
+                            title={c.label}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Opciones Específicas de Puerta / Ventana */}
+                {(objCategory === 'door' || objCategory === 'window') && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
+                      Orientación Inicial:
+                    </label>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        type="button"
+                        onClick={() => { setObjWidth(60); setObjHeight(objCategory === 'door' ? 16 : 14); }}
+                        className="vtt-brass-btn"
+                        style={{
+                          flex: 1,
+                          padding: '6px',
+                          fontSize: '11px',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          borderColor: objWidth >= objHeight ? '#f59e0b' : undefined,
+                          color: objWidth >= objHeight ? '#fbbf24' : undefined
+                        }}
+                      >
+                        Horizontal (60x16)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setObjWidth(objCategory === 'door' ? 16 : 14); setObjHeight(60); }}
+                        className="vtt-brass-btn"
+                        style={{
+                          flex: 1,
+                          padding: '6px',
+                          fontSize: '11px',
+                          borderRadius: '5px',
+                          cursor: 'pointer',
+                          borderColor: objWidth < objHeight ? '#f59e0b' : undefined,
+                          color: objWidth < objHeight ? '#fbbf24' : undefined
+                        }}
+                      >
+                        Vertical (16x60)
+                      </button>
+                    </div>
+                    <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '6px', fontStyle: 'italic' }}>
+                      * Recuerda que siempre podrás girar la puerta o ventana 90º con clic derecho en el tablero.
                     </div>
                   </div>
-                ))}
-                {interactiveItemsOnBoard.length === 0 && (
-                  <div style={{ color: '#8a6d3b', fontSize: '12px', textAlign: 'center', marginTop: '14px', fontStyle: 'italic' }}>
-                    No hay objetos interactivos colocados en esta escena.
-                  </div>
                 )}
+
+                {/* Botonera de Acción */}
+                <div style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '8px' }}>
+                  <button
+                    type="button"
+                    onClick={handlePlaceNewObject}
+                    className="vtt-primary-cta"
+                    style={{ flex: 1, padding: '9px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    🎯 Colocar en el Tablero
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveToCatalog}
+                    className="vtt-brass-btn"
+                    style={{ padding: '9px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', borderColor: '#f59e0b', color: '#fbbf24' }}
+                    title="Guardar como plantilla permanente para reutilizar en cualquier momento"
+                  >
+                    ⭐ Guardar Plantilla
+                  </button>
+                </div>
               </div>
+            )}
+
+            {/* SUBPESTAÑA 2: ELEMENTOS ACTIVOS EN LA ESCENA */}
+            {objectsSubTab === 'scene' && (
+              <div className="vtt-wood-panel" style={{ padding: '12px 14px', borderRadius: '8px', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span className="vtt-gothic-title" style={{ fontSize: '12px', color: '#c5a059', fontWeight: 'bold' }}>
+                    Elementos en la Escena Activa ({interactiveItemsOnBoard.length})
+                  </span>
+                  <button
+                    onClick={() => { onClose(); openMapCreator(); }}
+                    style={{ background: 'none', border: 'none', color: '#fbbf24', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    Editor de Mapas
+                  </button>
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {interactiveItemsOnBoard.map(item => (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '6px 10px',
+                        backgroundColor: '#120b07',
+                        border: '1px solid #4a331d',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
+                        {item.type === 'light' ? (item.icon || '🔥') : item.type === 'door' ? '🚪' : item.type === 'window' ? '🪟' : (item.icon || '📦')}{' '}
+                        <strong>{item.name || item.type}</strong>
+                        {item.isLocked && <span style={{ marginLeft: '4px', fontSize: '10px' }}>🔒</span>}
+                      </span>
+                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+                        {item.type === 'object' && onInspectObject && (
+                          <button
+                            type="button"
+                            onClick={() => onInspectObject(item)}
+                            className="vtt-brass-btn"
+                            style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', borderColor: '#f59e0b', color: '#fbbf24' }}
+                            title="Editar notas, trampa y botín"
+                          >
+                            📝
+                          </button>
+                        )}
+                        {onToggleMapElementState && (
+                          <button
+                            type="button"
+                            onClick={() => onToggleMapElementState(item.id)}
+                            className="vtt-brass-btn"
+                            style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
+                          >
+                            {item.type === 'light'
+                              ? (item.isOn !== false ? 'Apagar' : 'Encender')
+                              : (item.isOpen ? 'Cerrar' : 'Abrir')}
+                          </button>
+                        )}
+                        {onRemoveMapElement && (
+                          <button
+                            type="button"
+                            onClick={() => onRemoveMapElement(item.id)}
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+                            title="Retirar del mapa"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {interactiveItemsOnBoard.length === 0 && (
+                    <div style={{ color: '#8a6d3b', fontSize: '12px', textAlign: 'center', marginTop: '20px', fontStyle: 'italic' }}>
+                      No hay objetos ni estructuras colocados en esta escena.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* SUBPESTAÑA 3: CATÁLOGO PERSONALIZADO DE PLANTILLAS */}
+            {objectsSubTab === 'catalog' && (
+              <div className="vtt-wood-panel" style={{ padding: '12px 14px', borderRadius: '8px', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span className="vtt-gothic-title" style={{ fontSize: '12px', color: '#c5a059', fontWeight: 'bold' }}>
+                    Plantillas Guardadas ({customObjects.length})
+                  </span>
+                  <button
+                    onClick={() => setObjectsSubTab('creator')}
+                    style={{ background: 'none', border: 'none', color: '#fbbf24', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
+                  >
+                    + Forjar Nueva
+                  </button>
+                </div>
+
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {customObjects.map(obj => (
+                    <div
+                      key={obj.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '6px 10px',
+                        backgroundColor: '#120b07',
+                        border: '1px solid #4a331d',
+                        borderRadius: '6px',
+                        fontSize: '12px'
+                      }}
+                    >
+                      <span>
+                        {obj.icon || '📦'} <strong>{obj.name || obj.label}</strong>
+                      </span>
+                      <div style={{ display: 'flex', gap: '5px' }}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (onAddMapElement) {
+                              onAddMapElement(obj);
+                              notify(`Colocando ${obj.name} en el tablero`);
+                              onClose();
+                            }
+                          }}
+                          className="vtt-primary-cta"
+                          style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
+                        >
+                          🎯 Colocar
+                        </button>
+                        {onDeleteCustomObject && (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteCustomObject(obj.id)}
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {customObjects.length === 0 && (
+                    <div style={{ color: '#8a6d3b', fontSize: '12px', textAlign: 'center', marginTop: '20px', fontStyle: 'italic' }}>
+                      No tienes plantillas personalizadas guardadas aún.
+                      <div style={{ marginTop: '8px' }}>
+                        <button
+                          type="button"
+                          onClick={() => setObjectsSubTab('creator')}
+                          className="vtt-brass-btn"
+                          style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
+                        >
+                          🛠️ Forjar Mi Primer Decorado
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PESTAÑA: OBJETOS DE INVENTARIO Y EQUIPO COMÚN (LOOT / PERTENENCIAS) */}
+        {activeTab === 'items' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflow: 'hidden' }}>
+            {/* Selector de Subpestañas */}
+            <div style={{ display: 'flex', gap: '6px', backgroundColor: '#0e1118', padding: '4px', borderRadius: '8px', border: '1px solid #262c3a' }}>
+              <button
+                type="button"
+                onClick={() => setItemsSubTab('catalog')}
+                style={{
+                  flex: 1,
+                  padding: '7px 4px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  backgroundColor: itemsSubTab === 'catalog' ? '#f59e0b' : 'transparent',
+                  color: itemsSubTab === 'catalog' ? '#0f1115' : '#94a3b8',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                📚 Catálogo Común ({commonItems.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setItemsSubTab('creator')}
+                style={{
+                  flex: 1,
+                  padding: '7px 4px',
+                  borderRadius: '6px',
+                  border: 'none',
+                  fontSize: '11px',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  backgroundColor: itemsSubTab === 'creator' ? '#f59e0b' : 'transparent',
+                  color: itemsSubTab === 'creator' ? '#0f1115' : '#94a3b8',
+                  transition: 'all 0.15s ease'
+                }}
+              >
+                🛠️ Forjar Nuevo Objeto
+              </button>
             </div>
+
+            {/* Banner de Destinatario: Turno Activo vs Selección Manual */}
+            {(() => {
+              const activeTurnToken = tokens.find(t => t.id === activeTurnTokenId) || null;
+              const effectiveRecipientId = selectedRecipientId || (activeTurnToken ? activeTurnToken.id : (tokens[0]?.id || characters[0]?.id || ''));
+              const effectiveRecipientName = (() => {
+                const foundT = tokens.find(t => t.id === effectiveRecipientId || t.characterId === effectiveRecipientId);
+                if (foundT) return foundT.name;
+                const foundC = characters.find(c => c.id === effectiveRecipientId);
+                return foundC ? foundC.name : 'Nadie seleccionado';
+              })();
+
+              return (
+                <div style={{
+                  padding: '8px 12px',
+                  backgroundColor: activeTurnToken ? 'rgba(245, 158, 11, 0.12)' : '#141824',
+                  border: activeTurnToken ? '1px solid #f59e0b' : '1px solid #2b3345',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '8px',
+                  flexShrink: 0
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                    <span style={{ fontSize: '15px' }}>{activeTurnToken ? '🎯' : '👤'}</span>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                      <span style={{ fontSize: '10px', color: activeTurnToken ? '#fbbf24' : '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                        {activeTurnToken ? 'Destinatario: Turno Activo' : 'Destinatario de Entrega:'}
+                      </span>
+                      <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: 700, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                        {effectiveRecipientName}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Selector rápido para cambiar destinatario si se desea */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <select
+                      value={effectiveRecipientId}
+                      onChange={(e) => setSelectedRecipientId(e.target.value)}
+                      style={{
+                        backgroundColor: '#0c0f17',
+                        color: '#cbd5e1',
+                        border: '1px solid #333d52',
+                        borderRadius: '6px',
+                        padding: '4px 8px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        outline: 'none',
+                        maxWidth: '150px'
+                      }}
+                      title="Elegir qué personaje recibe los objetos de inventario"
+                    >
+                      {tokens.length > 0 && (
+                        <optgroup label="En Tablero (Escena)">
+                          {tokens.map(t => (
+                            <option key={t.id} value={t.id}>
+                              {t.id === activeTurnTokenId ? '⭐ (Turno) ' : ''}{t.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {characters.length > 0 && (
+                        <optgroup label="Biblioteca de Personajes">
+                          {characters.map(c => (
+                            <option key={c.id} value={c.id}>
+                              {c.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* SUBPESTAÑA 1: CATÁLOGO DE OBJETOS COMUNES */}
+            {itemsSubTab === 'catalog' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflow: 'hidden' }}>
+                {/* Buscador de Objetos */}
+                <input
+                  type="text"
+                  value={itemSearchQuery}
+                  onChange={(e) => setItemSearchQuery(e.target.value)}
+                  placeholder="🔍 Buscar mechero, cuerda, linterna, botiquín..."
+                  style={{
+                    backgroundColor: '#121622',
+                    border: '1px solid #283042',
+                    borderRadius: '7px',
+                    padding: '7px 10px',
+                    color: '#f8fafc',
+                    fontSize: '12px',
+                    outline: 'none',
+                    flexShrink: 0
+                  }}
+                />
+
+                {/* Lista de Objetos con Scroll */}
+                <div style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px',
+                  paddingRight: '4px'
+                }}>
+                  {commonItems
+                    .filter(item => {
+                      if (!itemSearchQuery.trim()) return true;
+                      const q = itemSearchQuery.toLowerCase();
+                      return (
+                        item.name.toLowerCase().includes(q) ||
+                        (item.notes && item.notes.toLowerCase().includes(q)) ||
+                        (item.category && item.category.toLowerCase().includes(q))
+                      );
+                    })
+                    .map(item => {
+                      const activeTurnToken = tokens.find(t => t.id === activeTurnTokenId) || null;
+                      const targetId = selectedRecipientId || (activeTurnToken ? activeTurnToken.id : (tokens[0]?.id || characters[0]?.id || null));
+                      const isDefaultPreset = typeof item.id === 'string' && item.id.startsWith('item_');
+
+                      return (
+                        <div
+                          key={item.id}
+                          style={{
+                            backgroundColor: '#141824',
+                            border: '1px solid #252d3d',
+                            borderRadius: '8px',
+                            padding: '9px 12px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '6px',
+                            transition: 'border 0.15s ease'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
+                              <span style={{ fontSize: '18px', flexShrink: 0 }}>{item.icon || '📦'}</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                    {item.name}
+                                  </span>
+                                  {item.category && (
+                                    <span style={{
+                                      fontSize: '9px',
+                                      backgroundColor: '#1e2638',
+                                      color: '#93c5fd',
+                                      padding: '1px 5px',
+                                      borderRadius: '4px',
+                                      fontWeight: 600,
+                                      flexShrink: 0
+                                    }}>
+                                      {item.category}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Botones de Acción */}
+                            <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexShrink: 0 }}>
+                              {onPlaceGroundItem && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    onPlaceGroundItem(item);
+                                    onClose();
+                                  }}
+                                  className="vtt-brass-btn"
+                                  style={{
+                                    padding: '4px 8px',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    color: '#38bdf8',
+                                    borderColor: '#0284c7',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '3px'
+                                  }}
+                                  title="Colocar en el suelo del tablero para que los personajes puedan recogerlo"
+                                >
+                                  📍 Suelo
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => onGiveItemToCharacter && onGiveItemToCharacter(targetId, item)}
+                                className="vtt-brass-btn"
+                                style={{
+                                  padding: '4px 9px',
+                                  borderRadius: '6px',
+                                  fontSize: '11px',
+                                  fontWeight: 700,
+                                  cursor: 'pointer',
+                                  color: '#fbbf24',
+                                  borderColor: '#f59e0b',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                                title="Añadir inmediatamente al inventario del personaje seleccionado"
+                              >
+                                🎁 Entregar
+                              </button>
+                              {!isDefaultPreset && onDeleteCommonItem && (
+                                <button
+                                  type="button"
+                                  onClick={() => onDeleteCommonItem(item.id)}
+                                  style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    color: '#ef4444',
+                                    cursor: 'pointer',
+                                    fontSize: '12px',
+                                    padding: '2px 4px'
+                                  }}
+                                  title="Eliminar plantilla del catálogo"
+                                >
+                                  🗑️
+                                </button>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Notas / Descripción legible */}
+                          {item.notes && (
+                            <div style={{
+                              fontSize: '11px',
+                              color: '#94a3b8',
+                              backgroundColor: '#0c0f17',
+                              padding: '5px 8px',
+                              borderRadius: '5px',
+                              borderLeft: '2px solid #3b82f6',
+                              lineHeight: 1.35
+                            }}>
+                              {item.notes}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+
+            {/* SUBPESTAÑA 2: FORJAR NUEVO OBJETO DE INVENTARIO */}
+            {itemsSubTab === 'creator' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Nombre del Objeto:</label>
+                  <input
+                    type="text"
+                    value={commonItemName}
+                    onChange={(e) => setCommonItemName(e.target.value)}
+                    placeholder="Ej: Mechero de latón con iniciales / Cuerda de seda"
+                    style={{
+                      backgroundColor: '#121622',
+                      border: '1px solid #283042',
+                      borderRadius: '7px',
+                      padding: '8px 10px',
+                      color: '#f8fafc',
+                      fontSize: '12px',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+
+                {/* Selector de Icono Popular */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Icono:</label>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', backgroundColor: '#0e1118', padding: '6px', borderRadius: '7px', border: '1px solid #262c3a' }}>
+                    {POPULAR_ITEM_ICONS.map(ic => (
+                      <button
+                        key={ic}
+                        type="button"
+                        onClick={() => setCommonItemIcon(ic)}
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '5px',
+                          border: commonItemIcon === ic ? '1px solid #f59e0b' : '1px solid transparent',
+                          backgroundColor: commonItemIcon === ic ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
+                          fontSize: '14px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}
+                      >
+                        {ic}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Categoría y Estado en Inventario */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Categoría:</label>
+                    <select
+                      value={commonItemCategory}
+                      onChange={(e) => setCommonItemCategory(e.target.value)}
+                      style={{
+                        backgroundColor: '#121622',
+                        border: '1px solid #283042',
+                        borderRadius: '7px',
+                        padding: '7px 8px',
+                        color: '#f8fafc',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      {ITEM_CATEGORIES.map(cat => (
+                        <option key={cat} value={cat}>{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Ubicación en Ficha:</label>
+                    <select
+                      value={commonItemState}
+                      onChange={(e) => setCommonItemState(e.target.value)}
+                      style={{
+                        backgroundColor: '#121622',
+                        border: '1px solid #283042',
+                        borderRadius: '7px',
+                        padding: '7px 8px',
+                        color: '#f8fafc',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        outline: 'none'
+                      }}
+                    >
+                      <option value="equipped">Equipado (Llevado puesto)</option>
+                      <option value="hand">A mano (Cinturón / Bolsillo)</option>
+                      <option value="stored">Guardado (Mochila)</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Textarea de Notas / Descripción */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Notas, Pistas o Propiedades:</label>
+                  <textarea
+                    rows={3}
+                    value={commonItemNotes}
+                    onChange={(e) => setCommonItemNotes(e.target.value)}
+                    placeholder="Detalles sobre el objeto, pistas escritas, bonificaciones o efectos..."
+                    style={{
+                      backgroundColor: '#121622',
+                      border: '1px solid #283042',
+                      borderRadius: '7px',
+                      padding: '8px 10px',
+                      color: '#f8fafc',
+                      fontSize: '11px',
+                      resize: 'vertical',
+                      outline: 'none',
+                      lineHeight: 1.4
+                    }}
+                  />
+                </div>
+
+                {/* Botones de Guardar / Entregar */}
+                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!commonItemName.trim()) return;
+                      const activeTurnToken = tokens.find(t => t.id === activeTurnTokenId) || null;
+                      const targetId = selectedRecipientId || (activeTurnToken ? activeTurnToken.id : (tokens[0]?.id || characters[0]?.id || null));
+                      const itemObj = {
+                        id: `custom_item_${Date.now()}`,
+                        name: commonItemName.trim(),
+                        icon: commonItemIcon,
+                        category: commonItemCategory,
+                        state: commonItemState,
+                        notes: commonItemNotes.trim()
+                      };
+                      if (onGiveItemToCharacter) onGiveItemToCharacter(targetId, itemObj);
+                      setCommonItemName('');
+                      setCommonItemNotes('');
+                    }}
+                    disabled={!commonItemName.trim()}
+                    className="vtt-brass-btn"
+                    style={{
+                      flex: 1,
+                      padding: '9px 12px',
+                      borderRadius: '7px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: commonItemName.trim() ? 'pointer' : 'default',
+                      color: '#fbbf24',
+                      borderColor: '#f59e0b',
+                      opacity: commonItemName.trim() ? 1 : 0.4
+                    }}
+                  >
+                    🎁 Entregar al Personaje
+                  </button>
+
+                  {onPlaceGroundItem && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!commonItemName.trim()) return;
+                        const itemObj = {
+                          id: `custom_item_${Date.now()}`,
+                          name: commonItemName.trim(),
+                          icon: commonItemIcon,
+                          category: commonItemCategory,
+                          state: commonItemState,
+                          notes: commonItemNotes.trim()
+                        };
+                        onPlaceGroundItem(itemObj);
+                        setCommonItemName('');
+                        setCommonItemNotes('');
+                        onClose();
+                      }}
+                      disabled={!commonItemName.trim()}
+                      className="vtt-brass-btn"
+                      style={{
+                        flex: 1,
+                        padding: '9px 12px',
+                        borderRadius: '7px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        cursor: commonItemName.trim() ? 'pointer' : 'default',
+                        color: '#38bdf8',
+                        borderColor: '#0284c7',
+                        opacity: commonItemName.trim() ? 1 : 0.4
+                      }}
+                      title="Colocar directamente en el suelo del tablero"
+                    >
+                      📍 En Suelo
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!commonItemName.trim()) return;
+                      const itemObj = {
+                        id: `custom_item_${Date.now()}`,
+                        name: commonItemName.trim(),
+                        icon: commonItemIcon,
+                        category: commonItemCategory,
+                        state: commonItemState,
+                        notes: commonItemNotes.trim()
+                      };
+                      if (onSaveCommonItem) onSaveCommonItem(itemObj);
+                      setCommonItemName('');
+                      setCommonItemNotes('');
+                      setItemsSubTab('catalog');
+                    }}
+                    disabled={!commonItemName.trim()}
+                    className="vtt-brass-btn"
+                    style={{
+                      flex: 1,
+                      padding: '9px 12px',
+                      borderRadius: '7px',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      cursor: commonItemName.trim() ? 'pointer' : 'default',
+                      opacity: commonItemName.trim() ? 1 : 0.4
+                    }}
+                  >
+                    ⭐ Guardar en Catálogo
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

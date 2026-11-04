@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ENTITY_CLASSIFICATIONS, getClassificationMeta } from './EncyclopediaView';
 import { exportJSON, importJSON } from '../utils/fileDialog';
 
@@ -7,7 +7,7 @@ const DEFAULT_SPELLS = [
   { id: 'sp2', name: 'Curación Menor', cost: '4 MP', desc: 'Cierra heridas superficiales y restaura vitalidad.' }
 ];
 
-const CharacterSheetModal = ({ mode = 'create', initialData = null, onSave, onClose }) => {
+const CharacterSheetModal = ({ mode = 'create', initialData = null, onSave, onClose, onDropItemToFloor }) => {
   // Datos de Identidad
   const [firstName, setFirstName] = useState(() => {
     if (initialData?.firstName) return initialData.firstName;
@@ -40,17 +40,21 @@ const CharacterSheetModal = ({ mode = 'create', initialData = null, onSave, onCl
   const [hasArmor, setHasArmor] = useState(initialData?.hasArmor ?? Boolean(initialData?.armorType && initialData?.armorType !== 'Ninguna'));
   const [armorType, setArmorType] = useState(initialData?.armorType || 'Cuero tachonado');
   const [isGraveWound, setIsGraveWound] = useState(Boolean(initialData?.isGraveWound));
+  const [speed, setSpeed] = useState(initialData?.speed ?? 6);
 
   // Historia Personal y Notas
   const [history, setHistory] = useState(initialData?.history || '');
   const [notes, setNotes] = useState(initialData?.notes || '');
 
   // Inventario: 'equipped' (Llevado encima), 'hand' (A mano / Alrededores), 'stored' (No lo lleva encima / Guardado)
-  const [inventory, setInventory] = useState(initialData?.inventory || [
-    { id: 1, name: 'Linterna de aceite', state: 'equipped', notes: 'Encendida' },
-    { id: 2, name: 'Mochila de viaje', state: 'hand', notes: 'Dejada junto a la entrada' },
-    { id: 3, name: 'Raciones secas', state: 'stored', notes: 'En el campamento' }
-  ]);
+  const [inventory, setInventory] = useState(() => {
+    if (Array.isArray(initialData?.inventory)) return initialData.inventory;
+    return mode === 'create' ? [
+      { id: 1, name: 'Linterna de aceite', state: 'equipped', notes: 'Encendida' },
+      { id: 2, name: 'Mochila de viaje', state: 'hand', notes: 'Dejada junto a la entrada' },
+      { id: 3, name: 'Raciones secas', state: 'stored', notes: 'En el campamento' }
+    ] : [];
+  });
   const [newItemName, setNewItemName] = useState('');
   const [newItemState, setNewItemState] = useState('equipped');
 
@@ -62,6 +66,13 @@ const CharacterSheetModal = ({ mode = 'create', initialData = null, onSave, onCl
 
   const [activeTab, setActiveTab] = useState('stats');
   const [importNotice, setImportNotice] = useState(null);
+
+  // Sincronizar inventario y hechizos si initialData cambia
+  React.useEffect(() => {
+    if (initialData && Array.isArray(initialData.inventory)) {
+      setInventory(initialData.inventory);
+    }
+  }, [initialData?.inventory]);
 
   const avatarInputRef = useRef(null);
   const importCharInputRef = useRef(null);
@@ -108,6 +119,7 @@ const CharacterSheetModal = ({ mode = 'create', initialData = null, onSave, onCl
     hasArmor: Boolean(hasArmor),
     armorType: hasArmor ? (armorType.trim() || 'Armadura Ligera') : 'Ninguna',
     isGraveWound: Boolean(isGraveWound),
+    speed: Math.max(1, Number(speed) || 6),
     history,
     notes,
     inventory,
@@ -139,6 +151,7 @@ const CharacterSheetModal = ({ mode = 'create', initialData = null, onSave, onCl
     if (data.hasArmor !== undefined) setHasArmor(Boolean(data.hasArmor));
     if (data.armorType !== undefined) setArmorType(data.armorType);
     if (data.isGraveWound !== undefined) setIsGraveWound(Boolean(data.isGraveWound));
+    if (data.speed !== undefined) setSpeed(Number(data.speed) || 6);
 
     if (data.history !== undefined) setHistory(data.history);
     if (data.notes !== undefined) setNotes(data.notes);
@@ -628,6 +641,47 @@ const CharacterSheetModal = ({ mode = 'create', initialData = null, onSave, onCl
                   </div>
                 </div>
 
+                {/* Velocidad / Capacidad de Movimiento */}
+                <div style={{
+                  background: '#141822',
+                  border: '1px solid #262b38',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>🏃</span> Velocidad Base por Turno
+                    </div>
+                    <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                      Distancia máxima en combate ({speed * 5} ft / {(speed * 1.5).toFixed(1)} m). Con Herida Grave se reduce a {Math.max(1, Math.floor(speed / 2))} casillas.
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <input
+                      type="number"
+                      min="1"
+                      max="30"
+                      value={speed}
+                      onChange={(e) => setSpeed(Math.max(1, Number(e.target.value) || 1))}
+                      style={{
+                        width: '60px',
+                        padding: '6px 8px',
+                        backgroundColor: '#0e1017',
+                        border: '1px solid #333a4d',
+                        borderRadius: '6px',
+                        color: '#fbbf24',
+                        fontWeight: 700,
+                        fontSize: '13px',
+                        textAlign: 'center'
+                      }}
+                    />
+                    <span style={{ fontSize: '12px', color: '#cbd5e1', fontWeight: 600 }}>casillas</span>
+                  </div>
+                </div>
+
               </div>
             </div>
           )}
@@ -728,11 +782,37 @@ const CharacterSheetModal = ({ mode = 'create', initialData = null, onSave, onCl
                         );
                       })}
 
+                      {onDropItemToFloor && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onDropItemToFloor(initialData?.id, item);
+                            setInventory(inventory.filter(i => i.id !== item.id));
+                          }}
+                          className="vtt-brass-btn"
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '5px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            color: '#fca5a5',
+                            borderColor: 'rgba(239, 68, 68, 0.45)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}
+                          title="Descartar y dejar en el suelo del tablero"
+                        >
+                          🫳 Al suelo
+                        </button>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => setInventory(inventory.filter(i => i.id !== item.id))}
-                        style={{ marginLeft: '6px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
-                        title="Eliminar objeto"
+                        style={{ marginLeft: '4px', background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '14px' }}
+                        title="Eliminar objeto permanentemente"
                       >
                         ✕
                       </button>
@@ -856,7 +936,7 @@ const CharacterSheetModal = ({ mode = 'create', initialData = null, onSave, onCl
           alignItems: 'center'
         }}>
           <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-            {hasArmor ? `🛡️ Armadura: ${armorType}` : 'Sin armadura'} • {isGraveWound ? '🩸 CON HERIDA GRAVE' : 'Estado estable'}
+            {hasArmor ? `🛡️ Armadura: ${armorType}` : 'Sin armadura'} • {isGraveWound ? '🩸 CON HERIDA GRAVE' : 'Estado estable'} • 🏃 Movimiento: {speed} casillas ({speed * 5} ft)
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="button" onClick={onClose} className="vtt-brass-btn" style={{ padding: '9px 18px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>

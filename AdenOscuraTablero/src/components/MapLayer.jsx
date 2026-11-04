@@ -9,11 +9,19 @@ const MapLayer = ({
   fowEnabled = false,
   fowVisionRadius = 180,
   isPlayerView = false,
+  draggedMapElement = null,
+  onMapElementPointerDown,
+  onRotateMapElement,
+  onToggleMapElementLock,
+  onInspectObject,
+  onRemoveMapElement,
   onToggleDoor,
   onToggleWindow,
   onToggleObject,
   onToggleLight,
-  onProjectHandout
+  onProjectHandout,
+  activeTurnTokenId = null,
+  onPickUpItem
 }) => {
   const [readingNote, setReadingNote] = useState(null);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, item: null });
@@ -37,7 +45,7 @@ const MapLayer = ({
     const vis = {};
     for (let i = 0; i < maps.length; i++) {
       const element = maps[i];
-      if (element.type === 'note' || element.type === 'door' || element.type === 'window' || element.type === 'object' || element.type === 'light') {
+      if (element.type === 'note' || element.type === 'door' || element.type === 'window' || element.type === 'object' || element.type === 'light' || element.type === 'item') {
         const centerX = element.x + ((element.width || 40) / 2);
         const centerY = element.y + ((element.height || 40) / 2);
         vis[element.id] = isPointVisibleToPlayers(centerX, centerY, tokens, maps, fowVisionRadius);
@@ -96,6 +104,8 @@ const MapLayer = ({
             return null;
           }
 
+          const isDragging = draggedMapElement === element.id;
+
           return (
             <div
               key={element.id}
@@ -106,7 +116,13 @@ const MapLayer = ({
                 setContextMenu({ visible: true, x: e.clientX, y: e.clientY, item: element });
               }}
               onPointerDown={(e) => {
-                if (e.button === 2 && !isPlayerView) e.stopPropagation();
+                if (isPlayerView) return;
+                if (e.button === 0 && !element.isLocked) {
+                  e.stopPropagation();
+                  if (onMapElementPointerDown) onMapElementPointerDown(e, element);
+                } else if (e.button === 2) {
+                  e.stopPropagation();
+                }
               }}
               style={{
                 position: 'absolute',
@@ -117,28 +133,40 @@ const MapLayer = ({
                 background: element.isOpen
                   ? 'radial-gradient(circle, rgba(20, 83, 45, 0.75) 0%, rgba(5, 46, 22, 0.85) 100%)'
                   : 'radial-gradient(circle, #3a2618 0%, #170f0a 100%)',
-                border: element.isOpen ? '2px solid #4ade80' : '2px solid #d4af37',
+                border: isDragging
+                  ? '2px dashed #fbbf24'
+                  : (element.isOpen ? '2px solid #4ade80' : '2px solid #d4af37'),
                 borderRadius: '8px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: isPlayerView ? 'default' : 'context-menu',
-                boxShadow: '0 6px 14px rgba(0,0,0,0.85)',
-                zIndex: 6,
+                cursor: isPlayerView ? 'default' : (element.isLocked ? 'pointer' : (isDragging ? 'grabbing' : 'grab')),
+                boxShadow: isDragging ? '0 10px 25px rgba(245, 158, 11, 0.6)' : '0 6px 14px rgba(0,0,0,0.85)',
+                zIndex: isDragging ? 1000 : 6,
                 fontSize: '22px',
-                transition: 'all 0.2s'
+                userSelect: 'none',
+                opacity: isDragging ? 0.85 : 1,
+                transition: isDragging ? 'none' : 'border 0.2s, box-shadow 0.2s'
               }}
-              title={`${element.name || 'Objeto'} (${element.isOpen ? 'Abierto/Activado' : 'Cerrado'} - Clic derecho para interactuar)`}
+              title={`${element.name || 'Objeto'} (${element.isOpen ? 'Abierto' : 'Cerrado'}${element.isLocked ? ' 🔒' : ''} - Arrastra para mover o clic derecho)`}
             >
               {element.isOpen ? (element.openIcon || '🪙') : (element.icon || '📦')}
+              {!isPlayerView && element.isLocked && (
+                <span style={{ position: 'absolute', top: -4, right: -4, fontSize: '10px' }} title="Posición bloqueada">🔒</span>
+              )}
+              {!isPlayerView && (element.notes || element.linkedHandoutId || element.customClueText) && (
+                <span style={{ position: 'absolute', bottom: -4, right: -4, fontSize: '10px' }} title="Tiene notas o pistas asociadas">📜</span>
+              )}
             </div>
           );
         }
 
-        if (element.type === 'light') {
-          if (isPlayerView && !element.isOn && fowEnabled && !visibleElements[element.id]) {
+        if (element.type === 'item') {
+          if (isPlayerView && fowEnabled && !visibleElements[element.id]) {
             return null;
           }
+
+          const isDragging = draggedMapElement === element.id;
 
           return (
             <div
@@ -150,7 +178,91 @@ const MapLayer = ({
                 setContextMenu({ visible: true, x: e.clientX, y: e.clientY, item: element });
               }}
               onPointerDown={(e) => {
-                if (e.button === 2 && !isPlayerView) e.stopPropagation();
+                if (isPlayerView) return;
+                if (e.button === 0 && !element.isLocked) {
+                  e.stopPropagation();
+                  if (onMapElementPointerDown) onMapElementPointerDown(e, element);
+                } else if (e.button === 2) {
+                  e.stopPropagation();
+                }
+              }}
+              style={{
+                position: 'absolute',
+                left: `${element.x}px`,
+                top: `${element.y}px`,
+                width: `${element.width || 38}px`,
+                height: `${element.height || 38}px`,
+                background: 'radial-gradient(circle, rgba(245, 158, 11, 0.28) 0%, rgba(20, 15, 10, 0.95) 100%)',
+                border: isDragging
+                  ? '2px dashed #fbbf24'
+                  : '1.5px solid #d4af37',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: isPlayerView ? 'default' : (element.isLocked ? 'pointer' : (isDragging ? 'grabbing' : 'grab')),
+                boxShadow: isDragging
+                  ? '0 10px 25px rgba(245, 158, 11, 0.6)'
+                  : '0 4px 12px rgba(0,0,0,0.85), 0 0 10px rgba(245, 158, 11, 0.35)',
+                zIndex: isDragging ? 1000 : 6,
+                fontSize: '18px',
+                userSelect: 'none',
+                opacity: isDragging ? 0.85 : 1,
+                transition: isDragging ? 'none' : 'border 0.2s, box-shadow 0.2s'
+              }}
+              title={`${element.name || 'Objeto'} en el suelo (${element.isLocked ? '🔒 Bloqueado - ' : ''}Arrastra para mover o clic derecho para coger)`}
+            >
+              {element.icon || '📦'}
+              {!isPlayerView && element.isLocked && (
+                <span style={{ position: 'absolute', top: -3, right: -3, fontSize: '9px' }} title="Posición bloqueada">🔒</span>
+              )}
+              {/* Etiqueta flotante con el nombre del objeto */}
+              <div style={{
+                position: 'absolute',
+                bottom: '-16px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                backgroundColor: 'rgba(10, 12, 18, 0.88)',
+                color: '#fef08a',
+                fontSize: '9px',
+                fontWeight: 700,
+                padding: '1px 5px',
+                borderRadius: '4px',
+                border: '1px solid rgba(245, 158, 11, 0.4)',
+                whiteSpace: 'nowrap',
+                pointerEvents: 'none',
+                boxShadow: '0 2px 5px rgba(0,0,0,0.8)'
+              }}>
+                {element.name}
+              </div>
+            </div>
+          );
+        }
+
+        if (element.type === 'light') {
+          if (isPlayerView && !element.isOn && fowEnabled && !visibleElements[element.id]) {
+            return null;
+          }
+
+          const isDragging = draggedMapElement === element.id;
+
+          return (
+            <div
+              key={element.id}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isPlayerView) return;
+                setContextMenu({ visible: true, x: e.clientX, y: e.clientY, item: element });
+              }}
+              onPointerDown={(e) => {
+                if (isPlayerView) return;
+                if (e.button === 0 && !element.isLocked) {
+                  e.stopPropagation();
+                  if (onMapElementPointerDown) onMapElementPointerDown(e, element);
+                } else if (e.button === 2) {
+                  e.stopPropagation();
+                }
               }}
               style={{
                 position: 'absolute',
@@ -162,19 +274,25 @@ const MapLayer = ({
                 background: element.isOn !== false
                   ? 'radial-gradient(circle, #b45309 0%, #261810 100%)'
                   : '#140c08',
-                border: element.isOn !== false ? '2px solid #fbbf24' : '2px dashed #6b4c2b',
+                border: isDragging
+                  ? '2px dashed #fbbf24'
+                  : (element.isOn !== false ? '2px solid #fbbf24' : '2px dashed #6b4c2b'),
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: isPlayerView ? 'default' : 'context-menu',
+                cursor: isPlayerView ? 'default' : (element.isLocked ? 'pointer' : (isDragging ? 'grabbing' : 'grab')),
                 boxShadow: element.isOn !== false ? '0 0 20px rgba(251, 191, 36, 0.9)' : 'none',
                 opacity: element.isOn !== false ? 1 : 0.55,
-                zIndex: 7,
-                fontSize: '18px'
+                zIndex: isDragging ? 1000 : 7,
+                fontSize: '18px',
+                userSelect: 'none'
               }}
-              title={`${element.name || 'Fuente de Luz'} (${element.isOn !== false ? 'Encendida' : 'Apagada'} - Clic derecho para encender/apagar)`}
+              title={`${element.name || 'Fuente de Luz'} (${element.isOn !== false ? 'Encendida' : 'Apagada'}${element.isLocked ? ' 🔒' : ''} - Arrastra para mover o clic derecho)`}
             >
               {element.isOn !== false ? (element.icon || '🔥') : '🌑'}
+              {!isPlayerView && element.isLocked && (
+                <span style={{ position: 'absolute', top: -4, right: -4, fontSize: '9px' }} title="Posición bloqueada">🔒</span>
+              )}
             </div>
           );
         }
@@ -183,6 +301,8 @@ const MapLayer = ({
           if (isPlayerView && fowEnabled && !visibleElements[element.id]) {
             return null;
           }
+
+          const isDragging = draggedMapElement === element.id;
 
           return (
             <div
@@ -194,7 +314,13 @@ const MapLayer = ({
                 setContextMenu({ visible: true, x: e.clientX, y: e.clientY, item: element });
               }}
               onPointerDown={(e) => {
-                if (e.button === 2 && !isPlayerView) e.stopPropagation();
+                if (isPlayerView) return;
+                if (e.button === 0 && !element.isLocked) {
+                  e.stopPropagation();
+                  if (onMapElementPointerDown) onMapElementPointerDown(e, element);
+                } else if (e.button === 2) {
+                  e.stopPropagation();
+                }
               }}
               style={{
                 position: 'absolute',
@@ -205,20 +331,26 @@ const MapLayer = ({
                 background: element.isOpen
                   ? 'rgba(16, 185, 129, 0.22)'
                   : 'linear-gradient(90deg, #451a03 0%, #78350f 50%, #451a03 100%)',
-                border: element.isOpen ? '2px dashed #34d399' : '2px solid #d4af37',
+                border: isDragging
+                  ? '2px dashed #fbbf24'
+                  : (element.isOpen ? '2px dashed #34d399' : '2px solid #d4af37'),
                 borderRadius: '4px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: isPlayerView ? 'default' : 'context-menu',
-                boxShadow: element.isOpen ? 'none' : '0 4px 12px rgba(0,0,0,0.85)',
-                zIndex: 6,
+                cursor: isPlayerView ? 'default' : (element.isLocked ? 'pointer' : (isDragging ? 'grabbing' : 'grab')),
+                boxShadow: isDragging ? '0 10px 25px rgba(245, 158, 11, 0.6)' : (element.isOpen ? 'none' : '0 4px 12px rgba(0,0,0,0.85)'),
+                zIndex: isDragging ? 1000 : 6,
                 fontSize: '12px',
-                transition: 'all 0.2s'
+                userSelect: 'none',
+                transition: isDragging ? 'none' : 'all 0.2s'
               }}
-              title={element.isOpen ? 'Puerta Abierta (Clic derecho para cerrar)' : 'Puerta Cerrada (Bloquea paso y visión. Clic derecho para abrir)'}
+              title={element.isOpen ? 'Puerta Abierta (Arrastra para mover o clic derecho)' : 'Puerta Cerrada (Arrastra para mover o clic derecho)'}
             >
               {element.isOpen ? '🔓' : '🚪'}
+              {!isPlayerView && element.isLocked && (
+                <span style={{ position: 'absolute', top: -3, right: -3, fontSize: '9px' }}>🔒</span>
+              )}
             </div>
           );
         }
@@ -227,6 +359,8 @@ const MapLayer = ({
           if (isPlayerView && fowEnabled && !visibleElements[element.id]) {
             return null;
           }
+
+          const isDragging = draggedMapElement === element.id;
 
           return (
             <div
@@ -238,7 +372,13 @@ const MapLayer = ({
                 setContextMenu({ visible: true, x: e.clientX, y: e.clientY, item: element });
               }}
               onPointerDown={(e) => {
-                if (e.button === 2 && !isPlayerView) e.stopPropagation();
+                if (isPlayerView) return;
+                if (e.button === 0 && !element.isLocked) {
+                  e.stopPropagation();
+                  if (onMapElementPointerDown) onMapElementPointerDown(e, element);
+                } else if (e.button === 2) {
+                  e.stopPropagation();
+                }
               }}
               style={{
                 position: 'absolute',
@@ -249,20 +389,26 @@ const MapLayer = ({
                 background: element.isOpen
                   ? 'rgba(56, 189, 248, 0.15)'
                   : 'linear-gradient(90deg, rgba(14, 116, 144, 0.75) 0%, rgba(186, 230, 253, 0.85) 50%, rgba(14, 116, 144, 0.75) 100%)',
-                border: element.isOpen ? '2px dashed #7dd3fc' : '2px solid #38bdf8',
+                border: isDragging
+                  ? '2px dashed #fbbf24'
+                  : (element.isOpen ? '2px dashed #7dd3fc' : '2px solid #38bdf8'),
                 borderRadius: '4px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                cursor: isPlayerView ? 'default' : 'context-menu',
-                boxShadow: element.isOpen ? 'none' : '0 0 10px rgba(56, 189, 248, 0.45)',
-                zIndex: 6,
+                cursor: isPlayerView ? 'default' : (element.isLocked ? 'pointer' : (isDragging ? 'grabbing' : 'grab')),
+                boxShadow: isDragging ? '0 10px 25px rgba(245, 158, 11, 0.6)' : (element.isOpen ? 'none' : '0 0 10px rgba(56, 189, 248, 0.45)'),
+                zIndex: isDragging ? 1000 : 6,
                 fontSize: '11px',
-                transition: 'all 0.2s'
+                userSelect: 'none',
+                transition: isDragging ? 'none' : 'all 0.2s'
               }}
-              title={element.isOpen ? 'Ventana Abierta / Rota (Permite paso)' : 'Ventana Cerrada (Permite visión, bloquea paso. Clic derecho para abrir/romper)'}
+              title={element.isOpen ? 'Ventana Abierta / Rota (Arrastra para mover o clic derecho)' : 'Ventana Cerrada (Arrastra para mover o clic derecho)'}
             >
               {element.isBroken ? '💥' : (element.isOpen ? '🌬️' : '🪟')}
+              {!isPlayerView && element.isLocked && (
+                <span style={{ position: 'absolute', top: -3, right: -3, fontSize: '9px' }}>🔒</span>
+              )}
             </div>
           );
         }
@@ -303,7 +449,7 @@ const MapLayer = ({
             display: 'flex',
             flexDirection: 'column',
             gap: '8px',
-            minWidth: '185px',
+            minWidth: '195px',
             color: '#e6d5b8'
           }}
         >
@@ -314,8 +460,100 @@ const MapLayer = ({
               ? 'Control de Ventana'
               : contextMenu.item.type === 'light'
               ? `${contextMenu.item.name || 'Fuente de Luz'}`
-              : `${contextMenu.item.name || 'Objeto Interactivo'}`}
+              : contextMenu.item.type === 'item'
+              ? `📦 ${contextMenu.item.name || 'Objeto en el Suelo'}`
+              : `${contextMenu.item.name || 'Objeto / Decorado'}`}
           </div>
+
+          {/* Opciones para Items en el Suelo */}
+          {contextMenu.item.type === 'item' && (
+            <>
+              {(() => {
+                const activeTurnToken = tokens.find(t => t.id === activeTurnTokenId) || null;
+                const recipientToken = activeTurnToken || (tokens.length === 1 ? tokens[0] : null);
+
+                return (
+                  <>
+                    <button
+                      onClick={() => {
+                        const targetId = recipientToken ? recipientToken.id : null;
+                        if (onPickUpItem) onPickUpItem(contextMenu.item, targetId);
+                        setContextMenu({ visible: false, x: 0, y: 0, item: null });
+                      }}
+                      className="vtt-primary-cta"
+                      style={{
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        fontSize: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '6px'
+                      }}
+                    >
+                      <span>🤲</span>
+                      <span>
+                        {recipientToken ? `Coger ➔ ${recipientToken.name}` : 'Coger Objeto'}
+                      </span>
+                    </button>
+
+                    {/* Si hay varios personajes, permitir elegir quién lo recoge */}
+                    {tokens.length > 1 && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '2px' }}>
+                        <span style={{ fontSize: '10px', color: '#94a3b8', paddingLeft: '4px' }}>O coger con otro:</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxHeight: '120px', overflowY: 'auto' }}>
+                          {tokens.filter(t => t.id !== recipientToken?.id).map(tok => (
+                            <button
+                              key={tok.id}
+                              onClick={() => {
+                                if (onPickUpItem) onPickUpItem(contextMenu.item, tok.id);
+                                setContextMenu({ visible: false, x: 0, y: 0, item: null });
+                              }}
+                              className="vtt-brass-btn"
+                              style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '4px', textAlign: 'left', cursor: 'pointer' }}
+                            >
+                              🤲 {tok.name}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
+
+              {/* Ver notas del objeto si tiene */}
+              {contextMenu.item.notes && (
+                <div style={{
+                  fontSize: '11px',
+                  color: '#cbd5e1',
+                  backgroundColor: 'rgba(0,0,0,0.45)',
+                  padding: '6px 8px',
+                  borderRadius: '5px',
+                  borderLeft: '2px solid #f59e0b',
+                  lineHeight: 1.35
+                }}>
+                  {contextMenu.item.notes}
+                </div>
+              )}
+            </>
+          )}
+
+          {/* Giro de 90 grados para puertas y ventanas */}
+          {(contextMenu.item.type === 'door' || contextMenu.item.type === 'window') && onRotateMapElement && (
+            <button
+              onClick={() => {
+                onRotateMapElement(contextMenu.item.id);
+                setContextMenu({ visible: false, x: 0, y: 0, item: null });
+              }}
+              className="vtt-brass-btn"
+              style={{ padding: '7px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', color: '#38bdf8' }}
+            >
+              🔄 Girar 90º ({contextMenu.item.width < contextMenu.item.height ? 'A Horizontal' : 'A Vertical'})
+            </button>
+          )}
 
           {contextMenu.item.type === 'door' && (
             <button
@@ -367,16 +605,52 @@ const MapLayer = ({
           )}
 
           {contextMenu.item.type === 'object' && (
-            <button
-              onClick={() => {
-                if (onToggleObject) onToggleObject(contextMenu.item.id);
-                setContextMenu({ visible: false, x: 0, y: 0, item: null });
-              }}
-              className="vtt-brass-btn"
-              style={{ padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-            >
-              {contextMenu.item.isOpen ? 'Cerrar / Reiniciar' : 'Abrir / Activar'}
-            </button>
+            <>
+              <button
+                onClick={() => {
+                  if (onToggleObject) onToggleObject(contextMenu.item.id);
+                  setContextMenu({ visible: false, x: 0, y: 0, item: null });
+                }}
+                className="vtt-brass-btn"
+                style={{ padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
+              >
+                {contextMenu.item.isOpen ? 'Cerrar / Reiniciar' : 'Abrir / Activar'}
+              </button>
+
+              {onInspectObject && (
+                <button
+                  onClick={() => {
+                    onInspectObject(contextMenu.item);
+                    setContextMenu({ visible: false, x: 0, y: 0, item: null });
+                  }}
+                  className="vtt-brass-btn"
+                  style={{ padding: '7px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', borderColor: '#f59e0b', color: '#fbbf24' }}
+                >
+                  📝 Notas & Pistas del Objeto
+                </button>
+              )}
+
+              {(contextMenu.item.customClueText || contextMenu.item.linkedHandoutId) && onProjectHandout && (
+                <button
+                  onClick={() => {
+                    if (contextMenu.item.linkedHandoutId) {
+                      onProjectHandout({ id: contextMenu.item.linkedHandoutId });
+                    } else if (contextMenu.item.customClueText) {
+                      onProjectHandout({
+                        type: 'note',
+                        title: `Pista: ${contextMenu.item.name || 'Objeto'}`,
+                        content: contextMenu.item.customClueText
+                      });
+                    }
+                    setContextMenu({ visible: false, x: 0, y: 0, item: null });
+                  }}
+                  className="vtt-primary-cta"
+                  style={{ padding: '7px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
+                >
+                  👁️ Desvelar Pista a Jugadores
+                </button>
+              )}
+            </>
           )}
 
           {contextMenu.item.type === 'light' && (
@@ -389,6 +663,43 @@ const MapLayer = ({
               style={{ padding: '8px 12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
             >
               {contextMenu.item.isOn !== false ? 'Apagar Luz' : 'Encender Luz'}
+            </button>
+          )}
+
+          {/* Bloquear / Desbloquear posición */}
+          {onToggleMapElementLock && (
+            <button
+              onClick={() => {
+                onToggleMapElementLock(contextMenu.item.id);
+                setContextMenu({ visible: false, x: 0, y: 0, item: null });
+              }}
+              className="vtt-brass-btn"
+              style={{ padding: '7px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
+            >
+              {contextMenu.item.isLocked ? '🔓 Desbloquear posición' : '🔒 Bloquear posición'}
+            </button>
+          )}
+
+          {/* Retirar de la escena */}
+          {onRemoveMapElement && (
+            <button
+              onClick={() => {
+                onRemoveMapElement(contextMenu.item.id);
+                setContextMenu({ visible: false, x: 0, y: 0, item: null });
+              }}
+              style={{
+                backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.35)',
+                color: '#fca5a5',
+                padding: '7px 12px',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 600,
+                marginTop: '4px'
+              }}
+            >
+              🗑️ Retirar de la Escena
             </button>
           )}
         </div>,

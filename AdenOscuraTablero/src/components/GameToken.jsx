@@ -322,29 +322,6 @@ const GameToken = ({
         </div>
       )}
 
-      {isActiveTurn && (
-        <div
-          style={{
-            position: 'absolute',
-            top: '-10px',
-            right: '-10px',
-            backgroundColor: '#fbbf24',
-            color: '#0f1115',
-            borderRadius: '999px',
-            padding: '1px 5px',
-            fontSize: '11px',
-            fontWeight: 900,
-            boxShadow: '0 0 12px #fbbf24',
-            zIndex: 35,
-            pointerEvents: 'none',
-            userSelect: 'none',
-            border: '1px solid #ffffff'
-          }}
-          title="Turno Activo"
-        >
-          ⚔️
-        </div>
-      )}
       {menuState.visible && createPortal(
         <div 
           ref={menuRef}
