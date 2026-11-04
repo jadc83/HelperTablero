@@ -1,0 +1,62 @@
+name: Compilar Instalador Windows (.msi)
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build-tauri:
+    runs-on: windows-latest
+
+    defaults:
+      run:
+        working-directory: ./AdenOscuraTablero
+
+    steps:
+      - name: Clonar repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: AdenOscuraTablero/package-lock.json
+
+      - name: Verificar Node.js
+        shell: pwsh
+        run: |
+          Write-Host "Version de Node:"
+          node --version
+          Write-Host "Ubicacion de Node:"
+          Get-Command node | Select-Object Source
+          Write-Host "Version de npm:"
+          npm --version
+
+      - name: Configurar Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Instalar Tauri CLI
+        run: npm install -g @tauri-apps/cli@v2
+
+      - name: Verificar Node antes de compilar
+        shell: pwsh
+        run: |
+          node --version
+          Get-Command node | Select-Object Source
+
+      - name: Compilar instalador Windows
+        run: tauri build
+
+      - name: Publicar instalador Windows
+        uses: actions/upload-artifact@v4
+        with:
+          name: AdenOscuraTablero-Windows-Bundle
+          path: |
+            AdenOscuraTablero/src-tauri/target/release/bundle/msi/*.msi
+            AdenOscuraTablero/src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: warn
