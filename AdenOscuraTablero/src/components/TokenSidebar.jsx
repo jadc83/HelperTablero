@@ -746,63 +746,6 @@ const TokenSidebar = ({
       {activeMainTab === 'scene' && (
         <div style={{ padding: '12px 10px', flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         
-        {/* Cabecera de Combatientes con botón Plegar/Abrir Todos */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '10px',
-          padding: '6px 8px',
-          background: '#0d1017',
-          borderRadius: '6px',
-          border: '1px solid #202737',
-          flexShrink: 0
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              En Juego
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
-            {onOpenGraveyard && (
-              <button
-                type="button"
-                onClick={onOpenGraveyard}
-                className="vtt-brass-btn"
-                style={{ padding: '3px 7px', fontSize: '10px', borderRadius: '4px', cursor: 'pointer', color: '#cbd5e1' }}
-                title="Abrir Cripta y Cementerio de Caídos"
-              >
-                Cripta
-              </button>
-            )}
-            {tokens.length > 0 && (
-              <button
-                type="button"
-                onClick={expandedTokenIds.size > 0 ? collapseAll : expandAll}
-                className="vtt-brass-btn"
-                style={{
-                  width: '24px',
-                  height: '24px',
-                  padding: 0,
-                  fontSize: '10px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  background: expandedTokenIds.size > 0 ? 'rgba(245, 158, 11, 0.15)' : '#191f2c',
-                  border: expandedTokenIds.size > 0 ? '1px solid #f59e0b' : '1px solid #2a3449',
-                  color: expandedTokenIds.size > 0 ? '#fbbf24' : '#94a3b8'
-                }}
-                title={expandedTokenIds.size > 0 ? "Cerrar todas las tarjetas" : "Abrir todas las tarjetas"}
-              >
-                {expandedTokenIds.size > 0 ? '▲' : '▼'}
-              </button>
-            )}
-          </div>
-        </div>
-
         {/* Barra de Gestión de Turnos e Iniciativa */}
         {tokens.length > 1 && (
           <div style={{
@@ -902,6 +845,40 @@ const TokenSidebar = ({
                 Pulsa <strong style={{ color: '#fbbf24' }}>▶ Iniciar</strong> para comenzar el combate y activar el límite de movimiento por turno.
               </span>
             )}
+          </div>
+        )}
+
+        {/* Botón para abrir y cerrar desplegables de personajes */}
+        {tokens.length > 0 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            marginBottom: '8px',
+            paddingRight: '2px'
+          }}>
+            <button
+              type="button"
+              onClick={expandedTokenIds.size > 0 ? collapseAll : expandAll}
+              className="vtt-brass-btn"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '5px',
+                padding: '3px 8px',
+                fontSize: '10px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                background: expandedTokenIds.size > 0 ? 'rgba(245, 158, 11, 0.15)' : '#131620',
+                border: expandedTokenIds.size > 0 ? '1px solid #f59e0b' : '1px solid #282f3f',
+                color: expandedTokenIds.size > 0 ? '#fbbf24' : '#94a3b8',
+                fontWeight: 600
+              }}
+              title={expandedTokenIds.size > 0 ? "Plegar todas las fichas de personajes" : "Desplegar todas las fichas de personajes"}
+            >
+              <span>{expandedTokenIds.size > 0 ? 'Plegar fichas' : 'Desplegar fichas'}</span>
+              <span style={{ fontSize: '8px' }}>{expandedTokenIds.size > 0 ? '▲' : '▼'}</span>
+            </button>
           </div>
         )}
         
@@ -1682,15 +1659,19 @@ const TokenSidebar = ({
                             type="button"
                             onClick={() => onUpdateTokenVisionMode && onUpdateTokenVisionMode(token.id, 'cone')}
                             style={{
-                              backgroundColor: token.visionMode === 'cone' ? '#d97706' : '#141824',
-                              border: token.visionMode === 'cone' ? '1px solid #f59e0b' : '1px solid #232836',
+                              backgroundColor: token.visionMode === 'cone' ? '#2a1a08' : '#141824',
+                              background: token.visionMode === 'cone'
+                                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                                : '#141824',
+                              border: token.visionMode === 'cone' ? '1.5px solid #f59e0b' : '1px solid #232836',
                               borderRadius: '6px',
-                              color: token.visionMode === 'cone' ? '#ffffff' : '#94a3b8',
+                              color: token.visionMode === 'cone' ? '#fbbf24' : '#94a3b8',
                               cursor: 'pointer',
                               fontSize: '11px',
                               padding: '5px 4px',
                               fontWeight: 700,
                               textAlign: 'center',
+                              boxShadow: token.visionMode === 'cone' ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none',
                               transition: 'all 0.15s ease'
                             }}
                           >
@@ -1700,15 +1681,19 @@ const TokenSidebar = ({
                             type="button"
                             onClick={() => onUpdateTokenVisionMode && onUpdateTokenVisionMode(token.id, 'circle')}
                             style={{
-                              backgroundColor: token.visionMode !== 'cone' ? '#d97706' : '#141824',
-                              border: token.visionMode !== 'cone' ? '1px solid #f59e0b' : '1px solid #232836',
+                              backgroundColor: token.visionMode !== 'cone' ? '#2a1a08' : '#141824',
+                              background: token.visionMode !== 'cone'
+                                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                                : '#141824',
+                              border: token.visionMode !== 'cone' ? '1.5px solid #f59e0b' : '1px solid #232836',
                               borderRadius: '6px',
-                              color: token.visionMode !== 'cone' ? '#ffffff' : '#94a3b8',
+                              color: token.visionMode !== 'cone' ? '#fbbf24' : '#94a3b8',
                               cursor: 'pointer',
                               fontSize: '11px',
                               padding: '5px 4px',
                               fontWeight: 700,
                               textAlign: 'center',
+                              boxShadow: token.visionMode !== 'cone' ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none',
                               transition: 'all 0.15s ease'
                             }}
                           >

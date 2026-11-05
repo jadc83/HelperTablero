@@ -514,15 +514,19 @@ const GameToken = ({
                     if (onToggleStatus) onToggleStatus(token.id, status.id);
                   }}
                   style={{
-                    background: isActive ? '#d97706' : '#161a25',
-                    border: isActive ? '1px solid #f59e0b' : '1px solid #262e3f',
+                    backgroundColor: isActive ? '#2a1a08' : '#161a25',
+                    background: isActive
+                      ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(180, 83, 9, 0.5) 100%)'
+                      : '#161a25',
+                    border: isActive ? '1.5px solid #f59e0b' : '1px solid #262e3f',
                     borderRadius: '4px',
                     padding: isImage ? '2px' : '4px 6px',
                     cursor: 'pointer',
                     fontSize: '15px',
                     display: 'flex',
                     alignItems: 'center',
-                    justifyContent: 'center'
+                    justifyContent: 'center',
+                    boxShadow: isActive ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none'
                   }}
                   title={status.label}
                 >

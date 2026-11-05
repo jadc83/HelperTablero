@@ -336,18 +336,27 @@ const CharacterSheetModal = ({
           maxWidth: '96vw',
           height: '88vh',
           borderRadius: '16px',
-          border: '1px solid #3b4254',
+          border: '1.5px solid #4a3820',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          boxShadow: '0 25px 70px rgba(0,0,0,0.95)'
+          boxShadow: '0 25px 70px rgba(0,0,0,0.95)',
+          backgroundColor: '#121620',
+          backgroundImage: `
+            linear-gradient(180deg, rgba(16, 20, 29, 0.68) 0%, rgba(10, 13, 19, 0.80) 100%),
+            url("/assets/textures/parchment_dossier_texture.jpg")
+          `,
+          backgroundSize: '100% 100%, cover',
+          backgroundRepeat: 'no-repeat, no-repeat'
         }}
       >
         {/* Cabecera con Importar / Exportar Ficha */}
         <div style={{
           padding: '14px 20px',
-          background: 'linear-gradient(180deg, #1b202b 0%, #131720 100%)',
-          borderBottom: '1px solid #2e3446',
+          backgroundImage: 'linear-gradient(180deg, rgba(27, 32, 43, 0.72) 0%, rgba(19, 23, 32, 0.92) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          borderBottom: '1px solid #3d3222',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',

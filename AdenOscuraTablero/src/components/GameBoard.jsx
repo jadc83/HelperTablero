@@ -246,7 +246,10 @@ const GameBoard = ({
         cursor: boardCursor,
         userSelect: 'none',
         WebkitUserSelect: 'none',
-        background: 'radial-gradient(circle at center, #1b120c 0%, #090604 100%)'
+        background: 'radial-gradient(circle at center, rgba(16, 20, 28, 0.42) 0%, rgba(5, 7, 10, 0.88) 100%), url("/assets/textures/tabletop_dark_wood.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'repeat'
       }}
     >
       <style>{`

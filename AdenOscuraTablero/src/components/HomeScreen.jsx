@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { getClassificationMeta } from './EncyclopediaView';
+import { getRecentCampaigns } from '../utils/campaignStorage';
 
 const HomeScreen = ({
   isOpen,
@@ -15,14 +16,53 @@ const HomeScreen = ({
   onOpenMapCreator,
   onImportCampaign,
   onExportCampaign,
+  onLoadRecentCampaign,
   onOpenPlayerView,
   onOpenTutorial
 }) => {
-  if (!isOpen) return null;
+  const [isArchivesOpen, setIsArchivesOpen] = useState(false);
+  const [recentCampaigns, setRecentCampaigns] = useState([]);
+  const [selectedCampaignId, setSelectedCampaignId] = useState(null);
 
   const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0];
   const characterEntries = characters.filter(c => getClassificationMeta(c.entityType, c.faction).group === 'character');
   const monsterEntries = characters.filter(c => getClassificationMeta(c.entityType, c.faction).group === 'monster');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    let isMounted = true;
+    getRecentCampaigns().then(list => {
+      if (!isMounted) return;
+      if (list && list.length > 0) {
+        setRecentCampaigns(list);
+        setSelectedCampaignId(list[0].id);
+      } else {
+        const currentEntry = {
+          id: 'current_session',
+          title: activeScene ? `Crónica: ${activeScene.name}` : 'Crónica Principal',
+          dateStr: new Date().toLocaleDateString([], { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          scenesCount: scenes.length,
+          charactersCount: characters.length,
+          isCurrent: true,
+          data: { scenes, characters, graveyard, activeSceneId }
+        };
+        setRecentCampaigns([currentEntry]);
+        setSelectedCampaignId(currentEntry.id);
+      }
+    });
+    return () => { isMounted = false; };
+  }, [isOpen, scenes, characters, graveyard, activeSceneId]);
+
+  const handleExecuteLoad = (camp) => {
+    if (!camp) return;
+    if (camp.isCurrent) {
+      onResumeGame();
+    } else if (onLoadRecentCampaign) {
+      onLoadRecentCampaign(camp.data);
+    }
+  };
+
+  if (!isOpen) return null;
 
   return (
     <div
@@ -32,11 +72,13 @@ const HomeScreen = ({
         zIndex: 90000,
         backgroundColor: '#090b10',
         backgroundImage: `
-          radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.08) 0%, transparent 45%),
-          radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.07) 0%, transparent 45%),
-          radial-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px)
+          linear-gradient(180deg, rgba(9, 11, 16, 0.72) 0%, rgba(9, 11, 16, 0.92) 55%, #090b10 100%),
+          url("/assets/textures/hub_investigator_desk.jpg")
         `,
-        backgroundSize: '100% 100%, 100% 100%, 28px 28px',
+        backgroundSize: '100% 100%, cover',
+        backgroundPosition: 'center top',
+        backgroundRepeat: 'no-repeat, no-repeat',
+        backgroundAttachment: 'local, fixed',
         display: 'flex',
         flexDirection: 'column',
         color: '#e2e8f0',
@@ -46,11 +88,13 @@ const HomeScreen = ({
       {/* Cabecera Superior del Hub */}
       <div style={{
         padding: '22px 44px',
-        borderBottom: '1px solid #1e2433',
+        borderBottom: '1px solid #3d3222',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundColor: 'rgba(13, 16, 23, 0.85)',
+        backgroundImage: 'linear-gradient(180deg, rgba(16, 20, 28, 0.75) 0%, rgba(13, 16, 23, 0.92) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         backdropFilter: 'blur(12px)',
         position: 'sticky',
         top: 0,
@@ -61,13 +105,14 @@ const HomeScreen = ({
             width: '44px',
             height: '44px',
             borderRadius: '12px',
-            background: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)',
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(180, 83, 9, 0.5) 100%)',
+            backgroundColor: '#2a1a08',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             fontSize: '24px',
-            border: '1px solid #fbbf24',
-            boxShadow: '0 4px 20px rgba(245, 158, 11, 0.35)'
+            border: '1.5px solid #f59e0b',
+            boxShadow: '0 4px 20px rgba(245, 158, 11, 0.25)'
           }}>
             ⚜️
           </div>
@@ -102,13 +147,6 @@ const HomeScreen = ({
           >
             Guía de Uso
           </button>
-          <button
-            onClick={onResumeGame}
-            className="vtt-primary-cta"
-            style={{ padding: '10px 22px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}
-          >
-            Ir al Tablero de Juego →
-          </button>
         </div>
       </div>
 
@@ -128,7 +166,7 @@ const HomeScreen = ({
           <div className="vtt-retro-badge" style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, marginBottom: '12px' }}>
             ⚡ ACCIONES DE INICIO RÁPIDO Y CRÓNICA
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
             
             {/* Card 1: Continuar Partida */}
             <div style={{
@@ -160,76 +198,98 @@ const HomeScreen = ({
               </button>
             </div>
 
-            {/* Card 2: Cargar / Guardar Campaña */}
+            {/* Card 2: Crónicas y Partidas Recientes */}
             <div style={{
               background: 'linear-gradient(180deg, #161a24 0%, #10131b 100%)',
               border: '1px solid #2c3344',
               borderRadius: '14px',
-              padding: '20px',
+              padding: '18px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: '16px'
+              gap: '12px'
             }}>
               <div>
-                <div className="vtt-gothic-title" style={{ fontSize: '16px', fontWeight: 'bold', color: '#f8fafc', marginBottom: '6px' }}>
-                  Archivo de Campaña
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
+                  <div className="vtt-gothic-title" style={{ fontSize: '15px', fontWeight: 'bold', color: '#f8fafc' }}>
+                    Archivo de Campaña
+                  </div>
+                  <span className="vtt-retro-badge" style={{ fontSize: '10px', color: '#94a3b8' }}>
+                    Recientes
+                  </span>
                 </div>
-                <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
-                  Carga una crónica guardada en archivo <code>.json</code> o haz una copia de seguridad completa de tus escenas y personajes.
-                </p>
-              </div>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={onImportCampaign}
-                  className="vtt-brass-btn"
-                  style={{ flex: 1, padding: '9px 8px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, borderColor: '#60a5fa', color: '#93c5fd' }}
-                >
-                  📥 Cargar .JSON
-                </button>
-                <button
-                  onClick={onExportCampaign}
-                  className="vtt-brass-btn"
-                  style={{ flex: 1, padding: '9px 8px', borderRadius: '8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
-                >
-                  📤 Exportar
-                </button>
-              </div>
-            </div>
+                <div style={{ fontSize: '11px', color: '#8e9caa', marginBottom: '10px' }}>
+                  Doble clic sobre una crónica para cargarla:
+                </div>
 
-            {/* Card 3: Arquitecto de Mapas */}
-            <div style={{
-              background: 'linear-gradient(180deg, #161a24 0%, #10131b 100%)',
-              border: '1px solid #2c3344',
-              borderRadius: '14px',
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '16px'
-            }}>
-              <div>
-                <div style={{ fontSize: '28px', marginBottom: '10px' }}>🗺️</div>
-                <div className="vtt-gothic-title" style={{ fontSize: '16px', fontWeight: 'bold', color: '#f8fafc', marginBottom: '6px' }}>
-                  Forjar Escenario
+                {/* Lista de las 3 últimas campañas */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {recentCampaigns.slice(0, 3).map((camp, idx) => {
+                    const isSelected = selectedCampaignId === camp.id;
+                    return (
+                      <div
+                        key={camp.id || idx}
+                        onClick={() => setSelectedCampaignId(camp.id)}
+                        onDoubleClick={() => handleExecuteLoad(camp)}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '8px',
+                          backgroundColor: isSelected ? 'rgba(245, 158, 11, 0.16)' : '#0e121a',
+                          border: isSelected ? '1.5px solid #f59e0b' : '1px solid #232b3b',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          transition: 'all 0.14s ease'
+                        }}
+                        title="Doble clic para cargar esta crónica directamente"
+                      >
+                        <div style={{ overflow: 'hidden', paddingRight: '8px' }}>
+                          <div style={{
+                            fontSize: '12px',
+                            fontWeight: 700,
+                            color: isSelected ? '#fbbf24' : '#f1f5f9',
+                            whiteSpace: 'nowrap',
+                            textOverflow: 'ellipsis',
+                            overflow: 'hidden'
+                          }}>
+                            {camp.title}
+                          </div>
+                          <div style={{ fontSize: '10px', color: isSelected ? '#d4af37' : '#6b7a90', marginTop: '1px' }}>
+                            {camp.dateStr} • {camp.scenesCount} esc. • {camp.charactersCount} fichas
+                          </div>
+                        </div>
+
+                        {isSelected && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleExecuteLoad(camp);
+                            }}
+                            className="vtt-primary-cta"
+                            style={{ padding: '4px 8px', borderRadius: '5px', fontSize: '10px', cursor: 'pointer' }}
+                          >
+                            Cargar
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-                <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
-                  Sube planos de fondo, traza muros de colisión y coloca puertas, ventanas, cofres o antorchas.
-                </p>
               </div>
+
+              {/* Botón único para cargar otro archivo externo */}
               <button
-                onClick={() => {
-                  onResumeGame();
-                  onOpenMapCreator();
-                }}
+                onClick={onImportCampaign}
                 className="vtt-brass-btn"
-                style={{ width: '100%', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
+                style={{ width: '100%', padding: '9px', borderRadius: '7px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, color: '#cbd5e1' }}
+                title="Explora tu equipo para abrir cualquier crónica .json"
               >
-                📐 Abrir Creador de Mapas
+                Cargar archivo .JSON externo...
               </button>
             </div>
 
-            {/* Card 4: Sala de Jugadores */}
+            {/* Card 3: Sala de Jugadores */}
             <div style={{
               background: 'linear-gradient(180deg, #161a24 0%, #10131b 100%)',
               border: '1px solid #2c3344',
@@ -270,263 +330,480 @@ const HomeScreen = ({
           </div>
         </div>
 
-        {/* SECCIÓN 2: LAS DOS GRANDES ENCICLOPEDIAS + CRIPTA/CEMENTERIO + SELECTOR DE ESCENAS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(270px, 1fr))', gap: '20px' }}>
+        {/* SECCIÓN 2: ARCHIVOS Y CÓDICE */}
+        <div>
+          <div className="vtt-retro-badge" style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, marginBottom: '12px' }}>
+            ARCHIVOS Y EXPEDIENTES DE CAMPAÑA
+          </div>
           
-          {/* Portal 1: Enciclopedia de Personajes */}
-          <div style={{
-            background: 'linear-gradient(180deg, #171c29 0%, #10131d 100%)',
-            border: '1px solid rgba(245, 158, 11, 0.45)',
-            borderRadius: '16px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '18px',
-            boxShadow: '0 14px 35px rgba(0,0,0,0.45)'
-          }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span style={{ fontSize: '34px' }}>📖</span>
+          <div
+            onClick={() => setIsArchivesOpen(true)}
+            style={{
+              background: 'linear-gradient(180deg, #171b26 0%, #0f121a 100%)',
+              border: '1px solid rgba(245, 158, 11, 0.45)',
+              borderRadius: '16px',
+              padding: '24px 28px',
+              display: 'grid',
+              gridTemplateColumns: 'minmax(240px, 280px) 1fr auto',
+              alignItems: 'center',
+              gap: '28px',
+              cursor: 'pointer',
+              boxShadow: '0 14px 35px rgba(0, 0, 0, 0.55)',
+              transition: 'all 0.18s ease'
+            }}
+          >
+            {/* Banner con textura temática */}
+            <div style={{
+              height: '140px',
+              borderRadius: '10px',
+              overflow: 'hidden',
+              border: '1px solid rgba(245, 158, 11, 0.35)',
+              position: 'relative',
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)'
+            }}>
+              <img
+                src="/assets/textures/archive_characters_bg.jpg"
+                alt="Archivos y Códice"
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+              <div style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(15, 18, 26, 0.85) 100%)'
+              }} />
+              <div style={{ position: 'absolute', top: '10px', right: '10px' }}>
                 <span className="vtt-retro-badge" style={{
-                  padding: '3px 10px',
-                  borderRadius: '999px',
-                  backgroundColor: 'rgba(245, 158, 11, 0.16)',
+                  padding: '4px 10px',
+                  borderRadius: '5px',
+                  backgroundColor: 'rgba(20, 24, 35, 0.94)',
+                  border: '1px solid rgba(245, 158, 11, 0.45)',
                   color: '#fbbf24',
                   fontSize: '11px',
-                  fontWeight: 700
-                }}>
-                  {characterEntries.length} registrados
-                </span>
-              </div>
-              <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: '#f8fafc' }}>
-                Enciclopedia de Personajes
-              </h3>
-              <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
-                Vista dedicada estilo enciclopedia con retrato en gran formato, biografía, inventario y grimorio para <strong>Investigadores, Humanos, Aliados y Cultistas</strong>.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => onOpenEncyclopedia && onOpenEncyclopedia('character')}
-                className="vtt-brass-btn"
-                style={{ flex: 1, padding: '11px', borderRadius: '9px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, borderColor: '#f59e0b', color: '#fbbf24' }}
-              >
-                📖 Abrir Enciclopedia
-              </button>
-              <button
-                onClick={() => onCreateCharacter && onCreateCharacter('human')}
-                className="vtt-brass-btn"
-                style={{ padding: '11px 14px', borderRadius: '9px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
-                title="Crear nuevo personaje directamente"
-              >
-                + Crear
-              </button>
-            </div>
-          </div>
-
-          {/* Portal 2: Biblioteca de Monstruos, Animales y Mitos */}
-          <div style={{
-            background: 'linear-gradient(180deg, #19162b 0%, #110f1d 100%)',
-            border: '1px solid rgba(139, 92, 246, 0.45)',
-            borderRadius: '16px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '18px',
-            boxShadow: '0 14px 35px rgba(0,0,0,0.45)'
-          }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span className="vtt-retro-badge" style={{
-                  padding: '3px 10px',
-                  borderRadius: '999px',
-                  backgroundColor: 'rgba(139, 92, 246, 0.2)',
-                  color: '#c4b5fd',
-                  fontSize: '11px',
-                  fontWeight: 700
-                }}>
-                  {monsterEntries.length} registrados
-                </span>
-              </div>
-              <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: '#f8fafc' }}>
-                Bestiario y Biblioteca de los Mitos
-              </h3>
-              <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
-                Códice ilustrado de <strong>Criaturas de los Mitos, Dioses Primigenios, Dioses Exteriores, Animales y Horrores</strong> clasificados por naturaleza.
-              </p>
-            </div>
-
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                onClick={() => onOpenEncyclopedia && onOpenEncyclopedia('monster')}
-                className="vtt-brass-btn"
-                style={{
-                  flex: 1,
-                  padding: '11px',
-                  borderRadius: '999px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
                   fontWeight: 700,
-                  borderColor: '#8b5cf6',
-                  color: '#c4b5fd',
-                  borderRadius: '9px'
-                }}
-              >
-                Abrir Bestiario
-              </button>
-              <button
-                onClick={() => onCreateCharacter && onCreateCharacter('mythos_creature')}
-                className="vtt-brass-btn"
-                style={{ padding: '11px 14px', borderRadius: '9px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
-                title="Registrar nueva criatura o entidad"
-              >
-                + Crear
-              </button>
-            </div>
-          </div>
-
-          {/* Portal 3: Cripta y Cementerio de Caídos (Registro de Bajas) */}
-          <div style={{
-            background: 'linear-gradient(180deg, #171a24 0%, #0f121a 100%)',
-            border: '1px solid rgba(148, 163, 184, 0.35)',
-            borderRadius: '16px',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'space-between',
-            gap: '18px',
-            boxShadow: '0 14px 35px rgba(0,0,0,0.45)'
-          }}>
-            <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span style={{ fontSize: '34px' }}>🪦</span>
-                <span className="vtt-retro-badge" style={{
-                  padding: '3px 10px',
-                  borderRadius: '999px',
-                  backgroundColor: graveyard.length > 0 ? 'rgba(239, 68, 68, 0.18)' : 'rgba(100, 116, 139, 0.2)',
-                  color: graveyard.length > 0 ? '#fca5a5' : '#94a3b8',
-                  fontSize: '11px',
-                  fontWeight: 700
+                  backdropFilter: 'blur(4px)'
                 }}>
-                  {graveyard.length} caídos en batalla
+                  {characterEntries.length + monsterEntries.length + graveyard.length} expedientes
                 </span>
               </div>
-              <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: '#f8fafc' }}>
-                Cripta y Cementerio
-              </h3>
-              <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
-                Registro fúnebre de combatientes perecidos. Consulta el <strong>botín e inventario para saquearlos</strong>, inspecciona sus notas o devuélvelos a la vida.
-              </p>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {graveyard.length > 0 && (
-                <div style={{
-                  backgroundColor: '#0c0e14',
-                  border: '1px solid #1f2535',
-                  borderRadius: '8px',
-                  padding: '8px 10px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '4px'
-                }}>
-                  <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700 }}>ÚLTIMAS BAJAS REGISTRADAS:</span>
-                  {graveyard.slice(0, 2).map(g => (
-                    <div key={g.graveyardId || g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
-                      <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{g.name}</span>
-                      <span style={{ color: '#94a3b8', fontSize: '10px' }}>{g.sceneName || 'Tablero'}</span>
-                    </div>
-                  ))}
+            <div>
+              <h3 className="vtt-gothic-title" style={{ margin: '0 0 6px 0', fontSize: '22px', color: '#f8fafc' }}>
+                Archivos y Códice de Campaña
+              </h3>
+              <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6, maxWidth: '640px' }}>
+                Acceso centralizado al archivo de <strong>Investigadores y Aliados</strong>, el <strong>Bestiario de los Mitos</strong> y el registro fúnebre de combatientes en la <strong>Cripta de Caídos</strong>.
+              </p>
+
+              {/* Tira resumen de las 3 categorías */}
+              <div style={{
+                display: 'inline-flex',
+                gap: '14px',
+                marginTop: '16px',
+                padding: '10px 16px',
+                backgroundColor: '#0c0f16',
+                borderRadius: '8px',
+                border: '1px solid #202737'
+              }}>
+                <div style={{ paddingRight: '14px', borderRight: '1px solid #222b3d' }}>
+                  <div style={{ fontSize: '10px', color: '#8e9caa', fontWeight: 700, textTransform: 'uppercase' }}>Personajes</div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#fbbf24', marginTop: '2px' }}>{characterEntries.length}</div>
                 </div>
-              )}
+                <div style={{ paddingRight: '14px', borderRight: '1px solid #222b3d' }}>
+                  <div style={{ fontSize: '10px', color: '#8e9caa', fontWeight: 700, textTransform: 'uppercase' }}>Bestiario</div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#c4b5fd', marginTop: '2px' }}>{monsterEntries.length}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '10px', color: '#8e9caa', fontWeight: 700, textTransform: 'uppercase' }}>Cripta</div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: graveyard.length > 0 ? '#fca5a5' : '#94a3b8', marginTop: '2px' }}>{graveyard.length}</div>
+                </div>
+              </div>
+            </div>
 
+            <div>
               <button
-                onClick={() => {
-                  if (onOpenGraveyard) onOpenGraveyard();
-                  else if (onOpenEncyclopedia) onOpenEncyclopedia('graveyard');
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsArchivesOpen(true);
                 }}
-                className="vtt-brass-btn"
-                style={{
-                  width: '100%',
-                  padding: '11px',
-                  borderRadius: '9px',
-                  cursor: 'pointer',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  borderColor: '#64748b',
-                  color: '#e2e8f0'
-                }}
+                className="vtt-primary-cta"
+                style={{ padding: '14px 28px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap' }}
               >
-                🪦 Abrir Cripta / Registro ({graveyard.length})
+                Abrir Archivos →
               </button>
             </div>
           </div>
+        </div>
 
-          {/* Portal 4: Selector Directo de Escenas de la Campaña */}
+      </div>
+
+      {/* VISTA / MODAL DE ARCHIVOS Y CÓDICE (3 OPCIONES AGRUPADAS) */}
+      {isArchivesOpen && (
+        <div style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 96000,
+          backgroundColor: '#07090e',
+          backgroundImage: 'linear-gradient(180deg, rgba(8, 11, 16, 0.85) 0%, rgba(6, 8, 12, 0.96) 100%), url("/assets/textures/archive_characters_bg.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          color: '#e2e8f0',
+          overflowY: 'auto'
+        }}>
+          {/* Header de la vista de archivos */}
           <div style={{
-            background: '#131722',
-            border: '1px solid #282f42',
-            borderRadius: '16px',
-            padding: '22px',
+            padding: '18px 40px',
+            borderBottom: '1px solid #3d3222',
+            backgroundImage: 'linear-gradient(180deg, rgba(16, 20, 28, 0.8) 0%, rgba(13, 16, 23, 0.95) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
             display: 'flex',
-            flexDirection: 'column',
-            gap: '14px'
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.75)',
+            position: 'sticky',
+            top: 0,
+            zIndex: 10
           }}>
-            <div>
-              <div className="vtt-gothic-title" style={{ fontSize: '17px', fontWeight: 'bold', color: '#f8fafc' }}>
-                🗺️ Escenas de la Crónica ({scenes.length})
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '8px',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(180, 83, 9, 0.45) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontFamily: "'Cinzel', Georgia, serif",
+                fontSize: '13px',
+                fontWeight: 800,
+                color: '#fbbf24',
+                letterSpacing: '0.08em',
+                border: '1.5px solid #7c5826',
+                boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5)'
+              }}>
+                ARC
               </div>
-              <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-                Salta directamente a cualquier escenario preparado
+              <div>
+                <div className="vtt-gothic-title" style={{ fontSize: '18px', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '0.06em' }}>
+                  ARCHIVOS Y CÓDICE DE CAMPAÑA
+                </div>
+                <div className="vtt-retro-badge" style={{ fontSize: '11px', color: '#b49b78', marginTop: '2px' }}>
+                  {characterEntries.length} Personajes • {monsterEntries.length} Criaturas • {graveyard.length} Caídos en Cripta
+                </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto' }}>
-              {scenes.map((sc, idx) => {
-                const isCurrent = sc.id === activeSceneId;
-                return (
-                  <div
-                    key={sc.id}
+            <button
+              onClick={() => setIsArchivesOpen(false)}
+              className="vtt-brass-btn"
+              style={{ padding: '8px 18px', borderRadius: '7px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+            >
+              Volver al Inicio
+            </button>
+          </div>
+
+          {/* Contenedor central con las 3 opciones */}
+          <div style={{
+            maxWidth: '1200px',
+            width: '100%',
+            margin: '0 auto',
+            padding: '44px 36px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '28px'
+          }}>
+            <div style={{ textAlign: 'center', marginBottom: '8px' }}>
+              <div className="vtt-gothic-title" style={{ fontSize: '24px', color: '#fdf8ea', marginBottom: '8px' }}>
+                Selecciona una Sección de Archivo
+              </div>
+              <p style={{ fontSize: '13px', color: '#94a3b8', maxWidth: '620px', margin: '0 auto', lineHeight: 1.6 }}>
+                Explora el registro de combatientes, las entidades y horrores de los mitos o la cripta fúnebre para consultar trasfondos, facultades y botín.
+              </p>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '24px' }}>
+              
+              {/* Opción 1: Enciclopedia de Personajes */}
+              <div style={{
+                background: 'linear-gradient(180deg, rgba(23, 28, 41, 0.92) 0%, rgba(16, 19, 29, 0.95) 100%)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(245, 158, 11, 0.45)',
+                borderRadius: '16px',
+                padding: '22px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '18px',
+                boxShadow: '0 14px 35px rgba(0,0,0,0.5)'
+              }}>
+                <div>
+                  <div style={{
+                    height: '135px',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    marginBottom: '16px',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    position: 'relative',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)'
+                  }}>
+                    <img
+                      src="/assets/textures/encyclopedia_characters_banner.jpg"
+                      alt="Enciclopedia de Personajes"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(16, 19, 29, 0.85) 100%)'
+                    }} />
+                    <div style={{ position: 'absolute', top: '8px', right: '8px' }}>
+                      <span className="vtt-retro-badge" style={{
+                        padding: '3px 8px',
+                        borderRadius: '5px',
+                        backgroundColor: 'rgba(20, 24, 35, 0.92)',
+                        border: '1px solid rgba(245, 158, 11, 0.45)',
+                        color: '#fbbf24',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        backdropFilter: 'blur(4px)'
+                      }}>
+                        {characterEntries.length} registrados
+                      </span>
+                    </div>
+                  </div>
+
+                  <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: '#f8fafc' }}>
+                    Enciclopedia de Personajes
+                  </h3>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
+                    Vista dedicada estilo enciclopedia con retrato en gran formato, biografía, inventario y grimorio para <strong>Investigadores, Humanos, Aliados y Cultistas</strong>.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      setIsArchivesOpen(false);
+                      if (onOpenEncyclopedia) onOpenEncyclopedia('character');
+                    }}
+                    className="vtt-brass-btn"
+                    style={{ flex: 1, padding: '11px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, borderColor: '#f59e0b', color: '#fbbf24' }}
+                  >
+                    Abrir Enciclopedia
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsArchivesOpen(false);
+                      if (onCreateCharacter) onCreateCharacter('human');
+                    }}
+                    className="vtt-brass-btn"
+                    style={{ padding: '11px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
+                    title="Crear nuevo personaje directamente"
+                  >
+                    + Crear
+                  </button>
+                </div>
+              </div>
+
+              {/* Opción 2: Bestiario y Biblioteca de los Mitos */}
+              <div style={{
+                background: 'linear-gradient(180deg, rgba(25, 22, 43, 0.92) 0%, rgba(17, 15, 29, 0.95) 100%)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(139, 92, 246, 0.45)',
+                borderRadius: '16px',
+                padding: '22px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '18px',
+                boxShadow: '0 14px 35px rgba(0,0,0,0.5)'
+              }}>
+                <div>
+                  <div style={{
+                    height: '135px',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    marginBottom: '16px',
+                    border: '1px solid rgba(139, 92, 246, 0.4)',
+                    position: 'relative',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)'
+                  }}>
+                    <img
+                      src="/assets/textures/bestiary_mythos_banner.jpg"
+                      alt="Bestiario y Biblioteca de los Mitos"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(17, 15, 29, 0.85) 100%)'
+                    }} />
+                    <div style={{ position: 'absolute', top: '8px', right: '8px' }}>
+                      <span className="vtt-retro-badge" style={{
+                        padding: '3px 8px',
+                        borderRadius: '5px',
+                        backgroundColor: 'rgba(20, 24, 35, 0.92)',
+                        border: '1px solid rgba(139, 92, 246, 0.45)',
+                        color: '#c4b5fd',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        backdropFilter: 'blur(4px)'
+                      }}>
+                        {monsterEntries.length} registrados
+                      </span>
+                    </div>
+                  </div>
+
+                  <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: '#f8fafc' }}>
+                    Bestiario y Biblioteca de los Mitos
+                  </h3>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
+                    Códice ilustrado de <strong>Criaturas de los Mitos, Dioses Primigenios, Dioses Exteriores, Animales y Horrores</strong> clasificados por naturaleza.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={() => {
+                      setIsArchivesOpen(false);
+                      if (onOpenEncyclopedia) onOpenEncyclopedia('monster');
+                    }}
+                    className="vtt-brass-btn"
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '10px 12px',
-                      borderRadius: '10px',
-                      backgroundColor: isCurrent ? 'rgba(245, 158, 11, 0.14)' : '#181d2a',
-                      border: isCurrent ? '1px solid #f59e0b' : '1px solid #2d3548'
+                      flex: 1,
+                      padding: '11px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      borderColor: '#8b5cf6',
+                      color: '#c4b5fd'
                     }}
                   >
-                    <div>
-                      <div style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>
-                        {idx + 1}. {sc.name} {isCurrent && <span style={{ color: '#4ade80', fontSize: '11px' }}>• Activa</span>}
-                      </div>
-                      <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                        {(sc.maps || []).length} elem. • {(sc.tokens || []).length} fichas
-                      </div>
-                    </div>
+                    Abrir Bestiario
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsArchivesOpen(false);
+                      if (onCreateCharacter) onCreateCharacter('mythos_creature');
+                    }}
+                    className="vtt-brass-btn"
+                    style={{ padding: '11px 14px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700 }}
+                    title="Registrar nueva criatura o entidad"
+                  >
+                    + Crear
+                  </button>
+                </div>
+              </div>
 
-                    <button
-                      onClick={() => {
-                        if (onSelectScene) onSelectScene(sc.id);
-                        onResumeGame();
-                      }}
-                      className={isCurrent ? 'vtt-primary-cta' : 'vtt-brass-btn'}
-                      style={{ padding: '6px 12px', borderRadius: '7px', fontSize: '11px', fontWeight: 700, cursor: 'pointer' }}
-                    >
-                      {isCurrent ? 'Ir ➔' : 'Abrir'}
-                    </button>
+              {/* Opción 3: Cripta y Cementerio */}
+              <div style={{
+                background: 'linear-gradient(180deg, rgba(23, 26, 36, 0.92) 0%, rgba(15, 18, 26, 0.95) 100%)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(148, 163, 184, 0.35)',
+                borderRadius: '16px',
+                padding: '22px',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                gap: '18px',
+                boxShadow: '0 14px 35px rgba(0,0,0,0.5)'
+              }}>
+                <div>
+                  <div style={{
+                    height: '135px',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    marginBottom: '16px',
+                    border: '1px solid rgba(148, 163, 184, 0.35)',
+                    position: 'relative',
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)'
+                  }}>
+                    <img
+                      src="/assets/textures/crypt_graveyard_banner.jpg"
+                      alt="Cripta y Cementerio"
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(15, 18, 26, 0.85) 100%)'
+                    }} />
+                    <div style={{ position: 'absolute', top: '8px', right: '8px' }}>
+                      <span className="vtt-retro-badge" style={{
+                        padding: '3px 8px',
+                        borderRadius: '5px',
+                        backgroundColor: 'rgba(20, 24, 35, 0.92)',
+                        border: graveyard.length > 0 ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid rgba(148, 163, 184, 0.35)',
+                        color: graveyard.length > 0 ? '#fca5a5' : '#94a3b8',
+                        fontSize: '11px',
+                        fontWeight: 700,
+                        backdropFilter: 'blur(4px)'
+                      }}>
+                        {graveyard.length} caídos en batalla
+                      </span>
+                    </div>
                   </div>
-                );
-              })}
+
+                  <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: '#f8fafc' }}>
+                    Cripta y Cementerio
+                  </h3>
+                  <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
+                    Registro fúnebre de combatientes perecidos. Consulta el <strong>botín e inventario para saquearlos</strong>, inspecciona sus notas o devuélvelos a la vida.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {graveyard.length > 0 && (
+                    <div style={{
+                      backgroundColor: '#0c0e14',
+                      border: '1px solid #1f2535',
+                      borderRadius: '8px',
+                      padding: '8px 10px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px'
+                    }}>
+                      <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700 }}>ÚLTIMAS BAJAS REGISTRADAS:</span>
+                      {graveyard.slice(0, 2).map(g => (
+                        <div key={g.graveyardId || g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
+                          <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{g.name}</span>
+                          <span style={{ color: '#94a3b8', fontSize: '10px' }}>{g.sceneName || 'Tablero'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => {
+                      setIsArchivesOpen(false);
+                      if (onOpenGraveyard) onOpenGraveyard();
+                      else if (onOpenEncyclopedia) onOpenEncyclopedia('graveyard');
+                    }}
+                    className="vtt-brass-btn"
+                    style={{
+                      width: '100%',
+                      padding: '11px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      fontSize: '12px',
+                      fontWeight: 700,
+                      borderColor: '#4a5568',
+                      color: '#e2e8f0'
+                    }}
+                  >
+                    Abrir Cripta / Registro ({graveyard.length})
+                  </button>
+                </div>
+              </div>
+
             </div>
           </div>
-
         </div>
-      </div>
+      )}
     </div>
   );
 };

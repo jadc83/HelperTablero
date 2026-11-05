@@ -208,8 +208,10 @@ const MasterNotesDrawer = ({
         {/* Cabecera */}
         <div style={{
           padding: '14px 18px',
-          backgroundColor: '#171b26',
-          borderBottom: '1px solid #283040',
+          backgroundImage: 'linear-gradient(180deg, rgba(23, 27, 38, 0.72) 0%, rgba(17, 21, 29, 0.92) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          borderBottom: '1px solid #3d3222',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between'

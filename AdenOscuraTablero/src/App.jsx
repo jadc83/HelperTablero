@@ -19,7 +19,7 @@ import MasterNotesDrawer from './components/MasterNotesDrawer';
 import { WEATHER_TYPES, AMBIENT_TINTS } from './components/WeatherOverlay';
 import { DEFAULT_COMMON_ITEMS } from './constants/commonItems';
 import useLocalStorage from './hooks/useLocalStorage';
-import { saveCampaignToDB, loadCampaignFromDB, exportCampaignJSON } from './utils/campaignStorage';
+import { saveCampaignToDB, loadCampaignFromDB, exportCampaignJSON, saveCampaignSnapshot, getRecentCampaigns } from './utils/campaignStorage';
 import { exportJSON, importJSON } from './utils/fileDialog';
 
 const isTauriDesktop = () => Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
@@ -228,11 +228,12 @@ const GLOBAL_VTT_STYLES = `
   }
   .vtt-primary-cta {
     font-family: 'Inter', system-ui, sans-serif;
-    background: #d97706;
-    color: #ffffff;
-    border: 1px solid #f59e0b;
+    background-color: #2a1a08;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%);
+    color: #fbbf24;
+    border: 1.5px solid #f59e0b;
     font-weight: 700;
-    box-shadow: 0 1px 6px rgba(217, 119, 6, 0.3);
+    box-shadow: 0 2px 10px rgba(245, 158, 11, 0.25), inset 0 0 8px rgba(245, 158, 11, 0.12);
     transition: all 0.15s ease;
     white-space: nowrap;
     display: inline-flex;
@@ -241,10 +242,11 @@ const GLOBAL_VTT_STYLES = `
     gap: 6px;
   }
   .vtt-primary-cta:hover:not(:disabled) {
-    background: #f59e0b;
+    background-color: #38240c;
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.45) 0%, rgba(180, 83, 9, 0.6) 100%);
     border-color: #fbbf24;
     color: #ffffff;
-    box-shadow: 0 3px 12px rgba(245, 158, 11, 0.4);
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35), inset 0 0 12px rgba(245, 158, 11, 0.18);
   }
   .vtt-primary-cta:active:not(:disabled) {
     transform: translateY(1px);
@@ -990,9 +992,41 @@ function App() {
     showMasterFeedback(`Nueva escena creada: ${sceneName}`, '🗺️');
   };
 
+  const handleRenameScene = (sceneId, newName) => {
+    if (!newName || !newName.trim()) return;
+    setScenes((prev) =>
+      prev.map((sc) => (sc.id === sceneId ? { ...sc, name: newName.trim() } : sc))
+    );
+    showMasterFeedback(`Escena renombrada a "${newName.trim()}"`, '✏️');
+  };
+
   const handleDeleteScene = (sceneIdToDelete) => {
-    if (scenes.length <= 1) return;
     const remaining = scenes.filter((sc) => sc.id !== sceneIdToDelete);
+    if (remaining.length === 0) {
+      const blankScene = {
+        id: 'scene_' + Date.now(),
+        name: 'Escena 1',
+        maps: [],
+        tokens: [],
+        fowActions: [],
+        weatherEffect: 'none',
+        ambientTint: 'none'
+      };
+      isSwitchingSceneRef.current = true;
+      setScenes([blankScene]);
+      setActiveSceneId(blankScene.id);
+      setMaps([]);
+      setTokens([]);
+      setFowActions([]);
+      setWeatherEffect('none');
+      setAmbientTint('none');
+      setTimeout(() => {
+        isSwitchingSceneRef.current = false;
+      }, 120);
+      showMasterFeedback('Escena eliminada (Tablero reiniciado)', '🗑️');
+      return;
+    }
+
     setScenes(remaining);
     if (activeSceneId === sceneIdToDelete) {
       const next = remaining[0];
@@ -1008,6 +1042,30 @@ function App() {
       }, 120);
     }
     showMasterFeedback('Escena eliminada', '🗑️');
+  };
+
+  const handleDeleteAllScenes = () => {
+    const blankScene = {
+      id: 'scene_' + Date.now(),
+      name: 'Escena 1',
+      maps: [],
+      tokens: [],
+      fowActions: [],
+      weatherEffect: 'none',
+      ambientTint: 'none'
+    };
+    isSwitchingSceneRef.current = true;
+    setScenes([blankScene]);
+    setActiveSceneId(blankScene.id);
+    setMaps([]);
+    setTokens([]);
+    setFowActions([]);
+    setWeatherEffect('none');
+    setAmbientTint('none');
+    setTimeout(() => {
+      isSwitchingSceneRef.current = false;
+    }, 120);
+    showMasterFeedback('Todas las escenas han sido eliminadas', '🗑️');
   };
 
   const handleProjectHandout = (handoutObj) => {
@@ -2142,7 +2200,72 @@ function App() {
     }, 150);
   };
 
+  const handleSaveAdventure = async (adventureName, shouldExportFile = true) => {
+    // 1. Sincronizar el estado en vivo de la escena activa dentro del listado de escenas
+    const syncedScenes = scenes.map((sc) =>
+      sc.id === activeSceneId
+        ? { ...sc, maps, tokens, fowActions, weatherEffect, ambientTint }
+        : sc
+    );
+    const activeScene = syncedScenes.find(sc => sc.id === activeSceneId) || syncedScenes[0];
+    const advTitle = adventureName?.trim() || (activeScene ? `Aventura: ${activeScene.name}` : 'Aventura de Campaña');
+
+    const payload = {
+      adventureName: advTitle,
+      characters,
+      tokens,
+      maps,
+      fowEnabled,
+      fowBrushSize,
+      fowVisionRadius,
+      fowMemoryEnabled,
+      fowAutoHideEnemies,
+      fowActions,
+      snapToGrid,
+      gridSize,
+      customStatuses,
+      weatherEffect,
+      ambientTint,
+      customSounds,
+      scenes: syncedScenes,
+      activeSceneId,
+      handouts,
+      activeHandout,
+      graveyard,
+      customObjects,
+      commonItems,
+      sceneNotes,
+      campaignNotes,
+      savedAt: new Date().toISOString(),
+      version: '1.4.0',
+      app: 'Grimorio VTT'
+    };
+
+    // 2. Guardar en carpeta nativa de la app (Tauri campaigns/ en AppData/Linux) y en IndexedDB
+    try {
+      await saveCampaignSnapshot(payload, advTitle);
+    } catch (err) {
+      console.warn('Error guardando snapshot:', err);
+    }
+
+    // 3. Si se solicita exportar archivo .json independiente
+    let fileResult = null;
+    if (shouldExportFile) {
+      const safeTitle = advTitle.toLowerCase().replace(/[^a-z0-9]/gi, '_');
+      const filename = `aventura_${safeTitle}_${new Date().toISOString().slice(0, 10)}.json`;
+      fileResult = await exportJSON(filename, payload);
+    }
+
+    showMasterFeedback(`Aventura guardada: ${advTitle}`, '💾');
+    return fileResult || { success: true };
+  };
+
   const handleExportCampaign = async () => {
+    const syncedScenes = scenes.map((sc) =>
+      sc.id === activeSceneId
+        ? { ...sc, maps, tokens, fowActions, weatherEffect, ambientTint }
+        : sc
+    );
     const res = await exportCampaignJSON({
       characters,
       tokens,
@@ -2159,7 +2282,7 @@ function App() {
       weatherEffect,
       ambientTint,
       customSounds,
-      scenes,
+      scenes: syncedScenes,
       activeSceneId,
       handouts,
       activeHandout,
@@ -2246,6 +2369,7 @@ function App() {
       try {
         const d = JSON.parse(res.text);
         applyCampaignData(d);
+        saveCampaignSnapshot(d, `Crónica: ${res.filename?.replace('.json', '') || 'Importada'}`);
         showMasterFeedback(`Crónica cargada: ${res.filename}`, '📥');
       } catch (err) {
         console.error('Error al importar crónica:', err);
@@ -2262,6 +2386,7 @@ function App() {
       try {
         const d = JSON.parse(event.target.result);
         applyCampaignData(d);
+        saveCampaignSnapshot(d, `Crónica: ${file.name?.replace('.json', '') || 'Importada'}`);
         showMasterFeedback('Crónica cargada con éxito', '📥');
       } catch (err) {
         console.error('Error al importar crónica:', err);
@@ -2400,11 +2525,13 @@ function App() {
 
       <div style={{
         height: '58px',
-        background: 'linear-gradient(180deg, #161922 0%, #0f1117 100%)',
+        backgroundImage: 'linear-gradient(180deg, rgba(22, 25, 34, 0.72) 0%, rgba(15, 17, 23, 0.92) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
         padding: '0 20px',
         display: 'flex',
         alignItems: 'center',
-        borderBottom: '1px solid #2b3040',
+        borderBottom: '1px solid #3d3222',
         boxShadow: '0 4px 20px rgba(0,0,0,0.65)',
         zIndex: 30
       }}>
@@ -2416,6 +2543,8 @@ function App() {
           onOpenSettings={() => setIsSettingsOpen(!isSettingsOpen)}
           onOpenPlayerView={handleOpenPlayerView}
           onOpenMasterNotes={() => setIsMasterNotesOpen(!isMasterNotesOpen)}
+          onOpenGraveyard={() => setEncyclopediaState({ isOpen: true, category: 'graveyard' })}
+          graveyardCount={(graveyard || []).length}
           isCombatActive={isCombatActive}
           combatRound={combatRound}
           activeTurnToken={tokens.find(t => t.id === activeTurnTokenId)}
@@ -2454,6 +2583,12 @@ function App() {
         onOpenMapCreator={() => setIsMapCreatorOpen(true)}
         onImportCampaign={handleImportCampaign}
         onExportCampaign={handleExportCampaign}
+        onLoadRecentCampaign={(data) => {
+          if (!data) return;
+          applyCampaignData(data);
+          setIsHomeOpen(false);
+          showMasterFeedback('Crónica cargada con éxito', '📖');
+        }}
         onOpenPlayerView={handleOpenPlayerView}
         onOpenTutorial={() => setIsTutorialOpen(true)}
       />
@@ -3100,7 +3235,9 @@ function App() {
         activeSceneId={activeSceneId}
         onSelectScene={handleSelectScene}
         onCreateNewScene={handleCreateNewScene}
+        onRenameScene={handleRenameScene}
         onDeleteScene={handleDeleteScene}
+        onDeleteAllScenes={handleDeleteAllScenes}
         onMoveSceneOrder={handleMoveSceneOrder}
         onReorderScenes={handleReorderScenes}
         handouts={handouts}
@@ -3122,6 +3259,7 @@ function App() {
         onSaveCommonItem={handleSaveCommonItem}
         onDeleteCommonItem={handleDeleteCommonItem}
         onPlaceGroundItem={handleStartPlaceGroundItem}
+        onSaveAdventure={handleSaveAdventure}
       />
 
       <TutorialModal

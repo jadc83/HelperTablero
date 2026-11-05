@@ -15,21 +15,66 @@ const SettingsDrawer = ({
   openMapCreator,
   maps = [], onAddMapElement, onToggleMapElementState, onRemoveMapElement, onClearAllMaps,
   scenes = [], activeSceneId = null, onSelectScene, onCreateNewScene, onRenameScene, onDeleteScene,
+  onDeleteAllScenes,
   onMoveSceneOrder, onReorderScenes,
   handouts = [], activeHandout = null, onAddHandout, onRemoveHandout, onProjectHandout,
   customObjects = [], onSaveCustomObject, onDeleteCustomObject, onInspectObject,
   tokens = [], activeTurnTokenId = null,
-  commonItems = [], onGiveItemToCharacter, onSaveCommonItem, onDeleteCommonItem, onPlaceGroundItem
+  commonItems = [], onGiveItemToCharacter, onSaveCommonItem, onDeleteCommonItem, onPlaceGroundItem,
+  onSaveAdventure
 }) => {
   const [activeTab, setActiveTab] = useState('escenario');
   const [bestiarySubTab, setBestiarySubTab] = useState('characters'); // 'characters' | 'statuses'
   const [statusMessage, setStatusMessage] = useState(null);
   const [confirmClearMaps, setConfirmClearMaps] = useState(false);
+  const [confirmDeleteAllScenes, setConfirmDeleteAllScenes] = useState(false);
+
+  // Estados para Guardar Aventura Completa
+  const [isSaveAdventureModalOpen, setIsSaveAdventureModalOpen] = useState(false);
+  const [adventureNameInput, setAdventureNameInput] = useState('');
+  const [exportJsonFile, setExportJsonFile] = useState(true);
+  const [isSavingAdventure, setIsSavingAdventure] = useState(false);
+
+  const handleOpenSaveAdventureModal = () => {
+    const cur = scenes.find(s => s.id === activeSceneId) || scenes[0];
+    setAdventureNameInput(cur?.name ? `Crónica: ${cur.name}` : 'Mi Aventura');
+    setIsSaveAdventureModalOpen(true);
+  };
+
+  const handleConfirmSaveAdventure = async () => {
+    if (!onSaveAdventure) return;
+    setIsSavingAdventure(true);
+    try {
+      await onSaveAdventure(adventureNameInput.trim() || 'Aventura de Campaña', exportJsonFile);
+      notify('¡Aventura guardada exitosamente!');
+      setIsSaveAdventureModalOpen(false);
+    } catch (err) {
+      console.error('Error al guardar aventura:', err);
+      notify('Error al guardar la aventura');
+    } finally {
+      setIsSavingAdventure(false);
+    }
+  };
 
   // Estados para Escenas y Drag & Drop
   const [newSceneTitle, setNewSceneTitle] = useState('');
   const [draggedSceneIndex, setDraggedSceneIndex] = useState(null);
   const [dragOverSceneIndex, setDragOverSceneIndex] = useState(null);
+  const [editingSceneId, setEditingSceneId] = useState(null);
+  const [editingSceneName, setEditingSceneName] = useState('');
+
+  const handleStartRename = (sc) => {
+    setEditingSceneId(sc.id);
+    setEditingSceneName(sc.name);
+  };
+
+  const handleSaveRename = (sceneId) => {
+    if (editingSceneName.trim() && onRenameScene) {
+      onRenameScene(sceneId, editingSceneName.trim());
+      notify('Escena renombrada');
+    }
+    setEditingSceneId(null);
+  };
 
   // Estados para Ilustraciones (Handouts)
   const [handoutTitle, setHandoutTitle] = useState('');
@@ -302,9 +347,12 @@ const SettingsDrawer = ({
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '12px 18px',
-        background: '#10131b',
-        borderBottom: '1px solid #262c3a'
+        padding: '14px 18px',
+        backgroundImage: 'linear-gradient(180deg, rgba(16, 19, 27, 0.72) 0%, rgba(13, 16, 23, 0.92) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        borderBottom: '1px solid #262c3a',
+        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.5)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span className="vtt-gothic-title" style={{ fontSize: '15px', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '0.04em' }}>
@@ -342,12 +390,15 @@ const SettingsDrawer = ({
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: '6px',
-                background: isActive ? '#d97706' : '#141824',
-                border: isActive ? '1px solid #fbbf24' : '1px solid #252e42',
-                color: isActive ? '#ffffff' : '#94a3b8',
+                backgroundColor: isActive ? '#2a1a08' : '#141824',
+                background: isActive
+                  ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                  : '#141824',
+                border: isActive ? '1.5px solid #f59e0b' : '1px solid #252e42',
+                color: isActive ? '#fbbf24' : '#94a3b8',
                 fontSize: '11px',
                 fontWeight: isActive ? 800 : 600,
-                boxShadow: isActive ? '0 2px 8px rgba(217, 119, 6, 0.45)' : 'none',
+                boxShadow: isActive ? '0 2px 10px rgba(245, 158, 11, 0.25), inset 0 0 8px rgba(245, 158, 11, 0.12)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
@@ -428,8 +479,18 @@ const SettingsDrawer = ({
                   return (
                     <div
                       key={sc.id}
-                      draggable
+                      draggable={editingSceneId !== sc.id}
+                      onClick={() => {
+                        if (editingSceneId === sc.id) return;
+                        if (!isCurrent && onSelectScene) {
+                          onSelectScene(sc.id);
+                        }
+                      }}
                       onDragStart={(e) => {
+                        if (editingSceneId === sc.id) {
+                          e.preventDefault();
+                          return;
+                        }
                         setDraggedSceneIndex(idx);
                         e.dataTransfer.effectAllowed = 'move';
                       }}
@@ -453,42 +514,125 @@ const SettingsDrawer = ({
                         setDraggedSceneIndex(null);
                         setDragOverSceneIndex(null);
                       }}
+                      onMouseEnter={(e) => {
+                        if (!isCurrent && editingSceneId !== sc.id) {
+                          e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.45)';
+                          e.currentTarget.style.backgroundColor = '#181e2b';
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isCurrent && editingSceneId !== sc.id) {
+                          e.currentTarget.style.borderColor = '#283144';
+                          e.currentTarget.style.backgroundColor = '#141822';
+                        }
+                      }}
                       style={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        padding: '9px 12px',
+                        padding: '10px 12px',
                         borderRadius: '6px',
-                        backgroundColor: isCurrent ? 'rgba(245, 158, 11, 0.16)' : '#141822',
+                        backgroundColor: isCurrent ? '#2a1a08' : '#141822',
+                        background: isCurrent
+                          ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                          : '#141822',
                         border: isDragOver
                           ? '2px dashed #38bdf8'
                           : isCurrent
-                          ? '1px solid #f59e0b'
+                          ? '1.5px solid #f59e0b'
                           : '1px solid #283144',
-                        borderLeft: isCurrent ? '4px solid #f59e0b' : '1px solid #283144',
+                        boxShadow: isCurrent ? '0 3px 12px rgba(245, 158, 11, 0.25), inset 0 0 10px rgba(245, 158, 11, 0.12)' : 'none',
                         fontSize: '12px',
-                        cursor: 'grab',
+                        cursor: editingSceneId === sc.id ? 'default' : isCurrent ? 'default' : 'pointer',
                         opacity: draggedSceneIndex === idx ? 0.5 : 1,
-                        transition: 'all 0.12s ease'
+                        transition: 'all 0.15s ease'
                       }}
-                      title="Arrastra para cambiar el orden de la escena"
+                      title={
+                        editingSceneId === sc.id
+                          ? ''
+                          : isCurrent
+                          ? 'Escena activa (arrastra para reordenar)'
+                          : 'Haz clic para activar esta escena'
+                      }
                     >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                        <span style={{ color: '#64748b', fontSize: '14px', cursor: 'grab', userSelect: 'none' }} title="Arrastrar escena">
+                        <span style={{ color: isCurrent ? '#f59e0b' : '#64748b', fontSize: '14px', cursor: editingSceneId === sc.id ? 'default' : 'grab', userSelect: 'none' }} title="Arrastrar escena">
                           ⠿
                         </span>
                         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span style={{ fontWeight: 800, color: isCurrent ? '#fbbf24' : '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                              {idx + 1}. {sc.name}
-                            </span>
-                            {isCurrent && (
-                              <span style={{ backgroundColor: '#10b981', color: '#042f1a', padding: '1px 6px', borderRadius: '4px', fontWeight: 800, fontSize: '9px', letterSpacing: '0.04em' }}>
-                                ACTIVA
-                              </span>
+                            {editingSceneId === sc.id ? (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
+                                <span style={{ fontWeight: 800, color: '#f59e0b', fontSize: '11px' }}>
+                                  {idx + 1}.
+                                </span>
+                                <input
+                                  type="text"
+                                  value={editingSceneName}
+                                  onChange={(e) => setEditingSceneName(e.target.value)}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                      e.preventDefault();
+                                      handleSaveRename(sc.id);
+                                    } else if (e.key === 'Escape') {
+                                      setEditingSceneId(null);
+                                    }
+                                  }}
+                                  autoFocus
+                                  style={{
+                                    padding: '2px 6px',
+                                    fontSize: '11px',
+                                    backgroundColor: '#0c0f17',
+                                    color: '#f8fafc',
+                                    border: '1px solid #f59e0b',
+                                    borderRadius: '4px',
+                                    outline: 'none',
+                                    maxWidth: '135px'
+                                  }}
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveRename(sc.id)}
+                                  style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontSize: '13px', padding: '0 2px' }}
+                                  title="Guardar nombre"
+                                >
+                                  ✓
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => setEditingSceneId(null)}
+                                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', padding: '0 2px' }}
+                                  title="Cancelar"
+                                >
+                                  ✕
+                                </button>
+                              </div>
+                            ) : (
+                              <>
+                                <span 
+                                  onDoubleClick={() => handleStartRename(sc)}
+                                  style={{ fontWeight: 800, color: isCurrent ? '#ffffff' : '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', cursor: 'pointer' }}
+                                  title="Doble clic para cambiar nombre"
+                                >
+                                  {idx + 1}. {sc.name}
+                                </span>
+                                {onRenameScene && (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleStartRename(sc);
+                                    }}
+                                    style={{ background: 'none', border: 'none', color: isCurrent ? '#fef08a' : '#94a3b8', cursor: 'pointer', fontSize: '11px', padding: '0 2px', opacity: 0.8 }}
+                                    title="Cambiar nombre a la escena"
+                                  >
+                                    ✏️
+                                  </button>
+                                )}
+                              </>
                             )}
                           </div>
-                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                          <span style={{ fontSize: '10px', color: isCurrent ? '#fde68a' : '#94a3b8' }}>
                             {(sc.maps || []).length} elem. mapa • {(sc.tokens || []).length} fichas
                           </span>
                         </div>
@@ -499,7 +643,10 @@ const SettingsDrawer = ({
                             <button
                               type="button"
                               disabled={idx === 0}
-                              onClick={() => onMoveSceneOrder(idx, 'up')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onMoveSceneOrder(idx, 'up');
+                              }}
                               className="vtt-brass-btn"
                               style={{ padding: '1px 5px', fontSize: '9px', borderRadius: '3px', opacity: idx === 0 ? 0.35 : 1, cursor: idx === 0 ? 'default' : 'pointer' }}
                               title="Subir escena"
@@ -509,7 +656,10 @@ const SettingsDrawer = ({
                             <button
                               type="button"
                               disabled={idx === scenes.length - 1}
-                              onClick={() => onMoveSceneOrder(idx, 'down')}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onMoveSceneOrder(idx, 'down');
+                              }}
                               className="vtt-brass-btn"
                               style={{ padding: '1px 5px', fontSize: '9px', borderRadius: '3px', opacity: idx === scenes.length - 1 ? 0.35 : 1, cursor: idx === scenes.length - 1 ? 'default' : 'pointer' }}
                               title="Bajar escena"
@@ -518,22 +668,14 @@ const SettingsDrawer = ({
                             </button>
                           </div>
                         )}
-                        {!isCurrent && onSelectScene && (
+                        {onDeleteScene && (
                           <button
-                            onClick={() => {
-                              onSelectScene(sc.id);
-                              notify(`Escena "${sc.name}" cargada`);
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteScene(sc.id);
                             }}
-                            className="vtt-brass-btn"
-                            style={{ padding: '4px 9px', borderRadius: '5px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer' }}
-                          >
-                            Cargar
-                          </button>
-                        )}
-                        {scenes.length > 1 && onDeleteScene && (
-                          <button
-                            onClick={() => onDeleteScene(sc.id)}
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', padding: '0 4px' }}
+                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', padding: '0 6px' }}
                             title="Eliminar esta escena"
                           >
                             ✕
@@ -543,6 +685,64 @@ const SettingsDrawer = ({
                     </div>
                   );
                 })}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', marginTop: '6px', flexWrap: 'wrap', gap: '8px' }}>
+                {onSaveAdventure && (
+                  <button
+                    type="button"
+                    onClick={handleOpenSaveAdventureModal}
+                    className="vtt-brass-btn"
+                    style={{
+                      background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(180, 83, 9, 0.2) 100%)',
+                      border: '1px solid #d4af37',
+                      color: '#fef3c7',
+                      padding: '5px 12px',
+                      borderRadius: '5px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.4)'
+                    }}
+                    title="Guardar la aventura completa con todas las escenas, mapas, fichas y estado"
+                  >
+                    💾 Guardar Aventura
+                  </button>
+                )}
+
+                {onDeleteAllScenes && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirmDeleteAllScenes) {
+                        onDeleteAllScenes();
+                        setConfirmDeleteAllScenes(false);
+                        notify('Todas las escenas han sido eliminadas');
+                      } else {
+                        setConfirmDeleteAllScenes(true);
+                        setTimeout(() => setConfirmDeleteAllScenes(false), 3500);
+                      }
+                    }}
+                    style={{
+                      backgroundColor: confirmDeleteAllScenes ? '#dc2626' : 'rgba(239, 68, 68, 0.08)',
+                      border: confirmDeleteAllScenes ? '1px solid #dc2626' : '1px solid rgba(239, 68, 68, 0.3)',
+                      color: confirmDeleteAllScenes ? '#ffffff' : '#f87171',
+                      padding: '4px 10px',
+                      borderRadius: '4px',
+                      fontSize: '11px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      marginLeft: 'auto'
+                    }}
+                    title="Eliminar todas las escenas y reiniciar el tablero"
+                  >
+                    {confirmDeleteAllScenes ? '⚠️ ¿Confirmar borrar todas las escenas?' : '🗑️ Borrar todas las escenas'}
+                  </button>
+                )}
               </div>
             </div>
 
@@ -697,12 +897,16 @@ const SettingsDrawer = ({
                   flex: 1,
                   padding: '7px 4px',
                   borderRadius: '6px',
-                  border: 'none',
+                  border: objectsSubTab === 'creator' ? '1.5px solid #f59e0b' : '1px solid transparent',
                   fontSize: '11px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  backgroundColor: objectsSubTab === 'creator' ? '#f59e0b' : 'transparent',
-                  color: objectsSubTab === 'creator' ? '#0f1115' : '#94a3b8',
+                  backgroundColor: objectsSubTab === 'creator' ? '#2a1a08' : 'transparent',
+                  background: objectsSubTab === 'creator'
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                    : 'transparent',
+                  color: objectsSubTab === 'creator' ? '#fbbf24' : '#94a3b8',
+                  boxShadow: objectsSubTab === 'creator' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -715,12 +919,16 @@ const SettingsDrawer = ({
                   flex: 1,
                   padding: '7px 4px',
                   borderRadius: '6px',
-                  border: 'none',
+                  border: objectsSubTab === 'scene' ? '1.5px solid #f59e0b' : '1px solid transparent',
                   fontSize: '11px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  backgroundColor: objectsSubTab === 'scene' ? '#f59e0b' : 'transparent',
-                  color: objectsSubTab === 'scene' ? '#0f1115' : '#94a3b8',
+                  backgroundColor: objectsSubTab === 'scene' ? '#2a1a08' : 'transparent',
+                  background: objectsSubTab === 'scene'
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                    : 'transparent',
+                  color: objectsSubTab === 'scene' ? '#fbbf24' : '#94a3b8',
+                  boxShadow: objectsSubTab === 'scene' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -733,12 +941,16 @@ const SettingsDrawer = ({
                   flex: 1,
                   padding: '7px 4px',
                   borderRadius: '6px',
-                  border: 'none',
+                  border: objectsSubTab === 'catalog' ? '1.5px solid #f59e0b' : '1px solid transparent',
                   fontSize: '11px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  backgroundColor: objectsSubTab === 'catalog' ? '#f59e0b' : 'transparent',
-                  color: objectsSubTab === 'catalog' ? '#0f1115' : '#94a3b8',
+                  backgroundColor: objectsSubTab === 'catalog' ? '#2a1a08' : 'transparent',
+                  background: objectsSubTab === 'catalog'
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                    : 'transparent',
+                  color: objectsSubTab === 'catalog' ? '#fbbf24' : '#94a3b8',
+                  boxShadow: objectsSubTab === 'catalog' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -1280,12 +1492,16 @@ const SettingsDrawer = ({
                   flex: 1,
                   padding: '7px 4px',
                   borderRadius: '6px',
-                  border: 'none',
+                  border: itemsSubTab === 'catalog' ? '1.5px solid #f59e0b' : '1px solid transparent',
                   fontSize: '11px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  backgroundColor: itemsSubTab === 'catalog' ? '#f59e0b' : 'transparent',
-                  color: itemsSubTab === 'catalog' ? '#0f1115' : '#94a3b8',
+                  backgroundColor: itemsSubTab === 'catalog' ? '#2a1a08' : 'transparent',
+                  background: itemsSubTab === 'catalog'
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                    : 'transparent',
+                  color: itemsSubTab === 'catalog' ? '#fbbf24' : '#94a3b8',
+                  boxShadow: itemsSubTab === 'catalog' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -1298,12 +1514,16 @@ const SettingsDrawer = ({
                   flex: 1,
                   padding: '7px 4px',
                   borderRadius: '6px',
-                  border: 'none',
+                  border: itemsSubTab === 'creator' ? '1.5px solid #f59e0b' : '1px solid transparent',
                   fontSize: '11px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  backgroundColor: itemsSubTab === 'creator' ? '#f59e0b' : 'transparent',
-                  color: itemsSubTab === 'creator' ? '#0f1115' : '#94a3b8',
+                  backgroundColor: itemsSubTab === 'creator' ? '#2a1a08' : 'transparent',
+                  background: itemsSubTab === 'creator'
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                    : 'transparent',
+                  color: itemsSubTab === 'creator' ? '#fbbf24' : '#94a3b8',
+                  boxShadow: itemsSubTab === 'creator' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none',
                   transition: 'all 0.15s ease'
                 }}
               >
@@ -1885,9 +2105,13 @@ const SettingsDrawer = ({
                   fontSize: '12px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  border: 'none',
-                  background: bestiarySubTab === 'characters' ? '#f59e0b' : 'transparent',
-                  color: bestiarySubTab === 'characters' ? '#0f1115' : '#94a3b8'
+                  border: bestiarySubTab === 'characters' ? '1.5px solid #f59e0b' : '1px solid transparent',
+                  backgroundColor: bestiarySubTab === 'characters' ? '#2a1a08' : 'transparent',
+                  background: bestiarySubTab === 'characters'
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                    : 'transparent',
+                  color: bestiarySubTab === 'characters' ? '#fbbf24' : '#94a3b8',
+                  boxShadow: bestiarySubTab === 'characters' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none'
                 }}
               >
                 Personajes ({characters.length})
@@ -1902,9 +2126,13 @@ const SettingsDrawer = ({
                   fontSize: '12px',
                   fontWeight: 700,
                   cursor: 'pointer',
-                  border: 'none',
-                  background: bestiarySubTab === 'statuses' ? '#f59e0b' : 'transparent',
-                  color: bestiarySubTab === 'statuses' ? '#0f1115' : '#94a3b8'
+                  border: bestiarySubTab === 'statuses' ? '1.5px solid #f59e0b' : '1px solid transparent',
+                  backgroundColor: bestiarySubTab === 'statuses' ? '#2a1a08' : 'transparent',
+                  background: bestiarySubTab === 'statuses'
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                    : 'transparent',
+                  color: bestiarySubTab === 'statuses' ? '#fbbf24' : '#94a3b8',
+                  boxShadow: bestiarySubTab === 'statuses' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none'
                 }}
               >
                 Estados y Condiciones ({customStatuses.length})
@@ -2127,7 +2355,11 @@ const SettingsDrawer = ({
                 <button onClick={onImportCampaign} className="vtt-brass-btn" style={{ flex: 1, padding: '11px', borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer', borderColor: '#60a5fa', color: '#93c5fd' }}>
                   Cargar aventura (.json)
                 </button>
-                <button onClick={onExportCampaign} className="vtt-primary-cta" style={{ flex: 1, padding: '11px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
+                <button 
+                  onClick={onSaveAdventure ? handleOpenSaveAdventureModal : onExportCampaign} 
+                  className="vtt-primary-cta" 
+                  style={{ flex: 1, padding: '11px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
+                >
                   Guardar aventura (.json)
                 </button>
               </div>
@@ -2135,6 +2367,246 @@ const SettingsDrawer = ({
           </div>
         )}
       </div>
+
+      {/* MODAL GÓTICO: GUARDAR AVENTURA Y ESCENARIOS */}
+      {isSaveAdventureModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(5, 7, 12, 0.82)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px'
+        }}>
+          <div 
+            className="vtt-wood-panel"
+            style={{
+              width: '100%',
+              maxWidth: '560px',
+              backgroundColor: '#121620',
+              backgroundImage: 'linear-gradient(180deg, rgba(20, 26, 38, 0.95) 0%, rgba(13, 16, 24, 0.98) 100%), url("/assets/textures/parchment_dossier_texture.jpg")',
+              backgroundBlendMode: 'overlay',
+              borderRadius: '12px',
+              border: '1px solid rgba(212, 175, 55, 0.45)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.95), 0 0 25px rgba(212, 175, 55, 0.15)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Cabecera del Modal */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 20px',
+              borderBottom: '1px solid rgba(212, 175, 55, 0.25)',
+              background: 'linear-gradient(180deg, rgba(212, 175, 55, 0.1) 0%, rgba(0, 0, 0, 0.3) 100%)'
+            }}>
+              <div>
+                <h3 className="vtt-gothic-title" style={{ margin: 0, fontSize: '17px', color: '#f3e8c8', letterSpacing: '0.04em' }}>
+                  Guardar Aventura y Escenarios
+                </h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                  Preserva el estado íntegro de la crónica para continuar la partida en cualquier momento.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsSaveAdventureModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  lineHeight: 1
+                }}
+                title="Cerrar ventana"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Cuerpo del Modal */}
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '70vh', overflowY: 'auto' }}>
+              {/* Campo Nombre de Aventura */}
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#d4af37', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                  Nombre de la Aventura / Crónica
+                </label>
+                <input
+                  type="text"
+                  value={adventureNameInput}
+                  onChange={(e) => setAdventureNameInput(e.target.value)}
+                  placeholder="Ej. La Mansión Corbitt - Acto I"
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '10px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid #3b4252',
+                    backgroundColor: '#0a0d14',
+                    color: '#f8fafc',
+                    fontSize: '14px',
+                    outline: 'none',
+                    fontFamily: 'inherit'
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = '#d4af37')}
+                  onBlur={(e) => (e.target.style.borderColor = '#3b4252')}
+                />
+              </div>
+
+              {/* Tarjeta de Contenido que se Guardará */}
+              <div style={{
+                background: 'rgba(10, 13, 20, 0.7)',
+                border: '1px solid rgba(255, 255, 255, 0.08)',
+                borderRadius: '8px',
+                padding: '14px'
+              }}>
+                <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+                  Contenido incluido en la copia de seguridad:
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
+                    <span style={{ fontSize: '15px' }}>🗺️</span>
+                    <span><strong>{scenes.length}</strong> {scenes.length === 1 ? 'Escena preparada' : 'Escenas preparadas'}</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
+                    <span style={{ fontSize: '15px' }}>♟️</span>
+                    <span><strong>{tokens.length}</strong> Fichas en mesa</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
+                    <span style={{ fontSize: '15px' }}>🏰</span>
+                    <span><strong>{maps.length}</strong> Muros, planos y luces</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
+                    <span style={{ fontSize: '15px' }}>📜</span>
+                    <span><strong>{characters.length}</strong> Fichas en Códice</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
+                    <span style={{ fontSize: '15px' }}>🌫️</span>
+                    <span>Niebla de Guerra y Visión</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
+                    <span style={{ fontSize: '15px' }}>🌧️</span>
+                    <span>Clima, Tintes y Audio</span>
+                  </div>
+                </div>
+
+                {/* Listado de Escenas incluidas */}
+                {scenes.length > 0 && (
+                  <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.1)', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '11px', color: '#64748b' }}>Escenas:</span>
+                    {scenes.map((s, idx) => (
+                      <span key={s.id || idx} style={{
+                        fontSize: '11px',
+                        background: s.id === activeSceneId ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                        border: s.id === activeSceneId ? '1px solid rgba(212, 175, 55, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                        color: s.id === activeSceneId ? '#fef3c7' : '#94a3b8',
+                        padding: '2px 7px',
+                        borderRadius: '4px'
+                      }}>
+                        {idx + 1}. {s.name} {s.id === activeSceneId ? '• Activa' : ''}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Compatibilidad Multiplataforma / AppData */}
+              <div style={{
+                background: 'rgba(30, 41, 59, 0.35)',
+                border: '1px solid rgba(96, 165, 250, 0.2)',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px'
+              }}>
+                <span style={{ fontSize: '18px', lineHeight: 1 }}>📁</span>
+                <div style={{ fontSize: '12px', color: '#93c5fd', lineHeight: 1.45 }}>
+                  <strong>Multiplataforma (Windows y Linux):</strong> Se archivará en la carpeta interna de la app (<code style={{ background: 'rgba(0,0,0,0.3)', padding: '1px 4px', borderRadius: '3px' }}>appdata/campaigns</code>) y estará disponible al instante con doble clic desde el menú principal.
+                </div>
+              </div>
+
+              {/* Opción Exportar Archivo JSON */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#e2e8f0', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={exportJsonFile}
+                  onChange={(e) => setExportJsonFile(e.target.checked)}
+                  style={{ accentColor: '#d4af37', width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <span>Exportar además una copia en archivo <strong>.json</strong> descargable a tu equipo</span>
+              </label>
+            </div>
+
+            {/* Pie del Modal: Acciones */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '14px 20px',
+              borderTop: '1px solid rgba(212, 175, 55, 0.2)',
+              background: 'rgba(10, 13, 20, 0.8)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setIsSaveAdventureModalOpen(false)}
+                disabled={isSavingAdventure}
+                style={{
+                  background: 'none',
+                  border: '1px solid #475569',
+                  color: '#94a3b8',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  cursor: isSavingAdventure ? 'not-allowed' : 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmSaveAdventure}
+                disabled={isSavingAdventure}
+                className="vtt-primary-cta"
+                style={{
+                  padding: '8px 20px',
+                  fontSize: '13px',
+                  cursor: isSavingAdventure ? 'not-allowed' : 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  opacity: isSavingAdventure ? 0.7 : 1
+                }}
+              >
+                {isSavingAdventure ? (
+                  <>
+                    <span style={{ animation: 'spin 1s linear infinite' }}>⏳</span>
+                    Guardando Aventura...
+                  </>
+                ) : (
+                  <>
+                    💾 Guardar Aventura
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

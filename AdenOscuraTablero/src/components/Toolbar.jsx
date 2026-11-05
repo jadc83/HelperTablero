@@ -8,6 +8,8 @@ const Toolbar = ({
   scenes = [],
   activeSceneId = null,
   onSelectScene,
+  onOpenGraveyard,
+  graveyardCount = 0,
   isCombatActive = false,
   combatRound = 1,
   activeTurnToken = null,
@@ -46,13 +48,15 @@ const Toolbar = ({
             width: '26px',
             height: '26px',
             borderRadius: '5px',
-            background: 'linear-gradient(135deg, #d97706 0%, #92400e 100%)',
+            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(180, 83, 9, 0.5) 100%)',
+            backgroundColor: '#2a1a08',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px solid rgba(245, 158, 11, 0.6)',
+            border: '1.5px solid #f59e0b',
             fontSize: '13px',
-            color: '#fff'
+            color: '#fbbf24',
+            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)'
           }}>
             ⚜
           </div>
@@ -105,6 +109,45 @@ const Toolbar = ({
             ))}
           </select>
         </div>
+
+        {/* Botón Cripta trasladado justo después del selector de escena */}
+        {onOpenGraveyard && (
+          <button
+            type="button"
+            onClick={onOpenGraveyard}
+            className="vtt-brass-btn"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '3px 9px',
+              fontSize: '11px',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              color: '#cbd5e1',
+              backgroundColor: '#121622',
+              border: '1px solid #262e40',
+              fontWeight: 600,
+              height: '26px'
+            }}
+            title="Abrir Cripta y Cementerio de Caídos"
+          >
+            <span style={{ fontSize: '13px' }}>⚰️</span>
+            <span>Cripta</span>
+            {graveyardCount > 0 && (
+              <span style={{
+                backgroundColor: '#dc2626',
+                color: '#fff',
+                borderRadius: '8px',
+                padding: '0 5px',
+                fontSize: '9px',
+                fontWeight: 700
+              }}>
+                {graveyardCount}
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Indicador Central de Turnos / Modo Combate */}

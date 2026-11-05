@@ -380,8 +380,10 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
       <div style={{
         height: '60px',
         padding: '0 22px',
-        background: 'linear-gradient(180deg, #181c24 0%, #11141b 100%)',
-        borderBottom: '1px solid #2e3444',
+        backgroundImage: 'linear-gradient(180deg, rgba(24, 28, 36, 0.72) 0%, rgba(17, 20, 27, 0.92) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        borderBottom: '1px solid #3d3222',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
