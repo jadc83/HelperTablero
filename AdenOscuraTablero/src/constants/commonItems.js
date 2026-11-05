@@ -1,8 +1,17 @@
 export const DEFAULT_COMMON_ITEMS = [
   {
+    id: 'item_backpack',
+    name: 'Mochila de viaje',
+    icon: null,
+    category: 'Supervivencia',
+    state: 'equipped',
+    extraSlots: 10,
+    notes: 'Mochila de lona impermeable y correas reforzadas. Expande el inventario en +10 huecos adicionales.'
+  },
+  {
     id: 'item_lighter',
     name: 'Mechero de latón',
-    icon: '🚬',
+    icon: null,
     category: 'Herramienta',
     state: 'equipped',
     notes: 'A prueba de viento. Llama constante y fiable. Recargado de queroseno.'
@@ -10,23 +19,23 @@ export const DEFAULT_COMMON_ITEMS = [
   {
     id: 'item_rope',
     name: 'Cuerda de cáñamo (15m)',
-    icon: '🪢',
+    icon: null,
     category: 'Supervivencia',
     state: 'equipped',
     notes: 'Cuerda trenzada de 15 metros con nudos de escalada y gancho de amarre. Soporta 200 kg.'
   },
   {
     id: 'item_flashlight',
-    name: 'Linterna eléctrica',
-    icon: '🔦',
+    name: 'Linterna de queroseno / eléctrica',
+    icon: null,
     category: 'Herramienta',
     state: 'equipped',
-    notes: 'Foco eléctrico de luz dirigida. Pilas secas a media carga (3 horas de autonomía).'
+    notes: 'Foco de luz dirigida para explorar pasajes y sótanos en penumbra.'
   },
   {
     id: 'item_matches',
     name: 'Caja de cerillas secas',
-    icon: '🕯️',
+    icon: null,
     category: 'Herramienta',
     state: 'equipped',
     notes: 'Estuche de metal sellado con 20 cerillas de azufre contra la humedad.'
@@ -34,7 +43,7 @@ export const DEFAULT_COMMON_ITEMS = [
   {
     id: 'item_lockpicks',
     name: 'Ganzúas de cerrajero',
-    icon: '🗝️',
+    icon: null,
     category: 'Herramienta',
     state: 'equipped',
     notes: 'Juego de ganzúas finas de acero templado. Concede bonificación a forzar cerraduras.'
@@ -42,7 +51,7 @@ export const DEFAULT_COMMON_ITEMS = [
   {
     id: 'item_medkit',
     name: 'Botiquín de primeros auxilios',
-    icon: '🩸',
+    icon: null,
     category: 'Consumible',
     state: 'equipped',
     notes: 'Vendas esterilizadas, tijeras quirúrgicas, tintura de yodo y alcohol medicinal.'
@@ -50,7 +59,7 @@ export const DEFAULT_COMMON_ITEMS = [
   {
     id: 'item_laudanum',
     name: 'Frasco de láudano medicinal',
-    icon: '💊',
+    icon: null,
     category: 'Consumible',
     state: 'equipped',
     notes: 'Calmante narcótico potente. Calma dolores intensos y la histeria aguda (1 dosis restante).'
@@ -58,7 +67,7 @@ export const DEFAULT_COMMON_ITEMS = [
   {
     id: 'item_notebook',
     name: 'Cuaderno de notas y carboncillo',
-    icon: '📜',
+    icon: null,
     category: 'Documento',
     state: 'equipped',
     notes: 'Páginas amarillentas encuadernadas en cuero para calcar inscripciones y tomar notas.'
@@ -66,7 +75,7 @@ export const DEFAULT_COMMON_ITEMS = [
   {
     id: 'item_magnifier',
     name: 'Lupa de investigación',
-    icon: '🔍',
+    icon: null,
     category: 'Herramienta',
     state: 'equipped',
     notes: 'Lente de aumento de cristal pulido con montura de latón para examinar detalles diminutos.'
@@ -74,7 +83,7 @@ export const DEFAULT_COMMON_ITEMS = [
   {
     id: 'item_compass',
     name: 'Brújula magnética de bolsillo',
-    icon: '🧭',
+    icon: null,
     category: 'Supervivencia',
     state: 'equipped',
     notes: 'Aguja imantada de latón con cuadrante luminoso para orientación nocturna.'
@@ -82,39 +91,39 @@ export const DEFAULT_COMMON_ITEMS = [
   {
     id: 'item_canteen',
     name: 'Cantimplora de campaña',
-    icon: '💧',
+    icon: null,
     category: 'Supervivencia',
     state: 'equipped',
     notes: 'Cantimplora de aluminio forrada en fieltro con 1 litro de agua limpia.'
   },
   {
     id: 'item_knife',
-    name: 'Navaja multiusos plegable',
-    icon: '🔪',
+    name: 'Machete o Cuchillo de caza',
+    icon: null,
     category: 'Arma / Herramienta',
     state: 'equipped',
-    notes: 'Hoja de acero al carbono de 8 cm, sacacorchos y punzón de cuero.'
+    notes: 'Hoja de acero templado para abrirse paso entre la maleza o defenderse.'
   },
   {
-    id: 'item_radio',
-    name: 'Receptor de radio portátil',
-    icon: '📻',
-    category: 'Herramienta',
+    id: 'item_revolver',
+    name: 'Revólver de seis tiros',
+    icon: null,
+    category: 'Arma',
     state: 'equipped',
-    notes: 'Aparato de válvulas para captar frecuencias locales y transmisiones misteriosas.'
+    notes: 'Revólver clásico de tambor calibre .38 con 6 balas cargadas.'
   },
   {
-    id: 'item_key',
-    name: 'Llave antigua de hierro',
-    icon: '🗝️',
-    category: 'Llave',
+    id: 'item_rations',
+    name: 'Raciones secas de viaje',
+    icon: null,
+    category: 'Consumible',
     state: 'equipped',
-    notes: 'Llave ornamentada cubierta de pátina oscura. Parece pertenecer a una puerta pesada.'
+    notes: 'Conservas selladas y galletas de campaña para reponer energías.'
   },
   {
     id: 'item_relic',
     name: 'Amuleto o Reliquia arcana',
-    icon: '⚱️',
+    icon: null,
     category: 'Reliquia',
     state: 'equipped',
     notes: 'Relieve de piedra verdosa no identificada. Permanece extrañamente gélida al tacto.'

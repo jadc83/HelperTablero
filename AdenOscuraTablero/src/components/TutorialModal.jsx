@@ -130,7 +130,7 @@ const TutorialModal = ({ isOpen, onClose, onNeverShowAgain }) => {
                   boxShadow: '0 4px 12px rgba(0,0,0,0.7)'
                 }}
               >
-                ⚔️ Comenzar Partida
+                Comenzar Partida
               </button>
             )}
           </div>

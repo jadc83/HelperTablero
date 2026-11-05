@@ -154,12 +154,12 @@ const SettingsModal = ({
           display: 'flex', flexDirection: 'column', gap: '10px', flexShrink: 0
         }}>
           {[
-            { id: 'mapMaker', label: '🗺️ Creador de Mapas' },
-            { id: 'characters', label: '🛡️ Personajes y Bestiario' },
-            { id: 'fow', label: '🌑 Niebla y Visión' },
-            { id: 'board', label: '🔲 Cuadrícula Táctica' },
-            { id: 'statuses', label: '✨ Estados y Condiciones' },
-            { id: 'data', label: '📜 Guardar / Cargar Crónica' }
+            { id: 'mapMaker', label: 'Creador de Mapas' },
+            { id: 'characters', label: 'Personajes y Bestiario' },
+            { id: 'fow', label: 'Niebla y Visión' },
+            { id: 'board', label: 'Cuadrícula Táctica' },
+            { id: 'statuses', label: 'Estados y Condiciones' },
+            { id: 'data', label: 'Guardar / Cargar Crónica' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -250,8 +250,8 @@ const SettingsModal = ({
                             onChange={(e) => setCharFaction(e.target.value)}
                             style={{ width: '100%', height: '42px', padding: '0 8px', borderRadius: '6px', border: '1px solid #8a6d3b', backgroundColor: '#120b07', color: '#f3e5ab' }}
                           >
-                            <option value="ally">🛡️ Héroe / Aliado</option>
-                            <option value="enemy">💀 Enemigo / Bestia</option>
+                            <option value="ally">Héroe / Aliado</option>
+                            <option value="enemy">Enemigo / Bestia</option>
                           </select>
                         </div>
 
@@ -262,8 +262,8 @@ const SettingsModal = ({
                     <div style={{ borderTop: '1px solid #6b4c2b', paddingTop: '20px' }}>
                       <h3 className="vtt-gothic-title" style={{ fontSize: '15px', marginBottom: '15px', color: '#c5a059' }}>Compendio de Personajes (.json)</h3>
                       <div style={{ display: 'flex', gap: '20px' }}>
-                        <button onClick={() => handleImportCharactersFile()} className="vtt-brass-btn" style={{ flex: 1, padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>📥 Importar Compendio</button>
-                        <button onClick={handleExportCharacters} className="vtt-brass-btn" style={{ flex: 1, padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>📤 Exportar Compendio</button>
+                        <button onClick={() => handleImportCharactersFile()} className="vtt-brass-btn" style={{ flex: 1, padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Importar Compendio</button>
+                        <button onClick={handleExportCharacters} className="vtt-brass-btn" style={{ flex: 1, padding: '12px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>Exportar Compendio</button>
                       </div>
                       <input type="file" accept=".json" ref={charInputRef} style={{ display: 'none' }} onChange={handleImportCharactersFile} />
                     </div>
@@ -278,7 +278,7 @@ const SettingsModal = ({
                         <span style={{ fontSize: '14px', color: '#b89f7d' }}>En la vista del Master la niebla es translúcida para que siempre veas el mapa; en la pantalla de Jugadores es 100% opaca.</span>
                       </div>
                       <button onClick={() => setFowEnabled(!fowEnabled)} className="vtt-brass-btn" style={{ padding: '10px 22px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', color: fowEnabled ? '#4ade80' : '#f87171', whiteSpace: 'nowrap' }}>
-                        {fowEnabled ? '🕯️ Activada' : '🌑 Desactivada'}
+                        {fowEnabled ? 'Activada' : 'Desactivada'}
                       </button>
                     </div>
 
@@ -294,7 +294,7 @@ const SettingsModal = ({
                       <div style={{ display: 'flex', gap: '10px', flexShrink: 0 }}>
                         {setFowMemoryEnabled && (
                           <button onClick={() => setFowMemoryEnabled(!fowMemoryEnabled)} className="vtt-brass-btn" style={{ padding: '10px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold' }}>
-                            {fowMemoryEnabled ? '👁️ Penumbra' : '🔦 Estricta'}
+                            {fowMemoryEnabled ? 'Penumbra' : 'Estricta'}
                           </button>
                         )}
                         {onResetFow && (
@@ -312,7 +312,7 @@ const SettingsModal = ({
                             }}
                             title="Vuelve a cubrir todas las zonas exploradas o pintadas"
                           >
-                            🌑 Reiniciar Niebla
+                            Reiniciar Niebla
                           </button>
                         )}
                       </div>
@@ -324,7 +324,7 @@ const SettingsModal = ({
                           Detección Automática de Enemigos por Cono de Visión
                         </label>
                         <span style={{ fontSize: '14px', color: '#b89f7d' }}>
-                          Las fichas marcadas como 💀 Enemigo solo aparecerán en la Pantalla de Jugadores cuando estén físicamente dentro del haz de luz de algún héroe (sin muros ni puertas cerradas de por medio).
+                          Las fichas marcadas como Enemigo solo aparecerán en la Pantalla de Jugadores cuando estén físicamente dentro del haz de luz de algún héroe (sin muros ni puertas cerradas de por medio).
                         </span>
                       </div>
                       {setFowAutoHideEnemies && (
@@ -333,7 +333,7 @@ const SettingsModal = ({
                           className="vtt-brass-btn"
                           style={{ padding: '10px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', color: fowAutoHideEnemies ? '#4ade80' : '#f87171', whiteSpace: 'nowrap' }}
                         >
-                          {fowAutoHideEnemies ? '🎯 Activa' : '👁️ Siempre Visibles'}
+                          {fowAutoHideEnemies ? 'Activa' : 'Siempre Visibles'}
                         </button>
                       )}
                     </div>
@@ -341,8 +341,8 @@ const SettingsModal = ({
                     <div className="vtt-wood-panel" style={{ padding: '22px', borderRadius: '10px' }}>
                       <label className="vtt-gothic-title" style={{ display: 'block', marginBottom: '12px', color: '#c5a059', fontWeight: 'bold' }}>Herramienta Manual del Master</label>
                       <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-                        <button onClick={() => setFowMode('none')} className="vtt-brass-btn" style={{ padding: '10px 14px', borderRadius: '6px', cursor: 'pointer', borderColor: fowMode === 'none' ? '#fbbf24' : '#8a6d3b' }}>🖱️ Mover Fichas</button>
-                        <button onClick={() => setFowMode('reveal')} className="vtt-brass-btn" style={{ padding: '10px 14px', borderRadius: '6px', cursor: 'pointer', borderColor: fowMode === 'reveal' ? '#4ade80' : '#8a6d3b' }}>🖌️ Despejar Niebla</button>
+                        <button onClick={() => setFowMode('none')} className="vtt-brass-btn" style={{ padding: '10px 14px', borderRadius: '6px', cursor: 'pointer', borderColor: fowMode === 'none' ? '#fbbf24' : '#8a6d3b' }}>Mover Fichas</button>
+                        <button onClick={() => setFowMode('reveal')} className="vtt-brass-btn" style={{ padding: '10px 14px', borderRadius: '6px', cursor: 'pointer', borderColor: fowMode === 'reveal' ? '#4ade80' : '#8a6d3b' }}>Despejar Niebla</button>
                         <button onClick={() => setFowMode('hide')} className="vtt-brass-btn" style={{ padding: '10px 14px', borderRadius: '6px', cursor: 'pointer', borderColor: fowMode === 'hide' ? '#f87171' : '#8a6d3b' }}>⬛ Cubrir con Oscuridad</button>
                       </div>
                       <label style={{ display: 'block', marginBottom: '8px', color: '#e6d5b8' }}>Radio del Pincel Manual: {fowBrushSize}px</label>

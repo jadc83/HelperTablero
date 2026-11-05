@@ -192,24 +192,24 @@ const GLOBAL_VTT_STYLES = `
   }
   .vtt-gothic-title {
     font-family: 'Cinzel', Georgia, serif;
-    letter-spacing: 0.04em;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.85);
+    letter-spacing: 0.05em;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
   }
   .vtt-retro-badge {
     font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
   }
   .vtt-wood-panel {
-    background: linear-gradient(180deg, #181c24 0%, #101319 100%);
-    border: 1px solid #383e4e;
-    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    background: #141822;
+    border: 1px solid #2b3345;
+    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   }
   .vtt-brass-btn {
     font-family: 'Inter', system-ui, sans-serif;
-    background: #171b24;
+    background: #161a24;
     color: #cbd5e1;
-    border: 1px solid #2e3546;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
+    border: 1px solid #2b3345;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
     transition: all 0.15s ease;
     white-space: nowrap;
     display: inline-flex;
@@ -218,21 +218,21 @@ const GLOBAL_VTT_STYLES = `
     gap: 6px;
   }
   .vtt-brass-btn:hover:not(:disabled) {
-    background: #202634;
-    border-color: #4a5568;
+    background: #1e2433;
+    border-color: #3f4b64;
     color: #f8fafc;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
   }
   .vtt-brass-btn:active:not(:disabled) {
     transform: translateY(1px);
   }
   .vtt-primary-cta {
     font-family: 'Inter', system-ui, sans-serif;
-    background: linear-gradient(180deg, #d97706 0%, #b45309 100%);
-    color: #fef3c7;
+    background: #d97706;
+    color: #ffffff;
     border: 1px solid #f59e0b;
     font-weight: 700;
-    box-shadow: 0 2px 8px rgba(217, 119, 6, 0.35);
+    box-shadow: 0 1px 6px rgba(217, 119, 6, 0.3);
     transition: all 0.15s ease;
     white-space: nowrap;
     display: inline-flex;
@@ -241,10 +241,10 @@ const GLOBAL_VTT_STYLES = `
     gap: 6px;
   }
   .vtt-primary-cta:hover:not(:disabled) {
-    background: linear-gradient(180deg, #f59e0b 0%, #d97706 100%);
+    background: #f59e0b;
     border-color: #fbbf24;
     color: #ffffff;
-    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
+    box-shadow: 0 3px 12px rgba(245, 158, 11, 0.4);
   }
   .vtt-primary-cta:active:not(:disabled) {
     transform: translateY(1px);
@@ -266,19 +266,30 @@ const GLOBAL_VTT_STYLES = `
     border-color: #ef4444;
     color: #ffffff;
   }
+  select, input[type="text"], input[type="number"], textarea {
+    font-family: inherit;
+    background-color: #121620;
+    color: #f1f5f9;
+    border: 1px solid #2b3345;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+  select:focus, input[type="text"]:focus, input[type="number"]:focus, textarea:focus {
+    border-color: #f59e0b;
+  }
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: #0d0f14;
+    background: #0b0d13;
   }
   ::-webkit-scrollbar-thumb {
-    background: #2b3140;
+    background: #242c3d;
     border-radius: 999px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: #3b465f;
   }
 `;
 
@@ -870,7 +881,7 @@ function App() {
     }
   };
 
-  const handleOpenTokenSheet = (tokenOrId) => {
+  const handleOpenTokenSheet = (tokenOrId, initialTab = 'stats') => {
     const targetToken = typeof tokenOrId === 'object' && tokenOrId !== null
       ? tokenOrId
       : tokens.find(t => t.id === tokenOrId) || characters.find(c => c.id === tokenOrId);
@@ -897,7 +908,8 @@ function App() {
     setEditingCharacter({
       mode: 'edit',
       character: mergedChar,
-      linkedTokenId: targetToken.id
+      linkedTokenId: targetToken.id,
+      initialTab: initialTab || 'stats'
     });
   };
 
@@ -1288,7 +1300,7 @@ function App() {
           isHidden: pendingTokenSpawn.faction === 'enemy',
           showName: true,
           showBars: false,
-          statuses: [],
+          statuses: pendingTokenSpawn.statuses || [],
           hp: pendingTokenSpawn.hp ?? 20,
           maxHp: pendingTokenSpawn.maxHp ?? 20,
           mp: pendingTokenSpawn.mp ?? 10,
@@ -1305,8 +1317,13 @@ function App() {
           inventory: pendingTokenSpawn.inventory || [],
           spells: pendingTokenSpawn.spells || []
         };
+        if (pendingTokenSpawn.fromGraveyardId) {
+          setGraveyard(prev => prev.filter(g => (g.graveyardId || g.id) !== pendingTokenSpawn.fromGraveyardId));
+          showMasterFeedback(`¡"${pendingTokenSpawn.name}" ha resucitado y regresa al tablero!`, '✨');
+        } else {
+          showMasterFeedback(`${pendingTokenSpawn.name} desplegado en escena`, '⚔️');
+        }
         setTokens(prev => [...prev, newToken]);
-        showMasterFeedback(`${pendingTokenSpawn.name} desplegado en escena`, '⚔️');
         setPendingTokenSpawn(null);
         return;
       }
@@ -1864,6 +1881,35 @@ function App() {
     showMasterFeedback(`🫳 ${charName} descartó "${itemToDrop.name}" al suelo`, '🫳');
   };
 
+  const handleTransferItemBetweenCharacters = (senderId, recipientId, itemData) => {
+    if (!recipientId || !itemData) return false;
+
+    // 1. Quitar del emisor en tokens y characters
+    if (senderId) {
+      const senderToken = tokens.find(t => t.id === senderId || t.characterId === senderId);
+      const senderCharId = senderToken?.characterId || senderId;
+
+      setTokens(prev => prev.map(t => {
+        if (t.id === senderId || t.characterId === senderId || (senderToken && t.characterId === senderToken.characterId)) {
+          const inv = Array.isArray(t.inventory) ? t.inventory : [];
+          return { ...t, inventory: inv.filter(i => i.id !== itemData.id) };
+        }
+        return t;
+      }));
+
+      setCharacters(prev => prev.map(c => {
+        if (c.id === senderCharId || c.id === senderId || (senderToken && c.name === senderToken.name)) {
+          const inv = Array.isArray(c.inventory) ? c.inventory : [];
+          return { ...c, inventory: inv.filter(i => i.id !== itemData.id) };
+        }
+        return c;
+      }));
+    }
+
+    // 2. Dar al destinatario mediante handleGiveItemToCharacter
+    return handleGiveItemToCharacter(recipientId, itemData);
+  };
+
   const handleStartPlaceGroundItem = (itemData) => {
     handleStartPlaceMapElement({
       type: 'item',
@@ -1924,8 +1970,11 @@ function App() {
   const handleToggleTokenFaction = (id) => {
     setTokens(prev => prev.map(t => {
       if (t.id === id) {
-        const nextFaction = t.faction === 'enemy' ? 'ally' : 'enemy';
-        showMasterFeedback(`${t.name}: ${nextFaction === 'enemy' ? 'Marcado como Enemigo' : 'Marcado como Aliado'}`, nextFaction === 'enemy' ? '💀' : '🛡️');
+        const current = t.faction || 'player';
+        const nextFaction = current === 'player' ? 'ally' : current === 'ally' ? 'enemy' : 'player';
+        const label = nextFaction === 'enemy' ? 'Enemigo' : nextFaction === 'player' ? 'Jugador' : 'Aliado';
+        const icon = nextFaction === 'enemy' ? '⚔️' : nextFaction === 'player' ? '👤' : '🤝';
+        showMasterFeedback(`${t.name}: ${label}`, icon);
         return { ...t, faction: nextFaction };
       }
       return t;
@@ -2022,21 +2071,6 @@ function App() {
     setTokens(prev => prev.map(t => t.id === tokenId ? { ...t, turnMovementUsed: 0 } : t));
     setTokenDragMeasurement(null);
     showMasterFeedback('Presupuesto de movimiento restablecido', '↺');
-  };
-
-  const handleRollAllInitiatives = () => {
-    if (!tokens.length) return;
-    const tokenRolls = tokens.map(token => ({
-      token,
-      initiative: Math.floor(Math.random() * 20) + 1
-    }));
-    tokenRolls.sort((a, b) => b.initiative - a.initiative);
-    const sortedTokens = tokenRolls.map(tr => tr.token);
-    setTokens(sortedTokens);
-    if (isCombatActive) {
-      setActiveTurnTokenId(sortedTokens[0]?.id || null);
-    }
-    showMasterFeedback('¡Iniciativas lanzadas y turnos ordenados!', '🎲');
   };
 
   const handleCenterOnToken = (token) => {
@@ -2168,24 +2202,24 @@ function App() {
   const handleReviveFromGraveyard = (entry) => {
     if (!entry) return;
 
-    const restoredToken = {
+    const reviveData = {
       ...entry,
-      id: 'tok_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
       hp: Math.max(1, entry.maxHp ? Math.floor(entry.maxHp / 2) : 10),
-      x: -pan.x / scale + window.innerWidth / (2 * scale) - 25,
-      y: -pan.y / scale + window.innerHeight / (2 * scale) - 25
+      fromGraveyardId: entry.graveyardId || entry.id
     };
-    delete restoredToken.graveyardId;
-    delete restoredToken.fallenAt;
-    delete restoredToken.sceneName;
-
-    setTokens(prev => [...prev, restoredToken]);
-    setGraveyard(prev => prev.filter(g => (g.graveyardId || g.id) !== (entry.graveyardId || entry.id)));
+    delete reviveData.graveyardId;
+    delete reviveData.fallenAt;
+    delete reviveData.sceneName;
 
     setEncyclopediaState(prev => ({ ...prev, isOpen: false }));
     setIsHomeOpen(false);
+    setRulerActive(false);
+    setPingActive(false);
+    setFowMode('none');
+    setIsSettingsOpen(false);
+    setPendingTokenSpawn(reviveData);
 
-    showMasterFeedback(`¡"${entry.name}" ha resucitado y regresa al tablero!`, '✨');
+    showMasterFeedback(`Haz clic en el mapa para situar al resucitado: "${entry.name}"`, '✨');
   };
 
   const handleDeleteFromGraveyard = (graveId) => {
@@ -2512,6 +2546,54 @@ function App() {
           key={editingCharacter.character?.id || editingCharacter.linkedTokenId || 'modal'}
           mode={editingCharacter.mode}
           initialData={editingCharacter.character}
+          initialTab={editingCharacter.initialTab || 'stats'}
+          onUpdate={(savedChar) => {
+            if (editingCharacter.mode === 'create') {
+              setEditingCharacter(prev => prev ? { ...prev, character: savedChar } : null);
+            } else {
+              setCharacters(prev => prev.map(c => {
+                if (c.id === savedChar.id || (editingCharacter.linkedTokenId && c.id === savedChar.characterId) || c.name === savedChar.name) {
+                  return savedChar;
+                }
+                return c;
+              }));
+              setTokens(prev => prev.map(t => {
+                if (t.characterId === savedChar.id || t.id === savedChar.id || (editingCharacter.linkedTokenId && t.id === editingCharacter.linkedTokenId) || t.name === savedChar.name) {
+                  return {
+                    ...t,
+                    firstName: savedChar.firstName,
+                    lastName: savedChar.lastName,
+                    birthYear: savedChar.birthYear,
+                    profession: savedChar.profession,
+                    education: savedChar.education,
+                    birthplace: savedChar.birthplace,
+                    residence: savedChar.residence,
+                    name: savedChar.name,
+                    entityType: savedChar.entityType,
+                    color: savedChar.color,
+                    avatar: savedChar.avatar,
+                    faction: savedChar.faction,
+                    hp: savedChar.hp,
+                    maxHp: savedChar.maxHp,
+                    mp: savedChar.mp,
+                    maxMp: savedChar.maxMp,
+                    san: savedChar.san,
+                    maxSan: savedChar.maxSan,
+                    hasArmor: savedChar.hasArmor,
+                    armorType: savedChar.armorType,
+                    isGraveWound: savedChar.isGraveWound,
+                    speed: savedChar.speed,
+                    history: savedChar.history,
+                    notes: savedChar.notes,
+                    inventory: savedChar.inventory,
+                    spells: savedChar.spells
+                  };
+                }
+                return t;
+              }));
+              showMasterFeedback(`Identidad de "${savedChar.name}" autoguardada`, '✏️');
+            }
+          }}
           onSave={(savedChar) => {
             if (editingCharacter.mode === 'create') {
               setCharacters(prev => [...prev, savedChar]);
@@ -2530,6 +2612,10 @@ function App() {
                     firstName: savedChar.firstName,
                     lastName: savedChar.lastName,
                     birthYear: savedChar.birthYear,
+                    profession: savedChar.profession,
+                    education: savedChar.education,
+                    birthplace: savedChar.birthplace,
+                    residence: savedChar.residence,
                     name: savedChar.name,
                     entityType: savedChar.entityType,
                     color: savedChar.color,
@@ -2558,6 +2644,9 @@ function App() {
           }}
           onClose={() => setEditingCharacter(null)}
           onDropItemToFloor={handleDropItemToFloor}
+          onTransferItem={handleTransferItemBetweenCharacters}
+          tokens={tokens}
+          characters={characters}
         />
       )}
 
@@ -2587,6 +2676,8 @@ function App() {
             });
           }}
           onUpdateTokenStats={handleUpdateTokenStats}
+          onUpdateTokenSize={handleUpdateTokenSize}
+          onUpdateTokenVisionMode={handleUpdateTokenVisionMode}
           onToggleTokenName={handleToggleTokenName}
           onToggleTokenBars={handleToggleTokenBars}
           onToggleTokenHidden={handleToggleTokenHidden}
@@ -2607,7 +2698,6 @@ function App() {
           onStartCombat={handleStartCombat}
           onNextTurn={handleNextTurn}
           onEndCombat={handleEndCombat}
-          onRollAllInitiatives={handleRollAllInitiatives}
           movementLimitsEnabled={movementLimitsEnabled}
           onToggleMovementLimits={handleToggleMovementLimits}
           onResetTokenMovement={handleResetTokenMovement}
@@ -2636,7 +2726,8 @@ function App() {
             }}
           >
             <span style={{ fontSize: '13px', fontWeight: 600 }}>
-              🎯 Haz clic en el mapa para invocar a: <strong style={{ color: '#fbbf24' }}>{pendingTokenSpawn.name}</strong>
+              {pendingTokenSpawn.fromGraveyardId ? '✨ Haz clic en el mapa para situar al resucitado: ' : '🎯 Haz clic en el mapa para invocar a: '}
+              <strong style={{ color: '#fbbf24' }}>{pendingTokenSpawn.name}</strong>
             </span>
             <button
               onClick={() => setPendingTokenSpawn(null)}
@@ -2794,10 +2885,10 @@ function App() {
               setIsSoundboardOpen(false);
             }}
             className={`vtt-brass-btn ${isDiceOpen ? 'vtt-btn-active' : ''}`}
-            style={{ padding: '6px 11px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
             title="Abrir Cubilete de Dados Físicos 3D"
           >
-            🎲 Dados
+            Dados
           </button>
 
           <button
@@ -2806,12 +2897,12 @@ function App() {
               setIsDiceOpen(false);
             }}
             className={`vtt-brass-btn ${isSoundboardOpen || activeLoops.length > 0 ? 'vtt-btn-active' : ''}`}
-            style={{ padding: '6px 11px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600, gap: '6px' }}
             title="Abrir Órgano de Ecos y Sonidos Atmosféricos"
           >
-            🎵 Ecos
+            <span>Ecos</span>
             {activeLoops.length > 0 && (
-              <span style={{ backgroundColor: '#fbbf24', color: '#0f1115', borderRadius: '999px', padding: '1px 5px', fontSize: '9px', fontWeight: 800 }}>
+              <span style={{ backgroundColor: '#f59e0b', color: '#0f1115', borderRadius: '999px', padding: '1px 5px', fontSize: '9px', fontWeight: 800 }}>
                 {activeLoops.length}
               </span>
             )}
@@ -2822,19 +2913,19 @@ function App() {
           <button
             onClick={() => { setRulerActive(!rulerActive); setPingActive(false); setFowMode('none'); }}
             className={`vtt-brass-btn ${rulerActive ? 'vtt-btn-active' : ''}`}
-            style={{ padding: '6px 11px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
             title="Medir distancia en el mapa (pies, metros y casillas)"
           >
-            📏 Regla
+            Regla
           </button>
 
           <button
             onClick={() => { setPingActive(!pingActive); setRulerActive(false); setFowMode('none'); }}
             className={`vtt-brass-btn ${pingActive ? 'vtt-btn-active' : ''}`}
-            style={{ padding: '6px 11px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
+            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
             title="Señalar punto en el mapa a los jugadores (o Alt + Clic)"
           >
-            🔔 Señal
+            Señal
           </button>
 
           <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
@@ -2844,8 +2935,8 @@ function App() {
             value={weatherEffect}
             onChange={(e) => setWeatherEffect(e.target.value)}
             style={{
-              padding: '6px 8px',
-              borderRadius: '7px',
+              padding: '5px 8px',
+              borderRadius: '6px',
               backgroundColor: '#141822',
               color: '#cbd5e1',
               border: '1px solid #2d3546',
@@ -2865,8 +2956,8 @@ function App() {
             value={ambientTint}
             onChange={(e) => setAmbientTint(e.target.value)}
             style={{
-              padding: '6px 8px',
-              borderRadius: '7px',
+              padding: '5px 8px',
+              borderRadius: '6px',
               backgroundColor: '#141822',
               color: '#cbd5e1',
               border: '1px solid #2d3546',
@@ -2888,10 +2979,10 @@ function App() {
           <button
             onClick={() => { setPan({ x: 0, y: 0 }); setScale(1); }}
             className="vtt-brass-btn"
-            style={{ padding: '6px 10px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
+            style={{ padding: '6px 11px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
             title="Centrar tablero y restablecer zoom al 100%"
           >
-            🎯 Centrar
+            Centrar
           </button>
 
           <button
@@ -2901,15 +2992,14 @@ function App() {
               showMasterFeedback(
                 nextSync
                   ? 'Cámara sincronizada con la pantalla de jugadores'
-                  : 'Cámara libre (desvinculada de los jugadores)',
-                nextSync ? '🔗' : '🔓'
+                  : 'Cámara libre (desvinculada de los jugadores)'
               );
             }}
             className={`vtt-brass-btn ${syncCameraToPlayers ? 'vtt-btn-active' : ''}`}
-            style={{ padding: '6px 10px', borderRadius: '7px', fontSize: '11px', cursor: 'pointer' }}
+            style={{ padding: '6px 11px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
             title={syncCameraToPlayers ? "Cámara vinculada: los jugadores ven tus movimientos de pantalla" : "Cámara libre: navega en secreto sin mover la pantalla de los jugadores"}
           >
-            {syncCameraToPlayers ? '🔗 Vista: ON' : '🔓 Vista: OFF'}
+            {syncCameraToPlayers ? 'Cámara: ON' : 'Cámara: OFF'}
           </button>
 
           <button
@@ -2918,7 +3008,7 @@ function App() {
                 setTokens([]);
                 setFowActions([]);
                 setConfirmResetBoard(false);
-                showMasterFeedback('Mesa despejada', '🗡️');
+                showMasterFeedback('Mesa despejada');
               } else {
                 setConfirmResetBoard(true);
                 setTimeout(() => setConfirmResetBoard(false), 3000);
@@ -2926,25 +3016,26 @@ function App() {
             }}
             className={confirmResetBoard ? 'vtt-btn-danger' : 'vtt-brass-btn'}
             style={{
-              padding: '6px 9px',
-              borderRadius: '7px',
+              padding: '6px 10px',
+              borderRadius: '6px',
               fontSize: '11px',
               cursor: 'pointer',
+              fontWeight: 600,
               borderColor: confirmResetBoard ? '#ef4444' : undefined,
               color: confirmResetBoard ? '#ffffff' : '#94a3b8'
             }}
             title="Limpiar fichas y niebla de la mesa activa"
           >
-            {confirmResetBoard ? '⚠️ ¿Limpiar?' : '🗑️'}
+            {confirmResetBoard ? '¿Limpiar?' : 'Limpiar'}
           </button>
 
           <button
             onClick={() => setIsTutorialOpen(true)}
             className="vtt-brass-btn"
-            style={{ padding: '6px 8px', borderRadius: '7px', fontSize: '11px', cursor: 'pointer', color: '#94a3b8' }}
+            style={{ padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', color: '#94a3b8', fontWeight: 600 }}
             title="Guía de uso rápido del Grimorio VTT"
           >
-            ❓
+            Ayuda
           </button>
         </div>
 

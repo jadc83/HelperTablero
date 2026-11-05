@@ -59,29 +59,72 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
 
         diceBoxRef.current = box;
 
-        const count = Number(rollReq?.diceCount) || 1;
-        const sides = Number(rollReq?.diceSides) || 20;
-        const cleanDiceNotation = `${count}d${sides}`;
+        // Extraer notaciones: soporte para dados mixtos (ej: ['1d6', '1d4']) o dado único ('1d20')
+        let notation = rollReq?.diceNotation;
+        if (!notation || (Array.isArray(notation) && notation.length === 0)) {
+          if (Array.isArray(rollReq?.diceGroups) && rollReq.diceGroups.length > 0) {
+            notation = rollReq.diceGroups.map(g => `${g.count}d${g.sides}`);
+          } else {
+            const count = Number(rollReq?.diceCount) || 1;
+            const sides = Number(rollReq?.diceSides) || 20;
+            notation = [`${count}d${sides}`];
+          }
+        }
+        const boxNotation = Array.isArray(notation) && notation.length === 1 ? notation[0] : notation;
 
-        const res = await box.roll(cleanDiceNotation);
+        const res = await box.roll(boxNotation);
         if (isCancelled) return;
 
         let rolls = [];
+        let detailedRolls = [];
         let diceSum = 0;
 
         if (Array.isArray(res) && res.length > 0) {
           if (Array.isArray(res[0]?.rolls)) {
-            rolls = res[0].rolls.map(r => r.value);
-            diceSum = typeof res[0].value === 'number' ? res[0].value : rolls.reduce((acc, v) => acc + v, 0);
+            // Resultado devuelto agrupado por grupos
+            res.forEach(grp => {
+              if (Array.isArray(grp.rolls)) {
+                grp.rolls.forEach(r => {
+                  if (typeof r.value === 'number') {
+                    rolls.push(r.value);
+                    const sideVal = r.sides || grp.sides || (r.dieType ? parseInt(r.dieType.replace(/\D/g, ''), 10) : 20);
+                    detailedRolls.push({ sides: sideVal, dieType: r.dieType || `d${sideVal}`, value: r.value });
+                  }
+                });
+              }
+            });
+            diceSum = rolls.reduce((acc, v) => acc + v, 0);
           } else {
-            rolls = res.map(r => r.value).filter(v => typeof v === 'number');
+            // Resultado devuelto como array plano de dados
+            res.forEach(r => {
+              if (typeof r.value === 'number') {
+                rolls.push(r.value);
+                const sideVal = r.sides || (r.dieType ? parseInt(r.dieType.replace(/\D/g, ''), 10) : 20);
+                detailedRolls.push({ sides: sideVal, dieType: r.dieType || `d${sideVal}`, value: r.value });
+              }
+            });
             diceSum = rolls.reduce((acc, v) => acc + v, 0);
           }
         }
 
-        // Si por alguna razón la física no devuelve tiradas, generamos valores coherentes
+        // Si por alguna razón la física no devuelve tiradas, generamos valores coherentes para cada grupo
         if (rolls.length === 0) {
-          rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
+          const groups = Array.isArray(rollReq?.diceGroups) && rollReq.diceGroups.length > 0
+            ? rollReq.diceGroups
+            : (Array.isArray(notation) ? notation : [notation]).map(n => {
+                const m = String(n).match(/(\d+)\s*d\s*(\d+)/i);
+                return m ? { count: parseInt(m[1], 10), sides: parseInt(m[2], 10) } : { count: 1, sides: 20 };
+              });
+
+          groups.forEach(g => {
+            const cnt = g.count || 1;
+            const sds = g.sides || 20;
+            for (let i = 0; i < cnt; i++) {
+              const val = Math.floor(Math.random() * sds) + 1;
+              rolls.push(val);
+              detailedRolls.push({ sides: sds, dieType: `d${sds}`, value: val });
+            }
+          });
           diceSum = rolls.reduce((acc, v) => acc + v, 0);
         }
 
@@ -90,10 +133,11 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
 
         const finalObj = {
           id: rollReq?.id || (Date.now() + Math.random()),
-          formula: rollReq?.formula || cleanDiceNotation,
+          formula: rollReq?.formula || (Array.isArray(notation) ? notation.join(' + ') : notation),
           modifier: mod,
-          diceSides: sides,
+          diceSides: rollReq?.diceSides || (detailedRolls[0]?.sides) || 20,
           rolls,
+          detailedRolls,
           total,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
         };
@@ -105,17 +149,30 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
       } catch (err) {
         console.error('Error en el motor 3D:', err);
         if (!isCancelled) {
-          const count = Number(rollReq?.diceCount) || 1;
-          const sides = Number(rollReq?.diceSides) || 20;
+          const groups = Array.isArray(rollReq?.diceGroups) && rollReq.diceGroups.length > 0
+            ? rollReq.diceGroups
+            : [{ count: Number(rollReq?.diceCount) || 1, sides: Number(rollReq?.diceSides) || 20 }];
+
+          const rolls = [];
+          const detailedRolls = [];
+          groups.forEach(g => {
+            const cnt = g.count || 1;
+            const sds = g.sides || 20;
+            for (let i = 0; i < cnt; i++) {
+              const val = Math.floor(Math.random() * sds) + 1;
+              rolls.push(val);
+              detailedRolls.push({ sides: sds, dieType: `d${sds}`, value: val });
+            }
+          });
           const mod = Number(rollReq?.modifier) || 0;
-          const rolls = Array.from({ length: count }, () => Math.floor(Math.random() * sides) + 1);
           const total = rolls.reduce((a, b) => a + b, 0) + mod;
           const fallback = {
             id: rollReq?.id || Date.now(),
-            formula: rollReq?.formula || `${count}d${sides}`,
+            formula: rollReq?.formula || groups.map(g => `${g.count}d${g.sides}`).join(' + '),
             modifier: mod,
-            diceSides: sides,
+            diceSides: groups[0]?.sides || 20,
             rolls,
+            detailedRolls,
             total,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
           };
@@ -316,10 +373,38 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
               {result.total}
             </div>
 
-            <div style={{ fontSize: '15px', color: '#c5a059', marginTop: '6px' }}>
-              Dados: [{result.rolls.join(', ')}]
+            <div style={{
+              fontSize: '15px',
+              color: '#c5a059',
+              marginTop: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              gap: '6px'
+            }}>
+              <span>Dados:</span>
+              {result.detailedRolls && result.detailedRolls.length > 0 && new Set(result.detailedRolls.map(r => r.dieType || `d${r.sides}`)).size > 1 ? (
+                <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  {result.detailedRolls.map((r, i) => (
+                    <span key={i} style={{
+                      background: 'rgba(0,0,0,0.5)',
+                      border: '1px solid #8a6d3b',
+                      borderRadius: '4px',
+                      padding: '2px 7px',
+                      fontSize: '13px'
+                    }}>
+                      <strong style={{ color: '#fbbf24' }}>{r.dieType || `d${r.sides}`}:</strong> {r.value}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <span>[{result.rolls.join(', ')}]</span>
+              )}
               {result.modifier !== 0 && (
-                <span> {result.modifier > 0 ? `+ ${result.modifier}` : `- ${Math.abs(result.modifier)}`}</span>
+                <span style={{ color: result.modifier > 0 ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+                  {result.modifier > 0 ? `+ ${result.modifier}` : `- ${Math.abs(result.modifier)}`}
+                </span>
               )}
             </div>
 

@@ -1,18 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
-const COMPASS_DIRS = [
-  { label: '↖', angle: 225 },
-  { label: '↑', angle: 270 },
-  { label: '↗', angle: 315 },
-  { label: '←', angle: 180 },
-  { label: '•', angle: null },
-  { label: '→', angle: 0 },
-  { label: '↙', angle: 135 },
-  { label: '↓', angle: 90 },
-  { label: '↘', angle: 45 }
-];
-
 const GameToken = ({
   token,
   isDragging,
@@ -68,6 +56,28 @@ const GameToken = ({
       document.removeEventListener('pointerdown', handleClickOutside, true);
     };
   }, [menuState.visible]);
+
+  // Reposicionamiento inteligente para que el menú nunca se salga de la pantalla (evita cortes si el token está abajo o a los bordes)
+  useEffect(() => {
+    if (menuState.visible && menuRef.current) {
+      const rect = menuRef.current.getBoundingClientRect();
+      const margin = 12;
+      let x = menuState.x;
+      let y = menuState.y;
+
+      if (x + rect.width > window.innerWidth - margin) {
+        x = Math.max(margin, window.innerWidth - rect.width - margin);
+      }
+      if (y + rect.height > window.innerHeight - margin) {
+        y = Math.max(margin, window.innerHeight - rect.height - margin);
+      }
+      if (y < margin) y = margin;
+      if (x < margin) x = margin;
+
+      menuRef.current.style.left = `${Math.round(x)}px`;
+      menuRef.current.style.top = `${Math.round(y)}px`;
+    }
+  }, [menuState.visible, menuState.x, menuState.y]);
 
   // Listener nativo no-pasivo para que Shift+Rueda gire el cono con suavidad sin activar navegación del navegador
   useEffect(() => {
@@ -127,6 +137,8 @@ const GameToken = ({
           ? '0 0 25px rgba(251, 191, 36, 0.9), 0 0 10px rgba(245, 158, 11, 0.7), 0 6px 14px rgba(0,0,0,0.9)'
           : faction === 'enemy'
           ? '0 6px 14px rgba(0,0,0,0.9), 0 0 10px rgba(220, 38, 38, 0.45)'
+          : faction === 'player'
+          ? '0 6px 14px rgba(0,0,0,0.85), 0 0 10px rgba(16, 185, 129, 0.35)'
           : '0 6px 14px rgba(0,0,0,0.85), inset 0 0 8px rgba(0,0,0,0.6)',
         border: isActiveTurn
           ? '3px solid #fbbf24'
@@ -328,23 +340,27 @@ const GameToken = ({
           onPointerDown={(e) => e.stopPropagation()}
           style={{
             position: 'fixed', 
-            top: `${Math.min(menuState.y, window.innerHeight - 540)}px`, 
-            left: `${Math.min(menuState.x, window.innerWidth - 250)}px`,
+            top: `${Math.max(12, Math.min(menuState.y, window.innerHeight - 380))}px`, 
+            left: `${Math.max(12, Math.min(menuState.x, window.innerWidth - 250))}px`,
             background: 'linear-gradient(180deg, #1b202c 0%, #11141c 100%)', 
-            padding: '14px', 
+            padding: '12px 14px', 
             borderRadius: '10px',
             border: '1px solid #3b4254',
             boxShadow: '0 15px 35px rgba(0,0,0,0.95)', 
             zIndex: 999999, 
             display: 'flex', 
             flexDirection: 'column', 
-            gap: '9px',
+            gap: '8px',
             width: '235px',
-            color: '#e2e8f0'
+            maxHeight: 'calc(100vh - 24px)',
+            overflowY: 'auto',
+            color: '#e2e8f0',
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#475569 transparent'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #2e3446', paddingBottom: '6px' }}>
-            <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f59e0b', fontWeight: 'bold' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #283144', paddingBottom: '7px' }}>
+            <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 'bold' }}>
               {token.name}
             </span>
             {onOpenSheet && (
@@ -355,49 +371,12 @@ const GameToken = ({
                   onOpenSheet(token);
                 }}
                 className="vtt-primary-cta"
-                style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '10px', cursor: 'pointer' }}
+                style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
               >
-                📜 Ficha
+                Ficha
               </button>
             )}
           </div>
-
-          {/* Controles rápidos de Salud (Roja), Magia (Azul), Cordura (Amarilla) y Herida Grave */}
-          {onUpdateStats && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', background: '#12151e', padding: '8px', borderRadius: '7px', border: '1px solid #262b3a' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
-                <span style={{ color: '#f87171', fontWeight: 700 }}>❤️ Salud: {hp}/{maxHp}</span>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <button onPointerDown={() => onUpdateStats(token.id, { hp: Math.max(0, hp - 1) })} className="vtt-brass-btn" style={{ padding: '1px 7px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>-</button>
-                  <button onPointerDown={() => onUpdateStats(token.id, { hp: Math.min(maxHp, hp + 1) })} className="vtt-brass-btn" style={{ padding: '1px 7px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>+</button>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
-                <span style={{ color: '#60a5fa', fontWeight: 700 }}>💧 Magia: {mp}/{maxMp}</span>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <button onPointerDown={() => onUpdateStats(token.id, { mp: Math.max(0, mp - 1) })} className="vtt-brass-btn" style={{ padding: '1px 7px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>-</button>
-                  <button onPointerDown={() => onUpdateStats(token.id, { mp: Math.min(maxMp, mp + 1) })} className="vtt-brass-btn" style={{ padding: '1px 7px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>+</button>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
-                <span style={{ color: '#facc15', fontWeight: 700 }}>👁️ Cordura: {san}/{maxSan}</span>
-                <div style={{ display: 'flex', gap: '4px' }}>
-                  <button onPointerDown={() => onUpdateStats(token.id, { san: Math.max(0, san - 1) })} className="vtt-brass-btn" style={{ padding: '1px 7px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>-</button>
-                  <button onPointerDown={() => onUpdateStats(token.id, { san: Math.min(maxSan, san + 1) })} className="vtt-brass-btn" style={{ padding: '1px 7px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}>+</button>
-                </div>
-              </div>
-              <button
-                onPointerDown={() => onUpdateStats(token.id, { isGraveWound: !isGraveWound })}
-                style={{
-                  marginTop: '3px', padding: '4px 8px', borderRadius: '5px', fontSize: '11px', fontWeight: 700, cursor: 'pointer',
-                  backgroundColor: isGraveWound ? '#dc2626' : '#1e2330', color: isGraveWound ? '#fff' : '#94a3b8',
-                  border: isGraveWound ? '1px solid #fca5a5' : '1px solid #333a4d'
-                }}
-              >
-                {isGraveWound ? '🩸 Herida Grave: ACTIVA' : '🩸 Marcar Herida Grave'}
-              </button>
-            </div>
-          )}
 
           <div style={{ display: 'flex', gap: '6px' }}>
             <button
@@ -410,13 +389,12 @@ const GameToken = ({
                 flex: 1,
                 cursor: 'pointer',
                 padding: '6px 8px',
-                borderRadius: '4px',
-                fontWeight: 'bold',
+                borderRadius: '5px',
+                fontWeight: 700,
                 fontSize: '11px',
-                fontFamily: "'Cinzel', serif",
-                background: isHidden ? 'linear-gradient(180deg, #6b21a8 0%, #3b0764 100%)' : '#1c120c',
-                border: isHidden ? '1px solid #c084fc' : '1px solid #8a6d3b',
-                color: isHidden ? '#f3e8ff' : '#e6d5b8'
+                background: isHidden ? 'linear-gradient(180deg, #6b21a8 0%, #3b0764 100%)' : '#171c26',
+                border: isHidden ? '1px solid #c084fc' : '1px solid #2b3345',
+                color: isHidden ? '#f3e8ff' : '#cbd5e1'
               }}
               title="Oculta o revela esta ficha en la pantalla de los jugadores"
             >
@@ -433,17 +411,24 @@ const GameToken = ({
                 flex: 1,
                 cursor: 'pointer',
                 padding: '6px 8px',
-                borderRadius: '4px',
-                fontWeight: 'bold',
+                borderRadius: '5px',
+                fontWeight: 700,
                 fontSize: '11px',
-                fontFamily: "'Cinzel', serif",
-                background: faction === 'enemy' ? 'linear-gradient(180deg, #991b1b 0%, #450a0a 100%)' : 'linear-gradient(180deg, #1e3a8a 0%, #172554 100%)',
-                border: faction === 'enemy' ? '1px solid #f87171' : '1px solid #60a5fa',
+                background: faction === 'enemy'
+                  ? 'linear-gradient(180deg, #991b1b 0%, #450a0a 100%)'
+                  : faction === 'player'
+                  ? 'linear-gradient(180deg, #065f46 0%, #022c22 100%)'
+                  : 'linear-gradient(180deg, #1e3a8a 0%, #172554 100%)',
+                border: faction === 'enemy'
+                  ? '1px solid #f87171'
+                  : faction === 'player'
+                  ? '1px solid #34d399'
+                  : '1px solid #60a5fa',
                 color: '#fff'
               }}
-              title="Los Aliados iluminan la niebla; los Enemigos solo se ven cuando entran en el cono de visión de un Aliado"
+              title="Alternar bando: Jugador (PJ), Aliado (PNJ) o Enemigo"
             >
-              {faction === 'enemy' ? 'Enemigo' : 'Aliado'}
+              {faction === 'enemy' ? 'Enemigo' : faction === 'player' ? 'Jugador' : 'Aliado'}
             </button>
           </div>
 
@@ -459,11 +444,11 @@ const GameToken = ({
                 flex: 1,
                 cursor: 'pointer',
                 padding: '6px 8px',
-                borderRadius: '4px',
-                fontWeight: 'bold',
+                borderRadius: '5px',
+                fontWeight: 700,
                 fontSize: '11px',
-                borderColor: token.showName !== false ? '#fbbf24' : '#8a6d3b',
-                color: token.showName !== false ? '#fbbf24' : '#b89f7d'
+                borderColor: token.showName !== false ? '#f59e0b' : '#2b3345',
+                color: token.showName !== false ? '#fbbf24' : '#94a3b8'
               }}
               title="Muestra u oculta la etiqueta con el nombre sobre la ficha en el tablero"
             >
@@ -481,11 +466,11 @@ const GameToken = ({
                 flex: 1,
                 cursor: 'pointer',
                 padding: '6px 8px',
-                borderRadius: '4px',
-                fontWeight: 'bold',
+                borderRadius: '5px',
+                fontWeight: 700,
                 fontSize: '11px',
-                borderColor: token.showBars ? '#4ade80' : '#8a6d3b',
-                color: token.showBars ? '#4ade80' : '#b89f7d'
+                borderColor: token.showBars ? '#10b981' : '#2b3345',
+                color: token.showBars ? '#34d399' : '#94a3b8'
               }}
               title="Muestra u oculta las barras de Salud, Magia y Cordura sobre el mapa"
             >
@@ -506,109 +491,17 @@ const GameToken = ({
                 flex: 1,
                 cursor: 'pointer',
                 padding: '6px 8px',
-                borderRadius: '4px',
-                fontWeight: 'bold',
+                borderRadius: '5px',
+                fontWeight: 700,
                 fontSize: '11px'
               }}
             >
-              {token.isLocked ? '🔓 Desbloquear Posición' : '🔒 Bloquear Posición'}
+              {token.isLocked ? 'Desbloquear posición' : 'Bloquear posición'}
             </button>
           </div>
 
-          {/* Selector de Tipo de Visión (Cono Direccional vs 360º) */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', borderTop: '1px solid #4a331d', paddingTop: '8px' }}>
-            <span className="vtt-gothic-title" style={{ fontSize: '11px', color: '#c5a059', textAlign: 'center' }}>
-              Tipo de Visión
-            </span>
-            <div style={{ display: 'flex', gap: '4px' }}>
-              <button
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  if (onUpdateVisionMode) onUpdateVisionMode(token.id, 'cone');
-                }}
-                style={{
-                  flex: 1, padding: '5px 4px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer',
-                  background: visionMode === 'cone' ? '#92400e' : '#1c120c',
-                  border: visionMode === 'cone' ? '1px solid #fbbf24' : '1px solid #5c4028',
-                  color: '#f3e5ab'
-                }}
-              >
-                Cono 90º
-              </button>
-              <button
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  if (onUpdateVisionMode) onUpdateVisionMode(token.id, 'circle');
-                }}
-                style={{
-                  flex: 1, padding: '5px 4px', fontSize: '11px', fontWeight: 'bold', borderRadius: '4px', cursor: 'pointer',
-                  background: visionMode === 'circle' ? '#92400e' : '#1c120c',
-                  border: visionMode === 'circle' ? '1px solid #fbbf24' : '1px solid #5c4028',
-                  color: '#f3e5ab'
-                }}
-              >
-                Visión 360º
-              </button>
-            </div>
-          </div>
-
-          {/* Brújula de Orientación Hacia Dónde Mira */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid #4a331d', paddingTop: '8px' }}>
-            <span className="vtt-gothic-title" style={{ fontSize: '11px', color: '#c5a059', textAlign: 'center' }}>
-              Orientación ({Math.round(rotation)}º)
-            </span>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '3px', width: '108px', margin: '0 auto' }}>
-              {COMPASS_DIRS.map((dir, i) => (
-                <button
-                  key={i}
-                  disabled={dir.angle === null}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    if (dir.angle !== null && onUpdateRotation) {
-                      onUpdateRotation(token.id, dir.angle);
-                    }
-                  }}
-                  style={{
-                    height: '26px',
-                    borderRadius: '4px',
-                    border: dir.angle === rotation ? '1px solid #fbbf24' : '1px solid #5c4028',
-                    background: dir.angle === null ? 'transparent' : (dir.angle === rotation ? '#92400e' : '#1c120c'),
-                    color: '#f3e5ab',
-                    cursor: dir.angle === null ? 'default' : 'pointer',
-                    fontSize: '12px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  {dir.label}
-                </button>
-              ))}
-            </div>
-            <input
-              type="range"
-              min="0" max="359"
-              value={rotation}
-              onChange={(e) => onUpdateRotation && onUpdateRotation(token.id, Number(e.target.value))}
-              onPointerDown={(e) => e.stopPropagation()}
-              style={{ width: '100%', accentColor: '#d4af37', cursor: 'pointer' }}
-            />
-          </div>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #4a331d', paddingTop: '8px' }}>
-            <span className="vtt-gothic-title" style={{ fontSize: '11px', color: '#c5a059', textAlign: 'center' }}>Escala de Ficha</span>
-            <input 
-              type="range" 
-              min="20" max="250" 
-              value={currentSize}
-              onChange={(e) => {
-                if (onUpdateSize) onUpdateSize(token.id, Number(e.target.value));
-              }}
-              onPointerDown={(e) => e.stopPropagation()} 
-              style={{ width: '100%', accentColor: '#d4af37', cursor: 'pointer' }}
-            />
-          </div>
-
-          <div style={{ borderTop: '1px solid #4a331d', paddingTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px', justifyContent: 'center' }}>
-            <span className="vtt-gothic-title" style={{ fontSize: '11px', color: '#c5a059', width: '100%', textAlign: 'center', marginBottom: '4px' }}>Condiciones</span>
+          <div style={{ borderTop: '1px solid #242c3d', paddingTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px', justifyContent: 'center' }}>
+            <span style={{ fontSize: '10px', color: '#94a3b8', width: '100%', textAlign: 'center', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>Condiciones</span>
             {customStatuses.map(status => {
               const isActive = activeStatuses.includes(status.id);
               const isImage = status.icon.startsWith('data:image');
@@ -621,8 +514,8 @@ const GameToken = ({
                     if (onToggleStatus) onToggleStatus(token.id, status.id);
                   }}
                   style={{
-                    background: isActive ? '#92400e' : '#1c120c',
-                    border: isActive ? '1px solid #fbbf24' : '1px solid #5c4028',
+                    background: isActive ? '#d97706' : '#161a25',
+                    border: isActive ? '1px solid #f59e0b' : '1px solid #262e3f',
                     borderRadius: '4px',
                     padding: isImage ? '2px' : '4px 6px',
                     cursor: 'pointer',

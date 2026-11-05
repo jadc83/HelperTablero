@@ -17,64 +17,83 @@ const Toolbar = ({
   return (
     <div 
       onPointerDown={(e) => e.stopPropagation()} onWheel={(e) => e.stopPropagation()}
-      style={{ display: 'flex', flexDirection: 'row', gap: '14px', alignItems: 'center', width: '100%', justifyContent: 'space-between' }}
+      style={{
+        display: 'flex',
+        flexDirection: 'row',
+        gap: '14px',
+        alignItems: 'center',
+        width: '100%',
+        justifyContent: 'space-between',
+        userSelect: 'none'
+      }}
     >
-      {/* Bloque Izquierdo: Logo (Abre Hub de Inicio) + Selector de Escena */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+      {/* Bloque Izquierdo: Identidad + Selector de Escena */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button
           onClick={onOpenHome}
           className="vtt-brass-btn"
           style={{
-            padding: '5px 12px 5px 8px',
-            borderRadius: '9px',
+            padding: '4px 10px 4px 6px',
+            borderRadius: '7px',
             cursor: 'pointer',
-            border: '1px solid rgba(245, 158, 11, 0.4)',
-            background: 'rgba(24, 28, 38, 0.9)'
+            border: '1px solid #2f384c',
+            background: '#131722',
+            gap: '8px'
           }}
           title="Abrir Hub de Inicio (Campañas, Crónica y Enciclopedia)"
         >
           <div style={{
-            width: '28px', height: '28px', borderRadius: '7px',
-            background: 'linear-gradient(135deg, #d97706 0%, #78350f 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '1px solid #f59e0b', fontSize: '14px'
+            width: '26px',
+            height: '26px',
+            borderRadius: '5px',
+            background: 'linear-gradient(135deg, #d97706 0%, #92400e 100%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: '1px solid rgba(245, 158, 11, 0.6)',
+            fontSize: '13px',
+            color: '#fff'
           }}>
-            ⚜️
+            ⚜
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', marginLeft: '3px' }}>
-            <span className="vtt-gothic-title" style={{ fontSize: '14px', color: '#f8fafc', fontWeight: 'bold', letterSpacing: '0.04em', lineHeight: 1.1 }}>
-              GRIMORIO <span style={{ color: '#f59e0b' }}>VTT</span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+            <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 800, letterSpacing: '0.05em', lineHeight: 1.1 }}>
+              GRIMORIO <span style={{ color: '#f59e0b', fontWeight: 700 }}>VTT</span>
             </span>
-            <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 600 }}>
-              Inicio & Crónica
+            <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 500, letterSpacing: '0.02em' }}>
+              Inicio &amp; Crónica
             </span>
           </div>
         </button>
 
-        <div style={{ width: '1px', height: '22px', backgroundColor: '#262d3d' }}></div>
+        <div style={{ width: '1px', height: '20px', backgroundColor: '#222938' }}></div>
 
         {/* Selector Rápido de Escenas */}
         <div style={{
-          display: 'flex', alignItems: 'center', gap: '8px',
-          backgroundColor: '#121620', padding: '4px 10px',
-          borderRadius: '8px', border: '1px solid #262e40'
+          display: 'flex',
+          alignItems: 'center',
+          gap: '6px',
+          backgroundColor: '#121622',
+          padding: '3px 8px',
+          borderRadius: '6px',
+          border: '1px solid #262e40'
         }}>
-          <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-            Escena:
+          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            Escena
           </span>
           <select
             value={activeSceneId || ''}
             onChange={(e) => onSelectScene && onSelectScene(e.target.value)}
             style={{
-              padding: '3px 8px',
-              borderRadius: '6px',
+              padding: '2px 6px',
+              borderRadius: '4px',
               backgroundColor: 'transparent',
-              color: '#f8fafc',
+              color: '#f1f5f9',
               border: 'none',
               fontSize: '12px',
               fontWeight: 600,
               cursor: 'pointer',
-              minWidth: '140px',
+              minWidth: '130px',
               outline: 'none'
             }}
             title="Cambiar de mapa o escena activa"
@@ -88,30 +107,29 @@ const Toolbar = ({
         </div>
       </div>
 
-      {/* Indicador Central de Turnos / Modo Combate en la Interfaz */}
+      {/* Indicador Central de Turnos / Modo Combate */}
       {isCombatActive && (
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '10px',
-          backgroundColor: '#111520',
-          border: '1px solid rgba(245, 158, 11, 0.55)',
-          borderRadius: '8px',
-          padding: '4px 12px',
-          boxShadow: '0 0 14px rgba(245, 158, 11, 0.25)',
-          animation: 'fadeIn 0.2s ease'
+          backgroundColor: '#10141f',
+          border: '1px solid rgba(245, 158, 11, 0.45)',
+          borderRadius: '7px',
+          padding: '4px 10px',
+          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.4)'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{
               display: 'inline-block',
-              width: '8px',
-              height: '8px',
+              width: '7px',
+              height: '7px',
               borderRadius: '50%',
               backgroundColor: '#f59e0b',
-              boxShadow: '0 0 8px #f59e0b'
+              boxShadow: '0 0 6px #f59e0b'
             }} />
-            <span style={{ fontSize: '12px', fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
-              COMBATE • RONDA {combatRound}
+            <span style={{ fontSize: '11px', fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
+              RONDA {combatRound}
             </span>
           </div>
 
@@ -120,10 +138,10 @@ const Toolbar = ({
               display: 'flex',
               alignItems: 'center',
               gap: '7px',
-              borderLeft: '1px solid #283042',
+              borderLeft: '1px solid #232b3c',
               paddingLeft: '10px'
             }}>
-              <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Turno:</span>
+              <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Turno:</span>
               <div style={{
                 width: '20px',
                 height: '20px',
@@ -140,7 +158,9 @@ const Toolbar = ({
                 {activeTurnToken.avatar ? (
                   <img src={activeTurnToken.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <span>{activeTurnToken.faction === 'enemy' ? '💀' : '🛡️'}</span>
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: activeTurnToken.faction === 'enemy' ? '#fca5a5' : '#93c5fd' }}>
+                    {(activeTurnToken.name || '?').charAt(0).toUpperCase()}
+                  </span>
                 )}
               </div>
               <span style={{
@@ -158,11 +178,12 @@ const Toolbar = ({
                 fontSize: '10px',
                 fontWeight: 700,
                 color: activeTurnToken.isGraveWound ? '#fca5a5' : '#6ee7b7',
-                background: '#1a2234',
+                background: '#182030',
+                border: '1px solid #26334d',
                 padding: '1px 6px',
                 borderRadius: '4px'
               }} title="Movimiento restante en este turno">
-                {activeTurnToken.isGraveWound ? '🩸' : '🏃'} {Math.max(0, (activeTurnToken.isGraveWound ? Math.max(1, Math.floor((activeTurnToken.speed || 6) / 2)) : (activeTurnToken.speed || 6)) - (activeTurnToken.turnMovementUsed || 0))} c.
+                {Math.max(0, (activeTurnToken.isGraveWound ? Math.max(1, Math.floor((activeTurnToken.speed || 6) / 2)) : (activeTurnToken.speed || 6)) - (activeTurnToken.turnMovementUsed || 0))} c.
               </span>
             </div>
           )}
@@ -173,15 +194,15 @@ const Toolbar = ({
               onClick={onNextTurn}
               className="vtt-primary-cta"
               style={{
-                padding: '3px 9px',
+                padding: '2px 8px',
                 fontSize: '10px',
                 borderRadius: '4px',
                 cursor: 'pointer',
-                marginLeft: '4px'
+                marginLeft: '3px'
               }}
               title="Avanzar al siguiente turno"
             >
-              ▶ Sig. Turno
+              Sig. Turno →
             </button>
           )}
 
@@ -190,10 +211,10 @@ const Toolbar = ({
               type="button"
               onClick={onEndCombat}
               style={{
-                background: 'rgba(239, 68, 68, 0.15)',
-                border: '1px solid rgba(239, 68, 68, 0.35)',
+                background: 'rgba(239, 68, 68, 0.12)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
                 color: '#fca5a5',
-                padding: '3px 6px',
+                padding: '2px 6px',
                 fontSize: '10px',
                 borderRadius: '4px',
                 cursor: 'pointer',
@@ -201,20 +222,20 @@ const Toolbar = ({
               }}
               title="Finalizar el combate"
             >
-              ⏹
+              Terminar
             </button>
           )}
         </div>
       )}
 
-      {/* Bloque Derecho: Pantalla de Jugadores, Notas del Máster y Ajustes */}
+      {/* Bloque Derecho: Acciones Globales */}
       <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center' }}>
         <button
           onClick={onOpenMasterNotes}
           className="vtt-brass-btn"
           style={{
-            padding: '7px 12px',
-            borderRadius: '8px',
+            padding: '6px 12px',
+            borderRadius: '6px',
             fontSize: '12px',
             fontWeight: 600,
             cursor: 'pointer',
@@ -223,24 +244,25 @@ const Toolbar = ({
           }}
           title="Abrir Diario y Notas del Máster (Atajo: Tecla N)"
         >
-          📜 Notas
+          Notas
         </button>
 
         <button
           onClick={onOpenPlayerView}
           className="vtt-brass-btn"
           style={{
-            padding: '7px 14px',
-            borderRadius: '8px',
+            padding: '6px 13px',
+            borderRadius: '6px',
             fontSize: '12px',
             fontWeight: 600,
             cursor: 'pointer',
             borderColor: '#059669',
-            color: '#6ee7b7'
+            color: '#6ee7b7',
+            gap: '7px'
           }}
           title="Abre la ventana sincronizada en tiempo real para proyectar o llevar a la pantalla de jugadores"
         >
-          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 6px #10b981' }}></span>
+          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 5px #10b981' }}></span>
           Pantalla Jugadores
         </button>
 
@@ -248,15 +270,15 @@ const Toolbar = ({
           onClick={onOpenSettings}
           className="vtt-brass-btn"
           style={{
-            padding: '7px 13px',
-            borderRadius: '8px',
+            padding: '6px 12px',
+            borderRadius: '6px',
             fontSize: '12px',
             fontWeight: 600,
             cursor: 'pointer'
           }}
           title="Abre la configuración: Niebla, Cuadrícula y Proyección"
         >
-          ⚙️ Ajustes
+          Ajustes
         </button>
       </div>
     </div>

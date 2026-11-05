@@ -369,7 +369,7 @@ const EncyclopediaView = ({
                   }}
                   title="Elimina todas las entradas de esta biblioteca para empezar desde cero"
                 >
-                  {confirmClearAll ? '⚠️ ¿Confirmar Vaciar?' : '🗑️ Limpiar Todos'}
+                  {confirmClearAll ? '¿Confirmar vaciar?' : 'Limpiar todos'}
                 </button>
               )}
             </>
@@ -512,14 +512,16 @@ const EncyclopediaView = ({
                         alignItems: 'center',
                         justifyContent: 'center'
                       }}>
-                        💀
+                        <span style={{ fontWeight: 800, color: entry.faction === 'enemy' ? '#fca5a5' : '#93c5fd' }}>
+                          {(entry.name || '?').charAt(0).toUpperCase()}
+                        </span>
                       </div>
                     )}
                   </div>
 
                   <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                      {entry.isGraveWound ? '🩸 ' : ''}{entry.name}
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: entry.isGraveWound ? '#fca5a5' : '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                      {entry.name}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '3px' }}>
                       <span style={{
@@ -530,7 +532,7 @@ const EncyclopediaView = ({
                         color: isGraveyard ? '#fca5a5' : meta.badgeColor,
                         fontWeight: 700
                       }}>
-                        {isGraveyard ? `💀 Caído en ${entry.sceneName || 'Tablero'}` : `${meta.icon} ${meta.label}`}
+                        {isGraveyard ? `Caído en ${entry.sceneName || 'Tablero'}` : meta.label}
                       </span>
                     </div>
                   </div>
@@ -711,7 +713,7 @@ const EncyclopediaView = ({
                                   }}
                                   title="Eliminar permanentemente de la cripta"
                                 >
-                                  🗑️ Purgar
+                                  Purgar
                                 </button>
                               )}
                             </>
@@ -722,7 +724,7 @@ const EncyclopediaView = ({
                                 className="vtt-brass-btn"
                                 style={{ padding: '8px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                               >
-                                ✏️ Editar Ficha
+                                Editar Ficha
                               </button>
                               {onSpawnOnBoard && (
                                 <button

@@ -192,7 +192,7 @@ const ObjectNotesModal = ({
               cursor: 'pointer'
             }}
           >
-            📜 Pista / Documento Vinculado
+            Pista / Documento Vinculado
           </button>
         </div>
 
@@ -384,7 +384,7 @@ const ObjectNotesModal = ({
                     className="vtt-primary-cta"
                     style={{ padding: '6px 14px', fontSize: '11px', borderRadius: '6px', cursor: 'pointer' }}
                   >
-                    👁️ Proyectar a Jugadores
+                    Proyectar a Jugadores
                   </button>
                 </div>
               )}
@@ -421,7 +421,7 @@ const ObjectNotesModal = ({
                 cursor: 'pointer'
               }}
             >
-              🗑️ Retirar Objeto
+              Retirar Objeto
             </button>
           )}
 

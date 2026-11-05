@@ -10,7 +10,6 @@ const MapContextMenu = ({ x, y, mapId, onBringToFront, onDelete, onClose }) => {
       }
     };
     
-    // Usamos pointerdown para que reaccione rápido antes de que otros eventos lo bloqueen
     window.addEventListener('pointerdown', handleClick, true);
     return () => window.removeEventListener('pointerdown', handleClick, true);
   }, [onClose]);
@@ -19,22 +18,58 @@ const MapContextMenu = ({ x, y, mapId, onBringToFront, onDelete, onClose }) => {
     <div 
       ref={menuRef}
       style={{ 
-        position: 'fixed', top: y, left: x, backgroundColor: '#1f2937', 
-        padding: '8px', borderRadius: '4px', boxShadow: '0 4px 10px rgba(0,0,0,0.5)', 
-        zIndex: 999999, display: 'flex', flexDirection: 'column', gap: '5px' 
+        position: 'fixed',
+        top: y,
+        left: x,
+        backgroundColor: '#141824',
+        border: '1px solid #2b3346',
+        padding: '6px',
+        borderRadius: '6px',
+        boxShadow: '0 10px 25px rgba(0,0,0,0.85)', 
+        zIndex: 999999,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '4px',
+        minWidth: '150px'
       }}
     >
       <button 
         onClick={() => onBringToFront(mapId)} 
-        style={{ background: 'transparent', border: 'none', color: 'white', cursor: 'pointer', textAlign: 'left', padding: '4px 8px' }}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: '#e2e8f0',
+          cursor: 'pointer',
+          textAlign: 'left',
+          padding: '6px 10px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          fontWeight: 600,
+          transition: 'background 0.15s'
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.background = '#1e2436'}
+        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
       >
-        ⬆️ Traer al frente
+        Traer al frente
       </button>
       <button 
         onClick={() => onDelete(mapId)} 
-        style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', textAlign: 'left', padding: '4px 8px' }}
+        style={{
+          background: 'transparent',
+          border: 'none',
+          color: '#f87171',
+          cursor: 'pointer',
+          textAlign: 'left',
+          padding: '6px 10px',
+          borderRadius: '4px',
+          fontSize: '12px',
+          fontWeight: 600,
+          transition: 'background 0.15s'
+        }}
+        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.12)'}
+        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
       >
-        🗑️ Eliminar Imagen
+        Eliminar imagen
       </button>
     </div>
   );

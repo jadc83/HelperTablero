@@ -215,9 +215,8 @@ const MasterNotesDrawer = ({
           justifyContent: 'space-between'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '20px' }}>📜</span>
             <div>
-              <div className="vtt-gothic-title" style={{ fontSize: '14px', color: '#f8fafc', fontWeight: 'bold' }}>
+              <div className="vtt-gothic-title" style={{ fontSize: '14px', color: '#f8fafc', fontWeight: 'bold', letterSpacing: '0.04em' }}>
                 DIARIO & NOTAS DEL MÁSTER
               </div>
               <div style={{ fontSize: '10px', color: '#94a3b8' }}>
@@ -536,7 +535,7 @@ const MasterNotesDrawer = ({
                           className="vtt-primary-cta"
                           style={{ padding: '3px 8px', fontSize: '10px', borderRadius: '4px', cursor: 'pointer' }}
                         >
-                          ➕ Guardar a Personajes
+                          Guardar a Personajes
                         </button>
                       )}
                     </div>

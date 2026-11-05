@@ -267,13 +267,13 @@ const SettingsDrawer = ({
   };
 
   const TABS = [
-    { id: 'escenario', icon: '🗺️', label: 'Escenas' },
-    { id: 'niebla', icon: '🕯️', label: 'Niebla & Luz' },
-    { id: 'bestiario', icon: '🛡️', label: 'Seres' },
-    { id: 'decorado', icon: '🪑', label: 'Decorado' },
-    { id: 'items', icon: '🎒', label: 'Objetos & Loot' },
-    { id: 'proyector', icon: '🖼️', label: 'Proyector' },
-    { id: 'campana', icon: '💾', label: 'Guardar/Cargar' }
+    { id: 'escenario', label: 'Escenas' },
+    { id: 'niebla', label: 'Niebla & Luz' },
+    { id: 'bestiario', label: 'Seres' },
+    { id: 'decorado', label: 'Decorado' },
+    { id: 'items', label: 'Objetos & Loot' },
+    { id: 'proyector', label: 'Proyector' },
+    { id: 'campana', label: 'Guardar/Cargar' }
   ];
 
   const interactiveItemsOnBoard = maps.filter(
@@ -307,8 +307,7 @@ const SettingsDrawer = ({
         borderBottom: '1px solid #262c3a'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ fontSize: '16px' }}>⚙️</span>
-          <span className="vtt-gothic-title" style={{ fontSize: '15px', fontWeight: 'bold', color: '#f8fafc' }}>
+          <span className="vtt-gothic-title" style={{ fontSize: '15px', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '0.04em' }}>
             CENTRO DE MANDO
           </span>
         </div>
@@ -325,10 +324,10 @@ const SettingsDrawer = ({
       <div style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
-        gap: '5px',
+        gap: '6px',
         padding: '8px 12px',
-        background: '#0d1016',
-        borderBottom: '1px solid #262c3a'
+        background: '#0c0f16',
+        borderBottom: '1px solid #242c3d'
       }}>
         {TABS.map(tab => {
           const isActive = activeTab === tab.id;
@@ -337,26 +336,42 @@ const SettingsDrawer = ({
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               style={{
-                padding: '7px 4px',
+                padding: '8px 4px',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '5px',
-                borderRadius: '7px',
-                background: isActive ? 'linear-gradient(180deg, rgba(245, 158, 11, 0.22) 0%, rgba(245, 158, 11, 0.08) 100%)' : '#151923',
-                border: isActive ? '1px solid #f59e0b' : '1px solid #242a38',
-                color: isActive ? '#fbbf24' : '#94a3b8',
+                borderRadius: '6px',
+                background: isActive ? '#d97706' : '#141824',
+                border: isActive ? '1px solid #fbbf24' : '1px solid #252e42',
+                color: isActive ? '#ffffff' : '#94a3b8',
                 fontSize: '11px',
-                fontWeight: isActive ? 700 : 600,
+                fontWeight: isActive ? 800 : 600,
+                boxShadow: isActive ? '0 2px 8px rgba(217, 119, 6, 0.45)' : 'none',
                 transition: 'all 0.15s ease'
               }}
             >
-              <span style={{ fontSize: '13px' }}>{tab.icon}</span>
               <span>{tab.label}</span>
             </button>
           );
         })}
+      </div>
+
+      {/* Indicador de Sección Activa Muy Claro */}
+      <div style={{
+        padding: '6px 16px',
+        background: '#111520',
+        borderBottom: '1px solid #242c3d',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f59e0b', boxShadow: '0 0 6px #f59e0b' }} />
+          <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fbbf24' }}>
+            SECCIÓN: {TABS.find(t => t.id === activeTab)?.label}
+          </span>
+        </div>
       </div>
 
       {/* Cuerpo Compacto */}
@@ -442,14 +457,15 @@ const SettingsDrawer = ({
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        padding: '8px 10px',
+                        padding: '9px 12px',
                         borderRadius: '6px',
-                        backgroundColor: isCurrent ? 'rgba(245, 158, 11, 0.18)' : '#141822',
+                        backgroundColor: isCurrent ? 'rgba(245, 158, 11, 0.16)' : '#141822',
                         border: isDragOver
                           ? '2px dashed #38bdf8'
                           : isCurrent
-                          ? '1px solid #fbbf24'
-                          : '1px solid #2c3344',
+                          ? '1px solid #f59e0b'
+                          : '1px solid #283144',
+                        borderLeft: isCurrent ? '4px solid #f59e0b' : '1px solid #283144',
                         fontSize: '12px',
                         cursor: 'grab',
                         opacity: draggedSceneIndex === idx ? 0.5 : 1,
@@ -462,9 +478,16 @@ const SettingsDrawer = ({
                           ⠿
                         </span>
                         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                          <span style={{ fontWeight: 'bold', color: isCurrent ? '#fffbeb' : '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                            {idx + 1}. {sc.name} {isCurrent && <span style={{ color: '#4ade80', fontSize: '10px' }}>(Activa)</span>}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontWeight: 800, color: isCurrent ? '#fbbf24' : '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                              {idx + 1}. {sc.name}
+                            </span>
+                            {isCurrent && (
+                              <span style={{ backgroundColor: '#10b981', color: '#042f1a', padding: '1px 6px', borderRadius: '4px', fontWeight: 800, fontSize: '9px', letterSpacing: '0.04em' }}>
+                                ACTIVA
+                              </span>
+                            )}
+                          </div>
                           <span style={{ fontSize: '10px', color: '#94a3b8' }}>
                             {(sc.maps || []).length} elem. mapa • {(sc.tokens || []).length} fichas
                           </span>
@@ -552,7 +575,7 @@ const SettingsDrawer = ({
                 className="vtt-primary-cta"
                 style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}
               >
-                🗺️ Abrir Editor de Mapas a Pantalla Completa
+                Abrir Editor de Mapas a Pantalla Completa
               </button>
             </div>
 
@@ -1374,7 +1397,7 @@ const SettingsDrawer = ({
                   type="text"
                   value={itemSearchQuery}
                   onChange={(e) => setItemSearchQuery(e.target.value)}
-                  placeholder="🔍 Buscar mechero, cuerda, linterna, botiquín..."
+                  placeholder="Buscar mechero, cuerda, linterna, botiquín..."
                   style={{
                     backgroundColor: '#121622',
                     border: '1px solid #283042',
@@ -1867,7 +1890,7 @@ const SettingsDrawer = ({
                   color: bestiarySubTab === 'characters' ? '#0f1115' : '#94a3b8'
                 }}
               >
-                🛡️ Personajes ({characters.length})
+                Personajes ({characters.length})
               </button>
               <button
                 type="button"
@@ -1884,7 +1907,7 @@ const SettingsDrawer = ({
                   color: bestiarySubTab === 'statuses' ? '#0f1115' : '#94a3b8'
                 }}
               >
-                ✨ Estados y Condiciones ({customStatuses.length})
+                Estados y Condiciones ({customStatuses.length})
               </button>
             </div>
 
@@ -1903,7 +1926,7 @@ const SettingsDrawer = ({
                     className="vtt-primary-cta"
                     style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', width: '100%' }}
                   >
-                    📜 + Abrir Creador de Nuevo Personaje
+                    + Abrir Creador de Nuevo Personaje
                   </button>
                 </div>
 
@@ -1930,7 +1953,7 @@ const SettingsDrawer = ({
                         className="vtt-brass-btn"
                         style={{ padding: '4px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}
                       >
-                        📥 Importar JSON
+                        Importar JSON
                       </button>
                       <button
                         onClick={async () => {
@@ -1941,7 +1964,7 @@ const SettingsDrawer = ({
                         className="vtt-brass-btn"
                         style={{ padding: '4px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}
                       >
-                        📤 Exportar Todo
+                        Exportar Todo
                       </button>
                     </div>
                   </div>
@@ -2102,10 +2125,10 @@ const SettingsDrawer = ({
               </p>
               <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
                 <button onClick={onImportCampaign} className="vtt-brass-btn" style={{ flex: 1, padding: '11px', borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer', borderColor: '#60a5fa', color: '#93c5fd' }}>
-                  📥 Cargar aventura (.json)
+                  Cargar aventura (.json)
                 </button>
                 <button onClick={onExportCampaign} className="vtt-primary-cta" style={{ flex: 1, padding: '11px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}>
-                  📤 Guardar aventura (.json)
+                  Guardar aventura (.json)
                 </button>
               </div>
             </div>

@@ -98,16 +98,16 @@ const HomeScreen = ({
           <button
             onClick={onOpenTutorial}
             className="vtt-brass-btn"
-            style={{ padding: '9px 15px', borderRadius: '9px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+            style={{ padding: '9px 15px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
           >
-            ❓ Guía de Uso
+            Guía de Uso
           </button>
           <button
             onClick={onResumeGame}
             className="vtt-primary-cta"
-            style={{ padding: '10px 22px', borderRadius: '9px', cursor: 'pointer', fontSize: '13px' }}
+            style={{ padding: '10px 22px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}
           >
-            ⚔️ Ir al Tablero de Juego ➔
+            Ir al Tablero de Juego →
           </button>
         </div>
       </div>
@@ -172,7 +172,6 @@ const HomeScreen = ({
               gap: '16px'
             }}>
               <div>
-                <div style={{ fontSize: '28px', marginBottom: '10px' }}>📜</div>
                 <div className="vtt-gothic-title" style={{ fontSize: '16px', fontWeight: 'bold', color: '#f8fafc', marginBottom: '6px' }}>
                   Archivo de Campaña
                 </div>
@@ -341,7 +340,6 @@ const HomeScreen = ({
           }}>
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <span style={{ fontSize: '34px' }}>👁️</span>
                 <span className="vtt-retro-badge" style={{
                   padding: '3px 10px',
                   borderRadius: '999px',
@@ -377,7 +375,7 @@ const HomeScreen = ({
                   borderRadius: '9px'
                 }}
               >
-                👁️ Abrir Bestiario
+                Abrir Bestiario
               </button>
               <button
                 onClick={() => onCreateCharacter && onCreateCharacter('mythos_creature')}
@@ -438,7 +436,7 @@ const HomeScreen = ({
                   <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700 }}>ÚLTIMAS BAJAS REGISTRADAS:</span>
                   {graveyard.slice(0, 2).map(g => (
                     <div key={g.graveyardId || g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
-                      <span style={{ color: '#e2e8f0', fontWeight: 600 }}>💀 {g.name}</span>
+                      <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{g.name}</span>
                       <span style={{ color: '#94a3b8', fontSize: '10px' }}>{g.sceneName || 'Tablero'}</span>
                     </div>
                   ))}

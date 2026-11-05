@@ -633,7 +633,7 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
                 className="vtt-brass-btn"
                 style={{ gridColumn: '1 / -1', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
               >
-                <span style={{ fontSize: '16px' }}>📜</span> Añadir Nota o Pergamino
+                Añadir Nota o Pergamino
               </button>
             </div>
           </div>
@@ -737,24 +737,24 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
 
                     {selectedElement && selectedElement.type === 'object' && (
                       <button onClick={() => setEditingObject(selectedElement)} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>
-                        ⚙️ Propiedades
+                        Propiedades
                       </button>
                     )}
 
                     {selectedElement && selectedElement.type === 'light' && (
                       <button onClick={() => setEditingLight(selectedElement)} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>
-                        🔥 Radio de Luz
+                        Radio de Luz
                       </button>
                     )}
 
                     {selectedElement && selectedElement.type === 'note' && (
                       <button onClick={() => setEditingNote(selectedElement)} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>
-                        ✏️ Editar Texto
+                        Editar Texto
                       </button>
                     )}
 
                     <button onClick={handleDuplicateSelected} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>
-                      📋 Duplicar
+                      Duplicar
                     </button>
 
                     <button
@@ -770,7 +770,7 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
                         fontWeight: 700
                       }}
                     >
-                      🗑️ Eliminar
+                      Eliminar
                     </button>
                   </div>
                 </>

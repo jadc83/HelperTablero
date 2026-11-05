@@ -647,7 +647,7 @@ const MapLayer = ({
                   className="vtt-primary-cta"
                   style={{ padding: '7px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
                 >
-                  👁️ Desvelar Pista a Jugadores
+                  Desvelar Pista a Jugadores
                 </button>
               )}
             </>
@@ -676,7 +676,7 @@ const MapLayer = ({
               className="vtt-brass-btn"
               style={{ padding: '7px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
             >
-              {contextMenu.item.isLocked ? '🔓 Desbloquear posición' : '🔒 Bloquear posición'}
+              {contextMenu.item.isLocked ? 'Desbloquear posición' : 'Bloquear posición'}
             </button>
           )}
 
@@ -699,7 +699,7 @@ const MapLayer = ({
                 marginTop: '4px'
               }}
             >
-              🗑️ Retirar de la Escena
+              Retirar de la Escena
             </button>
           )}
         </div>,
@@ -733,7 +733,7 @@ const MapLayer = ({
             }}
           >
             <h2 className="vtt-gothic-title" style={{ margin: '0 0 15px 0', borderBottom: '2px solid #8a6d3b', paddingBottom: '10px', fontSize: '24px', color: '#451a03', textShadow: 'none' }}>
-              📜 {readingNote.title}
+              {readingNote.title}
             </h2>
             <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.7', margin: 0, fontSize: '18px', fontFamily: "'Crimson Text', Georgia, serif" }}>
               {readingNote.content}
