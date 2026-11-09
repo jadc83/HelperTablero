@@ -3,7 +3,11 @@ import React from 'react';
 const Toolbar = ({
   onOpenHome,
   onOpenSettings,
+  onOpenTutorial,
   onOpenPlayerView,
+  onOpenHandouts,
+  handoutsCount = 0,
+  hasActiveHandout = false,
   onOpenMasterNotes,
   scenes = [],
   activeSceneId = null,
@@ -310,6 +314,32 @@ const Toolbar = ({
         </button>
 
         <button
+          onClick={onOpenHandouts}
+          className="vtt-brass-btn"
+          style={{
+            padding: '6px 12px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            borderColor: hasActiveHandout ? '#10b981' : '#38bdf8',
+            color: hasActiveHandout ? '#86efac' : '#bae6fd',
+            gap: '6px'
+          }}
+          title="Abrir Proyector de Ilustraciones y Pistas para la Pantalla de Jugadores"
+        >
+          <span style={{
+            display: 'inline-block',
+            width: '7px',
+            height: '7px',
+            borderRadius: '50%',
+            backgroundColor: hasActiveHandout ? '#10b981' : '#38bdf8',
+            boxShadow: hasActiveHandout ? '0 0 6px #10b981' : '0 0 4px #38bdf8'
+          }} />
+          Proyector {handoutsCount > 0 ? `(${handoutsCount})` : ''}
+        </button>
+
+        <button
           onClick={onOpenSettings}
           className="vtt-brass-btn"
           style={{
@@ -319,9 +349,28 @@ const Toolbar = ({
             fontWeight: 600,
             cursor: 'pointer'
           }}
-          title="Abre la configuración: Niebla, Cuadrícula y Proyección"
+          title="Abre el Centro de Mando: Escenas, Niebla, Estados y Decorado"
         >
           Ajustes
+        </button>
+
+        <button
+          onClick={onOpenTutorial}
+          className="vtt-brass-btn"
+          style={{
+            padding: '6px 11px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            color: '#fbbf24',
+            borderColor: 'rgba(212, 175, 55, 0.45)',
+            gap: '5px'
+          }}
+          title="Guía rápida y tutorial del Grimorio VTT"
+        >
+          <span style={{ fontSize: '11px' }}>❓</span>
+          Ayuda
         </button>
       </div>
     </div>

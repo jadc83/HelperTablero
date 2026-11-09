@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { OBJECT_PRESETS, LIGHT_PRESETS } from './MapCreator';
+import { LIGHT_PRESETS } from './MapCreator';
 import { getGameIconComponent } from './icons/GameIcons';
+import { importJSON } from '../utils/fileDialog';
 
 const SectionAccordion = ({ title, count, isExpanded, onClick, children, tooltip }) => (
   <div
@@ -84,6 +85,7 @@ const TokenSidebar = ({
   onOpenEncyclopedia,
   onRemoveToken, 
   onRemoveCharacter,
+  onImportCharacters,
   onEditCharacter,
   onCreateNewCharacter,
   onUpdateTokenStats,
@@ -120,7 +122,6 @@ const TokenSidebar = ({
   // Acordeones de compendio dentro de la pestaña Biblioteca
   const [isCharactersExpanded, setIsCharactersExpanded] = useState(true);
   const [isMonstersExpanded, setIsMonstersExpanded] = useState(true);
-  const [isObjectsExpanded, setIsObjectsExpanded] = useState(false);
   const [isItemsExpanded, setIsItemsExpanded] = useState(false);
   const [lootSearchQuery, setLootSearchQuery] = useState('');
   const [isLightsExpanded, setIsLightsExpanded] = useState(false);
@@ -155,6 +156,44 @@ const TokenSidebar = ({
 
   const humanCharacters = (characters || []).filter(c => !isMonsterEntity(c));
   const monsterCharacters = (characters || []).filter(c => isMonsterEntity(c));
+
+  const handleImportHumanCharacters = async () => {
+    const res = await importJSON({ accept: '.json', description: 'Personajes VTT (*.json)' });
+    if (res?.success && res.text) {
+      try {
+        const parsed = JSON.parse(res.text);
+        const list = Array.isArray(parsed) ? parsed : [parsed];
+        const formatted = list.map(c => ({
+          ...c,
+          id: c.id || Date.now() + Math.random(),
+          faction: c.faction || 'ally',
+          entityType: c.entityType || 'human'
+        }));
+        if (onImportCharacters) onImportCharacters(formatted);
+      } catch (err) {
+        console.error('Error al importar personajes:', err);
+      }
+    }
+  };
+
+  const handleImportMonsters = async () => {
+    const res = await importJSON({ accept: '.json', description: 'Bestiario VTT (*.json)' });
+    if (res?.success && res.text) {
+      try {
+        const parsed = JSON.parse(res.text);
+        const list = Array.isArray(parsed) ? parsed : [parsed];
+        const formatted = list.map(c => ({
+          ...c,
+          id: c.id || Date.now() + Math.random(),
+          faction: c.faction || 'enemy',
+          entityType: c.entityType || 'mythos_creature'
+        }));
+        if (onImportCharacters) onImportCharacters(formatted);
+      } catch (err) {
+        console.error('Error al importar bestiario:', err);
+      }
+    }
+  };
 
   return (
     <div style={{
@@ -277,28 +316,6 @@ const TokenSidebar = ({
             onClick={() => setIsCharactersExpanded(!isCharactersExpanded)}
             tooltip="Investigadores y personajes aliados"
           >
-            <div style={{ display: 'flex', gap: '5px', marginBottom: '2px' }}>
-              {onOpenEncyclopedia && (
-                <button
-                  type="button"
-                  onClick={() => onOpenEncyclopedia('character')}
-                  className="vtt-brass-btn"
-                  style={{ flex: 1, padding: '6px 8px', borderRadius: '7px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', borderColor: '#f59e0b', color: '#fbbf24' }}
-                >
-                  Enciclopedia
-                </button>
-              )}
-              {onCreateNewCharacter && (
-                <button
-                  type="button"
-                  onClick={() => onCreateNewCharacter('human')}
-                  className="vtt-primary-cta"
-                  style={{ flex: 1, padding: '6px 8px', borderRadius: '7px', fontSize: '11px', cursor: 'pointer' }}
-                >
-                  + Personaje
-                </button>
-              )}
-            </div>
             {humanCharacters.map(char => (
               <div 
                 key={char.id}
@@ -368,8 +385,42 @@ const TokenSidebar = ({
               </div>
             ))}
             {humanCharacters.length === 0 && (
-              <div style={{ textAlign: 'center', color: '#64748b', fontSize: '11px', padding: '8px', backgroundColor: '#12151c', borderRadius: '6px', border: '1px dashed #2c3344' }}>
-                Sin personajes. Abre la <strong>Enciclopedia</strong> o pulsa <strong>+ Personaje</strong>.
+              <div style={{
+                textAlign: 'center',
+                padding: '16px 12px',
+                backgroundColor: '#12151c',
+                borderRadius: '7px',
+                border: '1px dashed #2c3344',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  Sin personajes cargados en la mesa.
+                </span>
+                <button
+                  type="button"
+                  onClick={handleImportHumanCharacters}
+                  className="vtt-brass-btn"
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    borderColor: '#f59e0b',
+                    color: '#fbbf24',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(180, 83, 9, 0.3) 100%)'
+                  }}
+                  title="Cargar archivo JSON de personajes"
+                >
+                  <span>📂</span>
+                  <span>Cargar Personajes (JSON)</span>
+                </button>
               </div>
             )}
           </SectionAccordion>
@@ -382,28 +433,6 @@ const TokenSidebar = ({
             onClick={() => setIsMonstersExpanded(!isMonstersExpanded)}
             tooltip="Criaturas y monstruos de los Mitos"
           >
-            <div style={{ display: 'flex', gap: '5px', marginBottom: '2px' }}>
-              {onOpenEncyclopedia && (
-                <button
-                  type="button"
-                  onClick={() => onOpenEncyclopedia('monster')}
-                  className="vtt-brass-btn"
-                  style={{ flex: 1, padding: '6px 8px', borderRadius: '7px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', borderColor: '#8b5cf6', color: '#c4b5fd' }}
-                >
-                  Bestiario
-                </button>
-              )}
-              {onCreateNewCharacter && (
-                <button
-                  type="button"
-                  onClick={() => onCreateNewCharacter('mythos_creature')}
-                  className="vtt-brass-btn"
-                  style={{ flex: 1, padding: '6px 8px', borderRadius: '7px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', borderColor: '#ef4444', color: '#fca5a5' }}
-                >
-                  + Criatura
-                </button>
-              )}
-            </div>
             {monsterCharacters.map(char => (
               <div 
                 key={char.id}
@@ -472,96 +501,47 @@ const TokenSidebar = ({
               </div>
             ))}
             {monsterCharacters.length === 0 && (
-              <div style={{ textAlign: 'center', color: '#64748b', fontSize: '11px', padding: '8px', backgroundColor: '#12151c', borderRadius: '6px', border: '1px dashed #2c3344' }}>
-                Sin criaturas registradas. Abre el <strong>Bestiario</strong> o pulsa <strong>+ Criatura</strong>.
-              </div>
-            )}
-          </SectionAccordion>
-
-          {/* 2. DECORADO & MOBILIARIO DEL TABLERO */}
-          <SectionAccordion
-            title="Decorado & Mobiliario"
-            count={OBJECT_PRESETS.length + (customObjects?.length || 0)}
-            isExpanded={isObjectsExpanded}
-            onClick={() => setIsObjectsExpanded(!isObjectsExpanded)}
-            tooltip="Elementos decorativos y mobiliario para el mapa"
-          >
-            {/* Decorado Personalizado del Catálogo */}
-            {customObjects && customObjects.length > 0 && (
-              <div style={{ marginBottom: '4px' }}>
-                <span style={{ fontSize: '10px', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>
-                  Catálogo personalizado ({customObjects.length})
+              <div style={{
+                textAlign: 'center',
+                padding: '16px 12px',
+                backgroundColor: '#12151c',
+                borderRadius: '7px',
+                border: '1px dashed #3a1d1d',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '8px'
+              }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                  Sin criaturas registradas en el bestiario.
                 </span>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  {customObjects.map(obj => (
-                    <div
-                      key={obj.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        backgroundColor: '#1c2230',
-                        padding: '6px 10px',
-                        borderRadius: '7px',
-                        border: '1px solid #3b4255'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', overflow: 'hidden' }}>
-                        <span style={{ fontSize: '14px' }}>{obj.icon || '🪑'}</span>
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: 600 }}>{obj.name}</span>
-                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
-                            {obj.w}x{obj.h}px • {obj.blocksMovement ? 'Bloquea paso' : 'Paso libre'}
-                          </span>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => onAddMapElement && onAddMapElement({
-                          type: obj.category || 'object',
-                          name: obj.name,
-                          icon: obj.icon,
-                          openIcon: obj.openIcon,
-                          w: obj.w,
-                          h: obj.h,
-                          blocksMovement: obj.blocksMovement,
-                          blocksVision: obj.blocksVision,
-                          notes: obj.notes,
-                          secretNotes: obj.secretNotes,
-                          linkedHandoutId: obj.linkedHandoutId,
-                          lightRadius: obj.lightRadius,
-                          lightColor: obj.lightColor
-                        })}
-                        className="vtt-brass-btn"
-                        style={{ padding: '3px 8px', fontSize: '10px', borderRadius: '5px', fontWeight: 700, cursor: 'pointer', color: '#fbbf24', borderColor: '#f59e0b' }}
-                        title="Colocar en el mapa"
-                      >
-                        + Colocar
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {OBJECT_PRESETS.map(preset => (
-              <div key={preset.presetId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: '#191d27', padding: '6px 10px', borderRadius: '7px', border: '1px solid #2c3344' }}>
-                <span style={{ fontSize: '12px', color: '#e2e8f0', fontWeight: 500 }}>{preset.icon} {preset.label}</span>
-                <button 
+                <button
                   type="button"
-                  onClick={() => onAddMapElement && onAddMapElement({
-                    id: Date.now() + Math.random(), type: 'object', name: preset.label, icon: preset.icon, openIcon: preset.openIcon,
-                    width: 48, height: 48, isOpen: false, blocksMovement: preset.blocksMovement, blocksVision: preset.blocksVision, isHidden: false
-                  })}
-                  className="vtt-brass-btn" style={{ padding: '4px 9px', fontSize: '11px', borderRadius: '5px', fontWeight: 600, cursor: 'pointer' }}
+                  onClick={handleImportMonsters}
+                  className="vtt-brass-btn"
+                  style={{
+                    padding: '7px 14px',
+                    borderRadius: '6px',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    borderColor: '#ef4444',
+                    color: '#fca5a5',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(153, 27, 27, 0.3) 100%)'
+                  }}
+                  title="Cargar archivo JSON de criaturas y monstruos"
                 >
-                  + Colocar
+                  <span>📂</span>
+                  <span>Cargar Bestiario (JSON)</span>
                 </button>
               </div>
-            ))}
+            )}
           </SectionAccordion>
 
-          {/* 3. OBJETOS DE INVENTARIO Y LOOT COMÚN */}
+          {/* 2. OBJETOS DE INVENTARIO Y LOOT COMÚN */}
           <SectionAccordion
             title="Objetos de Inventario (Loot)"
             count={commonItems.length}

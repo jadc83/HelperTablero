@@ -21,12 +21,11 @@ const SettingsDrawer = ({
   customObjects = [], onSaveCustomObject, onDeleteCustomObject, onInspectObject,
   tokens = [], activeTurnTokenId = null,
   commonItems = [], onGiveItemToCharacter, onSaveCommonItem, onDeleteCommonItem, onPlaceGroundItem,
-  onSaveAdventure
+  onSaveAdventure, onConcludeAdventure
 }) => {
   const [activeTab, setActiveTab] = useState('escenario');
   const [bestiarySubTab, setBestiarySubTab] = useState('characters'); // 'characters' | 'statuses'
   const [statusMessage, setStatusMessage] = useState(null);
-  const [confirmClearMaps, setConfirmClearMaps] = useState(false);
   const [confirmDeleteAllScenes, setConfirmDeleteAllScenes] = useState(false);
 
   // Estados para Guardar Aventura Completa
@@ -34,6 +33,34 @@ const SettingsDrawer = ({
   const [adventureNameInput, setAdventureNameInput] = useState('');
   const [exportJsonFile, setExportJsonFile] = useState(true);
   const [isSavingAdventure, setIsSavingAdventure] = useState(false);
+
+  // Estados para Concluir Aventura y Archivar
+  const [isConcludeModalOpen, setIsConcludeModalOpen] = useState(false);
+  const [concludeNameInput, setConcludeNameInput] = useState('');
+  const [concludeExportJson, setConcludeExportJson] = useState(true);
+  const [isConcluding, setIsConcluding] = useState(false);
+
+  const handleOpenConcludeModal = () => {
+    const cur = scenes.find(s => s.id === activeSceneId) || scenes[0];
+    setConcludeNameInput(cur?.name ? `Crónica: ${cur.name} — Concluida` : 'Crónica Concluida');
+    setConcludeExportJson(true);
+    setIsConcludeModalOpen(true);
+  };
+
+  const handleConfirmConcludeAdventure = async () => {
+    if (!onConcludeAdventure) return;
+    setIsConcluding(true);
+    try {
+      await onConcludeAdventure(concludeNameInput.trim() || 'Crónica Concluida', concludeExportJson);
+      setIsConcludeModalOpen(false);
+      if (onClose) onClose();
+    } catch (err) {
+      console.error('Error al concluir aventura:', err);
+      notify('Error al concluir la aventura');
+    } finally {
+      setIsConcluding(false);
+    }
+  };
 
   const handleOpenSaveAdventureModal = () => {
     const cur = scenes.find(s => s.id === activeSceneId) || scenes[0];
@@ -87,23 +114,6 @@ const SettingsDrawer = ({
   const [charAvatar, setCharAvatar] = useState('');
   const charInputRef = useRef(null);
   const charAvatarInputRef = useRef(null);
-
-  // Estados para Creador de Objetos y Estructuras
-  const [objectsSubTab, setObjectsSubTab] = useState('creator'); // 'creator' | 'scene' | 'catalog'
-  const [objCategory, setObjCategory] = useState('object'); // 'object' | 'light' | 'door' | 'window'
-  const [objName, setObjName] = useState('Cofre Antiguo');
-  const [objIcon, setObjIcon] = useState('📦');
-  const [objOpenIcon, setObjOpenIcon] = useState('🪙');
-  const [objWidth, setObjWidth] = useState(48);
-  const [objHeight, setObjHeight] = useState(48);
-  const [objBlocksMove, setObjBlocksMove] = useState(true);
-  const [objBlocksVision, setObjBlocksVision] = useState(false);
-  const [objNotes, setObjNotes] = useState('');
-  const [lightRadius, setLightRadius] = useState(220);
-  const [lightColor, setLightColor] = useState('#f59e0b');
-
-  const POPULAR_OBJECT_ICONS = ['📦', '🪙', '⚰️', '🪞', '🪦', '🏺', '🪤', '🗝️', '📜', '🔮', '🗡️', '🩸', '⚙️', '🚪', '🪟', '🕯️', '🔥', '🏮'];
-  const POPULAR_OPEN_ICONS = ['🪙', '🔓', '💥', '⚰️', '💨', '💀', '✨'];
 
   // Estados para Objetos de Inventario y Equipo Común (Loot / Pertenencias)
   const [itemsSubTab, setItemsSubTab] = useState('catalog'); // 'catalog' | 'creator'
@@ -186,95 +196,6 @@ const SettingsDrawer = ({
     notify('Personaje añadido al Bestiario');
   };
 
-  const handlePlaceNewObject = (e) => {
-    if (e) e.preventDefault();
-    if (!onAddMapElement) return;
-
-    let newEl = null;
-    if (objCategory === 'object') {
-      newEl = {
-        id: Date.now() + Math.random(),
-        type: 'object',
-        name: objName.trim() || 'Objeto',
-        icon: objIcon || '📦',
-        openIcon: objOpenIcon || '🪙',
-        width: Number(objWidth) || 48,
-        height: Number(objHeight) || 48,
-        isOpen: false,
-        blocksMovement: objBlocksMove,
-        blocksVision: objBlocksVision,
-        notes: objNotes.trim(),
-        isHidden: false,
-        isLocked: false
-      };
-    } else if (objCategory === 'light') {
-      newEl = {
-        id: Date.now() + Math.random(),
-        type: 'light',
-        name: objName.trim() || 'Fuente de Luz',
-        icon: objIcon || '🔥',
-        width: 38,
-        height: 38,
-        radius: Number(lightRadius) || 220,
-        color: lightColor,
-        isOn: true,
-        isLocked: false
-      };
-    } else if (objCategory === 'door') {
-      newEl = {
-        id: Date.now() + Math.random(),
-        type: 'door',
-        name: objName.trim() || 'Puerta',
-        width: Number(objWidth) || 60,
-        height: Number(objHeight) || 16,
-        isOpen: false,
-        isLocked: false
-      };
-    } else if (objCategory === 'window') {
-      newEl = {
-        id: Date.now() + Math.random(),
-        type: 'window',
-        name: objName.trim() || 'Ventana',
-        width: Number(objWidth) || 60,
-        height: Number(objHeight) || 14,
-        isOpen: false,
-        isBroken: false,
-        isLocked: false
-      };
-    }
-
-    if (newEl) {
-      onAddMapElement(newEl);
-      notify(`Haz clic en el mapa para colocar "${newEl.name}"`);
-      onClose();
-    }
-  };
-
-  const handleSaveToCatalog = (e) => {
-    if (e) e.preventDefault();
-    if (!onSaveCustomObject) return;
-
-    const catalogItem = {
-      id: 'custom_obj_' + Date.now(),
-      presetId: 'custom_' + Date.now(),
-      type: objCategory,
-      label: objName.trim() || (objCategory === 'light' ? 'Luz' : objCategory === 'door' ? 'Puerta' : 'Objeto'),
-      name: objName.trim() || (objCategory === 'light' ? 'Luz' : objCategory === 'door' ? 'Puerta' : 'Objeto'),
-      icon: objIcon,
-      openIcon: objOpenIcon,
-      width: Number(objWidth) || 48,
-      height: Number(objHeight) || 48,
-      blocksMovement: objBlocksMove,
-      blocksVision: objBlocksVision,
-      radius: Number(lightRadius) || 220,
-      color: lightColor,
-      notes: objNotes.trim()
-    };
-
-    onSaveCustomObject(catalogItem);
-    notify(`Plantilla "${catalogItem.name}" guardada en el catálogo`);
-  };
-
   const handleStatusIconUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -311,118 +232,125 @@ const SettingsDrawer = ({
     notify('Condición añadida');
   };
 
+const renderTabIcon = (tabId, isActive) => {
+  const color = isActive ? '#fef08a' : '#8e9caa';
+  const size = 13;
+  switch (tabId) {
+    case 'escenario':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+          <line x1="8" y1="2" x2="8" y2="18"/>
+          <line x1="16" y1="6" x2="16" y2="22"/>
+        </svg>
+      );
+    case 'niebla':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+          <circle cx="12" cy="12" r="3"/>
+        </svg>
+      );
+    case 'estados':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+        </svg>
+      );
+    case 'items':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 8H3a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z"/>
+          <path d="M23 8l-4-5H5L1 8"/>
+          <circle cx="12" cy="14" r="2"/>
+        </svg>
+      );
+    default:
+      return null;
+  }
+};
+
   const TABS = [
     { id: 'escenario', label: 'Escenas' },
-    { id: 'niebla', label: 'Niebla & Luz' },
-    { id: 'bestiario', label: 'Seres' },
-    { id: 'decorado', label: 'Decorado' },
-    { id: 'items', label: 'Objetos & Loot' },
-    { id: 'proyector', label: 'Proyector' },
-    { id: 'campana', label: 'Guardar/Cargar' }
+    { id: 'estados', label: 'Estados' },
+    { id: 'items', label: 'Objetos & Loot' }
   ];
-
-  const interactiveItemsOnBoard = maps.filter(
-    el => el.type === 'object' || el.type === 'light' || el.type === 'door' || el.type === 'window'
-  );
 
   return (
     <div style={{
       position: 'fixed',
       top: '58px',
-      right: isOpen ? '0' : '-500px',
-      width: '490px',
+      right: isOpen ? '0' : '-520px',
+      width: '510px',
       bottom: '0',
       transition: 'right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
       zIndex: 4500,
-      background: 'linear-gradient(180deg, #141822 0%, #0d1017 100%)',
-      borderLeft: '1px solid #2e3546',
-      boxShadow: isOpen ? '-14px 0 40px rgba(0,0,0,0.9)' : 'none',
+      background: 'linear-gradient(180deg, #131722 0%, #0a0d14 100%)',
+      borderLeft: '1.5px solid #2a3448',
+      boxShadow: isOpen ? '-16px 0 50px rgba(0,0,0,0.92)' : 'none',
       display: 'flex',
       flexDirection: 'column',
       color: '#e2e8f0',
       overflow: 'hidden'
     }}>
-      {/* Cabecera Superior Moderna */}
+      {/* Cabecera Superior con Placa de Cuero Ocultista */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '14px 18px',
-        backgroundImage: 'linear-gradient(180deg, rgba(16, 19, 27, 0.72) 0%, rgba(13, 16, 23, 0.92) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+        padding: '12px 18px',
+        backgroundImage: 'linear-gradient(180deg, rgba(16, 19, 27, 0.75) 0%, rgba(13, 16, 23, 0.95) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        borderBottom: '1px solid #262c3a',
-        boxShadow: '0 2px 10px rgba(0, 0, 0, 0.5)'
+        borderBottom: '1px solid rgba(212, 175, 55, 0.3)',
+        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.6)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span className="vtt-gothic-title" style={{ fontSize: '15px', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '0.04em' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '24px',
+            height: '24px',
+            borderRadius: '5px',
+            background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.3) 0%, rgba(180, 83, 9, 0.4) 100%)',
+            border: '1px solid #d4af37',
+            fontSize: '13px',
+            color: '#fbbf24',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.5)'
+          }}>
+            ⚙
+          </span>
+          <span className="vtt-gothic-title" style={{ fontSize: '16px', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '0.06em' }}>
             CENTRO DE MANDO
           </span>
         </div>
         <button
           onClick={onClose}
-          className="vtt-brass-btn"
-          style={{ padding: '5px 12px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+          className="vtt-brass-plate-btn"
+          style={{ padding: '4px 11px', fontSize: '11px' }}
+          title="Cerrar Centro de Mando"
         >
           ✕ Cerrar
         </button>
       </div>
 
-      {/* Navegación en Píldoras Modernas y Espaciosas */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))',
-        gap: '6px',
-        padding: '8px 12px',
-        background: '#0c0f16',
-        borderBottom: '1px solid #242c3d'
-      }}>
+      {/* Navegación en Lengüetas de Expediente de Archivador (Dossier Tabs) */}
+      <div className="vtt-dossier-tab-container">
         {TABS.map(tab => {
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              style={{
-                padding: '8px 4px',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '6px',
-                backgroundColor: isActive ? '#2a1a08' : '#141824',
-                background: isActive
-                  ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                  : '#141824',
-                border: isActive ? '1.5px solid #f59e0b' : '1px solid #252e42',
-                color: isActive ? '#fbbf24' : '#94a3b8',
-                fontSize: '11px',
-                fontWeight: isActive ? 800 : 600,
-                boxShadow: isActive ? '0 2px 10px rgba(245, 158, 11, 0.25), inset 0 0 8px rgba(245, 158, 11, 0.12)' : 'none',
-                transition: 'all 0.15s ease'
-              }}
+              className={`vtt-dossier-tab ${isActive ? 'vtt-dossier-tab-active' : ''}`}
+              title={`Expediente: ${tab.label}`}
             >
+              {renderTabIcon(tab.id, isActive)}
               <span>{tab.label}</span>
             </button>
           );
         })}
-      </div>
-
-      {/* Indicador de Sección Activa Muy Claro */}
-      <div style={{
-        padding: '6px 16px',
-        background: '#111520',
-        borderBottom: '1px solid #242c3d',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#f59e0b', boxShadow: '0 0 6px #f59e0b' }} />
-          <span style={{ fontSize: '11px', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#fbbf24' }}>
-            SECCIÓN: {TABS.find(t => t.id === activeTab)?.label}
-          </span>
-        </div>
       </div>
 
       {/* Cuerpo Compacto */}
@@ -447,9 +375,51 @@ const SettingsDrawer = ({
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflow: 'hidden' }}>
             {/* Gestor de Múltiples Escenas / Pisos */}
             <div className="vtt-wood-panel" style={{ padding: '12px 14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflow: 'hidden' }}>
-              <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#d4af37', fontWeight: 'bold' }}>
-                Selector de Escenas y Planos ({scenes.length})
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#d4af37', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d4af37" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                    <line x1="8" y1="2" x2="8" y2="18"/>
+                    <line x1="16" y1="6" x2="16" y2="22"/>
+                  </svg>
+                  <span>Selector de Escenas y Planos ({scenes.length})</span>
+                </div>
+
+                {onDeleteAllScenes && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (confirmDeleteAllScenes) {
+                        onDeleteAllScenes();
+                        setConfirmDeleteAllScenes(false);
+                        notify('Todas las escenas han sido eliminadas');
+                      } else {
+                        setConfirmDeleteAllScenes(true);
+                        setTimeout(() => setConfirmDeleteAllScenes(false), 3500);
+                      }
+                    }}
+                    className={confirmDeleteAllScenes ? "vtt-danger-plate-btn" : "vtt-icon-tool-btn"}
+                    style={{
+                      padding: confirmDeleteAllScenes ? '3px 8px' : '4px 6px',
+                      fontSize: '11px',
+                      color: confirmDeleteAllScenes ? '#fca5a5' : '#ef4444',
+                      borderColor: confirmDeleteAllScenes ? '#ef4444' : 'rgba(239, 68, 68, 0.3)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                    title={confirmDeleteAllScenes ? "Confirmar borrado total de todas las escenas" : "Borrar todas las escenas"}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                    {confirmDeleteAllScenes && <span>¿Borrar todo?</span>}
+                  </button>
+                )}
               </div>
+
+              {/* Formulario de Nueva Escena con Input y Botón Táctil de Latón */}
               <form
                 onSubmit={(e) => {
                   e.preventDefault();
@@ -465,14 +435,20 @@ const SettingsDrawer = ({
                   value={newSceneTitle}
                   onChange={(e) => setNewSceneTitle(e.target.value)}
                   placeholder="Nombre de nueva escena (ej. Cripta Piso 2)..."
-                  style={{ flex: 1, padding: '6px 8px', backgroundColor: '#120b07', color: '#f3e5ab', border: '1px solid #8a6d3b', borderRadius: '4px', fontSize: '12px' }}
+                  className="vtt-dossier-input"
+                  style={{ flex: 1 }}
                 />
-                <button type="submit" className="vtt-brass-btn" style={{ padding: '6px 12px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold', cursor: 'pointer', borderColor: '#fbbf24' }}>
-                  + Crear Escena
+                <button type="submit" className="vtt-brass-plate-btn" style={{ padding: '6px 14px' }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
+                  </svg>
+                  <span>Crear Escena</span>
                 </button>
               </form>
 
-              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '5px' }}>
+              {/* Lista de Fichas de Expediente de Escenario */}
+              <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px', paddingRight: '2px' }}>
                 {scenes.map((sc, idx) => {
                   const isCurrent = sc.id === activeSceneId;
                   const isDragOver = dragOverSceneIndex === idx && draggedSceneIndex !== idx;
@@ -514,38 +490,12 @@ const SettingsDrawer = ({
                         setDraggedSceneIndex(null);
                         setDragOverSceneIndex(null);
                       }}
-                      onMouseEnter={(e) => {
-                        if (!isCurrent && editingSceneId !== sc.id) {
-                          e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.45)';
-                          e.currentTarget.style.backgroundColor = '#181e2b';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isCurrent && editingSceneId !== sc.id) {
-                          e.currentTarget.style.borderColor = '#283144';
-                          e.currentTarget.style.backgroundColor = '#141822';
-                        }
-                      }}
+                      className={`vtt-scene-dossier-card ${isCurrent ? 'vtt-scene-dossier-card-active' : ''}`}
                       style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '10px 12px',
-                        borderRadius: '6px',
-                        backgroundColor: isCurrent ? '#2a1a08' : '#141822',
-                        background: isCurrent
-                          ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                          : '#141822',
-                        border: isDragOver
-                          ? '2px dashed #38bdf8'
-                          : isCurrent
-                          ? '1.5px solid #f59e0b'
-                          : '1px solid #283144',
-                        boxShadow: isCurrent ? '0 3px 12px rgba(245, 158, 11, 0.25), inset 0 0 10px rgba(245, 158, 11, 0.12)' : 'none',
-                        fontSize: '12px',
-                        cursor: editingSceneId === sc.id ? 'default' : isCurrent ? 'default' : 'pointer',
-                        opacity: draggedSceneIndex === idx ? 0.5 : 1,
-                        transition: 'all 0.15s ease'
+                        borderStyle: isDragOver ? 'dashed' : 'solid',
+                        borderColor: isDragOver ? '#38bdf8' : undefined,
+                        opacity: draggedSceneIndex === idx ? 0.45 : 1,
+                        cursor: editingSceneId === sc.id ? 'default' : isCurrent ? 'default' : 'pointer'
                       }}
                       title={
                         editingSceneId === sc.id
@@ -555,17 +505,45 @@ const SettingsDrawer = ({
                           : 'Haz clic para activar esta escena'
                       }
                     >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                        <span style={{ color: isCurrent ? '#f59e0b' : '#64748b', fontSize: '14px', cursor: editingSceneId === sc.id ? 'default' : 'grab', userSelect: 'none' }} title="Arrastrar escena">
-                          ⠿
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '9px', overflow: 'hidden' }}>
+                        {/* Agarre táctil de 4 puntos */}
+                        <span
+                          style={{
+                            color: isCurrent ? '#f59e0b' : '#64748b',
+                            display: 'inline-flex',
+                            cursor: editingSceneId === sc.id ? 'default' : 'grab',
+                            userSelect: 'none',
+                            padding: '2px'
+                          }}
+                          title="Arrastrar para ordenar escena"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
+                            <rect x="2" y="2" width="3" height="3" rx="0.7"/>
+                            <rect x="8.5" y="2" width="3" height="3" rx="0.7"/>
+                            <rect x="2" y="8.5" width="3" height="3" rx="0.7"/>
+                            <rect x="8.5" y="8.5" width="3" height="3" rx="0.7"/>
+                          </svg>
                         </span>
+
+                        {/* Placa Numérica de Latón */}
+                        <span style={{
+                          padding: '1px 6px',
+                          borderRadius: '4px',
+                          background: isCurrent ? 'linear-gradient(135deg, #d4af37 0%, #854d0e 100%)' : '#171d29',
+                          color: isCurrent ? '#0f141f' : '#94a3b8',
+                          fontWeight: 800,
+                          fontSize: '11px',
+                          fontFamily: 'ui-monospace, monospace',
+                          border: isCurrent ? '1px solid #fef08a' : '1px solid #2a3448',
+                          boxShadow: isCurrent ? '0 1px 4px rgba(0,0,0,0.4)' : 'none'
+                        }}>
+                          {idx + 1}
+                        </span>
+
                         <div style={{ display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                             {editingSceneId === sc.id ? (
                               <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }} onClick={(e) => e.stopPropagation()}>
-                                <span style={{ fontWeight: 800, color: '#f59e0b', fontSize: '11px' }}>
-                                  {idx + 1}.
-                                </span>
                                 <input
                                   type="text"
                                   value={editingSceneName}
@@ -579,21 +557,18 @@ const SettingsDrawer = ({
                                     }
                                   }}
                                   autoFocus
+                                  className="vtt-dossier-input"
                                   style={{
                                     padding: '2px 6px',
                                     fontSize: '11px',
-                                    backgroundColor: '#0c0f17',
-                                    color: '#f8fafc',
-                                    border: '1px solid #f59e0b',
-                                    borderRadius: '4px',
-                                    outline: 'none',
-                                    maxWidth: '135px'
+                                    maxWidth: '140px'
                                   }}
                                 />
                                 <button
                                   type="button"
                                   onClick={() => handleSaveRename(sc.id)}
-                                  style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontSize: '13px', padding: '0 2px' }}
+                                  className="vtt-icon-tool-btn"
+                                  style={{ color: '#10b981' }}
                                   title="Guardar nombre"
                                 >
                                   ✓
@@ -601,7 +576,8 @@ const SettingsDrawer = ({
                                 <button
                                   type="button"
                                   onClick={() => setEditingSceneId(null)}
-                                  style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '12px', padding: '0 2px' }}
+                                  className="vtt-icon-tool-btn"
+                                  style={{ color: '#94a3b8' }}
                                   title="Cancelar"
                                 >
                                   ✕
@@ -611,10 +587,20 @@ const SettingsDrawer = ({
                               <>
                                 <span 
                                   onDoubleClick={() => handleStartRename(sc)}
-                                  style={{ fontWeight: 800, color: isCurrent ? '#ffffff' : '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', cursor: 'pointer' }}
+                                  style={{
+                                    fontWeight: 700,
+                                    fontFamily: "'Cinzel', Georgia, serif",
+                                    color: isCurrent ? '#ffffff' : '#e2e8f0',
+                                    whiteSpace: 'nowrap',
+                                    textOverflow: 'ellipsis',
+                                    overflow: 'hidden',
+                                    cursor: 'pointer',
+                                    fontSize: '13px',
+                                    letterSpacing: '0.03em'
+                                  }}
                                   title="Doble clic para cambiar nombre"
                                 >
-                                  {idx + 1}. {sc.name}
+                                  {sc.name}
                                 </span>
                                 {onRenameScene && (
                                   <button
@@ -623,23 +609,28 @@ const SettingsDrawer = ({
                                       e.stopPropagation();
                                       handleStartRename(sc);
                                     }}
-                                    style={{ background: 'none', border: 'none', color: isCurrent ? '#fef08a' : '#94a3b8', cursor: 'pointer', fontSize: '11px', padding: '0 2px', opacity: 0.8 }}
+                                    className="vtt-icon-tool-btn"
                                     title="Cambiar nombre a la escena"
                                   >
-                                    ✏️
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                                      <path d="M12 20h9"/>
+                                      <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+                                    </svg>
                                   </button>
                                 )}
                               </>
                             )}
                           </div>
-                          <span style={{ fontSize: '10px', color: isCurrent ? '#fde68a' : '#94a3b8' }}>
+                          <span style={{ fontSize: '10px', color: isCurrent ? '#fde68a' : '#8e9caa', marginTop: '1px' }}>
                             {(sc.maps || []).length} elem. mapa • {(sc.tokens || []).length} fichas
                           </span>
                         </div>
                       </div>
+
+                      {/* Herramientas de Ficha: Reordenar y Eliminar */}
                       <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
                         {onMoveSceneOrder && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginRight: '4px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', marginRight: '3px' }}>
                             <button
                               type="button"
                               disabled={idx === 0}
@@ -647,11 +638,13 @@ const SettingsDrawer = ({
                                 e.stopPropagation();
                                 onMoveSceneOrder(idx, 'up');
                               }}
-                              className="vtt-brass-btn"
-                              style={{ padding: '1px 5px', fontSize: '9px', borderRadius: '3px', opacity: idx === 0 ? 0.35 : 1, cursor: idx === 0 ? 'default' : 'pointer' }}
+                              className="vtt-icon-tool-btn"
+                              style={{ opacity: idx === 0 ? 0.3 : 1, cursor: idx === 0 ? 'default' : 'pointer', padding: '2px 4px' }}
                               title="Subir escena"
                             >
-                              ▲
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <polyline points="18 15 12 9 6 15"/>
+                              </svg>
                             </button>
                             <button
                               type="button"
@@ -660,11 +653,13 @@ const SettingsDrawer = ({
                                 e.stopPropagation();
                                 onMoveSceneOrder(idx, 'down');
                               }}
-                              className="vtt-brass-btn"
-                              style={{ padding: '1px 5px', fontSize: '9px', borderRadius: '3px', opacity: idx === scenes.length - 1 ? 0.35 : 1, cursor: idx === scenes.length - 1 ? 'default' : 'pointer' }}
+                              className="vtt-icon-tool-btn"
+                              style={{ opacity: idx === scenes.length - 1 ? 0.3 : 1, cursor: idx === scenes.length - 1 ? 'default' : 'pointer', padding: '2px 4px' }}
                               title="Bajar escena"
                             >
-                              ▼
+                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <polyline points="6 9 12 15 18 9"/>
+                              </svg>
                             </button>
                           </div>
                         )}
@@ -675,10 +670,14 @@ const SettingsDrawer = ({
                               e.stopPropagation();
                               onDeleteScene(sc.id);
                             }}
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '13px', padding: '0 6px' }}
+                            className="vtt-icon-tool-btn"
+                            style={{ color: '#f87171', padding: '3px 6px' }}
                             title="Eliminar esta escena"
                           >
-                            ✕
+                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                              <line x1="18" y1="6" x2="6" y2="18"/>
+                              <line x1="6" y1="6" x2="18" y2="18"/>
+                            </svg>
                           </button>
                         )}
                       </div>
@@ -687,800 +686,64 @@ const SettingsDrawer = ({
                 })}
               </div>
 
+              {/* Barra Inferior de Operaciones: Guardar Aventura, Concluir y Borrar */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', marginTop: '6px', flexWrap: 'wrap', gap: '8px' }}>
-                {onSaveAdventure && (
-                  <button
-                    type="button"
-                    onClick={handleOpenSaveAdventureModal}
-                    className="vtt-brass-btn"
-                    style={{
-                      background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15) 0%, rgba(180, 83, 9, 0.2) 100%)',
-                      border: '1px solid #d4af37',
-                      color: '#fef3c7',
-                      padding: '5px 12px',
-                      borderRadius: '5px',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      boxShadow: '0 2px 6px rgba(0, 0, 0, 0.4)'
-                    }}
-                    title="Guardar la aventura completa con todas las escenas, mapas, fichas y estado"
-                  >
-                    💾 Guardar Aventura
-                  </button>
-                )}
-
-                {onDeleteAllScenes && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (confirmDeleteAllScenes) {
-                        onDeleteAllScenes();
-                        setConfirmDeleteAllScenes(false);
-                        notify('Todas las escenas han sido eliminadas');
-                      } else {
-                        setConfirmDeleteAllScenes(true);
-                        setTimeout(() => setConfirmDeleteAllScenes(false), 3500);
-                      }
-                    }}
-                    style={{
-                      backgroundColor: confirmDeleteAllScenes ? '#dc2626' : 'rgba(239, 68, 68, 0.08)',
-                      border: confirmDeleteAllScenes ? '1px solid #dc2626' : '1px solid rgba(239, 68, 68, 0.3)',
-                      color: confirmDeleteAllScenes ? '#ffffff' : '#f87171',
-                      padding: '4px 10px',
-                      borderRadius: '4px',
-                      fontSize: '11px',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                      marginLeft: 'auto'
-                    }}
-                    title="Eliminar todas las escenas y reiniciar el tablero"
-                  >
-                    {confirmDeleteAllScenes ? '⚠️ ¿Confirmar borrar todas las escenas?' : '🗑️ Borrar todas las escenas'}
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Arquitectura de Escena: Botón Principal para Abrir el Creador/Editor de Mapas */}
-            <div className="vtt-wood-panel" style={{ padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#d4af37', fontWeight: 'bold' }}>
-                  Arquitectura de Escena ({maps.length} elementos)
-                </span>
-                {maps.length > 0 && onClearAllMaps && (
-                  <button
-                    onClick={() => {
-                      if (confirmClearMaps) {
-                        onClearAllMaps();
-                        setConfirmClearMaps(false);
-                        notify('Mapa de la escena despejado');
-                      } else {
-                        setConfirmClearMaps(true);
-                        setTimeout(() => setConfirmClearMaps(false), 3000);
-                      }
-                    }}
-                    style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
-                  >
-                    {confirmClearMaps ? '¿Confirmar borrado?' : 'Limpiar Mapa'}
-                  </button>
-                )}
-              </div>
-              <button
-                onClick={() => { onClose(); openMapCreator(); }}
-                className="vtt-primary-cta"
-                style={{ width: '100%', padding: '11px 14px', borderRadius: '8px', fontSize: '13px', cursor: 'pointer' }}
-              >
-                Abrir Editor de Mapas a Pantalla Completa
-              </button>
-            </div>
-
-            {/* Configuración de Cuadrícula Táctica */}
-            <div className="vtt-wood-panel" style={{ padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#d4af37', fontWeight: 'bold' }}>
-                  Cuadrícula ({gridSize} px)
-                </span>
-                <button
-                  onClick={() => setSnapToGrid(!snapToGrid)}
-                  className="vtt-brass-btn"
-                  style={{
-                    padding: '4px 12px',
-                    borderRadius: '6px',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    color: snapToGrid ? '#4ade80' : '#f87171'
-                  }}
-                >
-                  {snapToGrid ? 'Activada' : 'Desactivada'}
-                </button>
-              </div>
-              <input
-                type="range"
-                min="20"
-                max="150"
-                step="5"
-                value={gridSize}
-                onChange={(e) => setGridSize(Number(e.target.value))}
-                style={{ width: '100%', accentColor: '#d4af37', cursor: 'pointer' }}
-              />
-            </div>
-          </div>
-        )}
-
-        {/* PESTAÑA 2: PROYECTOR DE ILUSTRACIONES (HANDOUTS) */}
-        {activeTab === 'proyector' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflow: 'hidden' }}>
-            <div className="vtt-wood-panel" style={{ padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#d4af37', fontWeight: 'bold' }}>
-                Proyector de Ilustraciones y Pistas
-              </div>
-              <div style={{ display: 'flex', gap: '6px' }}>
-                <input
-                  type="text"
-                  value={handoutTitle}
-                  onChange={(e) => setHandoutTitle(e.target.value)}
-                  placeholder="Título de la ilustración o pista..."
-                  style={{ flex: 1, padding: '7px 9px', backgroundColor: '#120b07', color: '#f3e5ab', border: '1px solid #8a6d3b', borderRadius: '5px', fontSize: '12px' }}
-                />
-                <input type="file" accept="image/*" ref={handoutFileInputRef} onChange={handleHandoutImageUpload} style={{ display: 'none' }} />
-                <button
-                  type="button"
-                  onClick={() => handoutFileInputRef.current.click()}
-                  className="vtt-primary-cta"
-                  style={{ padding: '7px 12px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}
-                >
-                  Subir Imagen
-                </button>
-              </div>
-              {activeHandout && (
-                <button
-                  onClick={() => onProjectHandout && onProjectHandout(null)}
-                  style={{ padding: '8px', background: '#991b1b', color: '#fecaca', border: '1px solid #f87171', borderRadius: '6px', fontWeight: 'bold', fontSize: '12px', cursor: 'pointer' }}
-                >
-                  ⏹ Detener Proyección Activa ({activeHandout.title})
-                </button>
-              )}
-            </div>
-
-            <div className="vtt-wood-panel" style={{ padding: '12px 14px', borderRadius: '8px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {handouts.map(h => {
-                const isShowing = activeHandout && activeHandout.id === h.id;
-                return (
-                  <div key={h.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', backgroundColor: '#120b07', border: isShowing ? '1px solid #fbbf24' : '1px solid #4a331d', borderRadius: '6px', gap: '8px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', overflow: 'hidden' }}>
-                      {h.src && <img src={h.src} alt={h.title} style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #8a6d3b' }} />}
-                      <span style={{ fontSize: '12px', fontWeight: 'bold', color: '#f3e5ab', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                        {h.title}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
-                      <button
-                        onClick={() => onProjectHandout && onProjectHandout(isShowing ? null : h)}
-                        className="vtt-brass-btn"
-                        style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: isShowing ? '#4ade80' : '#fbbf24' }}
-                      >
-                        {isShowing ? 'Ocultar' : 'Proyectar'}
-                      </button>
-                      {onRemoveHandout && (
-                        <button onClick={() => onRemoveHandout(h.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}>
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              {handouts.length === 0 && (
-                <div style={{ color: '#8a6d3b', fontSize: '12px', textAlign: 'center', marginTop: '20px', fontStyle: 'italic' }}>
-                  Sube retratos, mapas o cartas para proyectarlos en la Pantalla de Jugadores.
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* PESTAÑA: CREADOR DE DECORADO, MOBILIARIO Y ESTRUCTURAS */}
-        {activeTab === 'decorado' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflow: 'hidden' }}>
-            {/* Selector de Subpestañas */}
-            <div style={{ display: 'flex', gap: '6px', backgroundColor: '#0e1118', padding: '4px', borderRadius: '8px', border: '1px solid #262c3a' }}>
-              <button
-                type="button"
-                onClick={() => setObjectsSubTab('creator')}
-                style={{
-                  flex: 1,
-                  padding: '7px 4px',
-                  borderRadius: '6px',
-                  border: objectsSubTab === 'creator' ? '1.5px solid #f59e0b' : '1px solid transparent',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  backgroundColor: objectsSubTab === 'creator' ? '#2a1a08' : 'transparent',
-                  background: objectsSubTab === 'creator'
-                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                    : 'transparent',
-                  color: objectsSubTab === 'creator' ? '#fbbf24' : '#94a3b8',
-                  boxShadow: objectsSubTab === 'creator' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                🛠️ Forjar Decorado
-              </button>
-              <button
-                type="button"
-                onClick={() => setObjectsSubTab('scene')}
-                style={{
-                  flex: 1,
-                  padding: '7px 4px',
-                  borderRadius: '6px',
-                  border: objectsSubTab === 'scene' ? '1.5px solid #f59e0b' : '1px solid transparent',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  backgroundColor: objectsSubTab === 'scene' ? '#2a1a08' : 'transparent',
-                  background: objectsSubTab === 'scene'
-                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                    : 'transparent',
-                  color: objectsSubTab === 'scene' ? '#fbbf24' : '#94a3b8',
-                  boxShadow: objectsSubTab === 'scene' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                📋 En Escena ({interactiveItemsOnBoard.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setObjectsSubTab('catalog')}
-                style={{
-                  flex: 1,
-                  padding: '7px 4px',
-                  borderRadius: '6px',
-                  border: objectsSubTab === 'catalog' ? '1.5px solid #f59e0b' : '1px solid transparent',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  backgroundColor: objectsSubTab === 'catalog' ? '#2a1a08' : 'transparent',
-                  background: objectsSubTab === 'catalog'
-                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                    : 'transparent',
-                  color: objectsSubTab === 'catalog' ? '#fbbf24' : '#94a3b8',
-                  boxShadow: objectsSubTab === 'catalog' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                📚 Catálogo Decorado ({customObjects.length})
-              </button>
-            </div>
-
-            {/* SUBPESTAÑA 1: CREADOR Y FORJA DE OBJETOS */}
-            {objectsSubTab === 'creator' && (
-              <div className="vtt-wood-panel" style={{ padding: '14px', borderRadius: '8px', flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {/* Tipo de Elemento */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '6px' }}>
-                    Tipo de Elemento:
-                  </label>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
-                    {[
-                      { id: 'object', label: 'Contenedor', icon: '📦' },
-                      { id: 'light', label: 'Luz', icon: '🔥' },
-                      { id: 'door', label: 'Puerta', icon: '🚪' },
-                      { id: 'window', label: 'Ventana', icon: '🪟' }
-                    ].map(type => (
-                      <button
-                        key={type.id}
-                        type="button"
-                        onClick={() => {
-                          setObjCategory(type.id);
-                          if (type.id === 'object') {
-                            setObjName('Cofre Misterioso');
-                            setObjIcon('📦');
-                            setObjWidth(48); setObjHeight(48);
-                          } else if (type.id === 'light') {
-                            setObjName('Antorcha de Pared');
-                            setObjIcon('🔥');
-                          } else if (type.id === 'door') {
-                            setObjName('Puerta de Roble');
-                            setObjIcon('🚪');
-                            setObjWidth(60); setObjHeight(16);
-                          } else if (type.id === 'window') {
-                            setObjName('Ventana con Rejas');
-                            setObjIcon('🪟');
-                            setObjWidth(60); setObjHeight(14);
-                          }
-                        }}
-                        style={{
-                          padding: '6px 4px',
-                          borderRadius: '6px',
-                          border: objCategory === type.id ? '1px solid #f59e0b' : '1px solid #283042',
-                          backgroundColor: objCategory === type.id ? 'rgba(245, 158, 11, 0.15)' : '#141822',
-                          color: objCategory === type.id ? '#fbbf24' : '#cbd5e1',
-                          cursor: 'pointer',
-                          fontSize: '11px',
-                          fontWeight: 600,
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                          gap: '2px'
-                        }}
-                      >
-                        <span style={{ fontSize: '16px' }}>{type.icon}</span>
-                        <span>{type.label}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Nombre */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
-                    Nombre del Elemento:
-                  </label>
-                  <input
-                    type="text"
-                    value={objName}
-                    onChange={(e) => setObjName(e.target.value)}
-                    placeholder="Ej: Sarcófago de alabastro, Escritorio antiguo..."
-                    style={{
-                      width: '100%',
-                      padding: '7px 10px',
-                      backgroundColor: '#0c0e14',
-                      border: '1px solid #283042',
-                      color: '#f8fafc',
-                      borderRadius: '6px',
-                      fontSize: '12px'
-                    }}
-                  />
-                </div>
-
-                {/* Selector de Iconos para Objetos */}
-                {objCategory === 'object' && (
-                  <>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
-                        Icono Cerrado / Inactivo:
-                      </label>
-                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                        {POPULAR_OBJECT_ICONS.map(ic => (
-                          <button
-                            key={ic}
-                            type="button"
-                            onClick={() => setObjIcon(ic)}
-                            style={{
-                              padding: '4px 6px',
-                              borderRadius: '5px',
-                              border: objIcon === ic ? '1px solid #f59e0b' : '1px solid #283042',
-                              backgroundColor: objIcon === ic ? 'rgba(245, 158, 11, 0.2)' : '#131620',
-                              cursor: 'pointer',
-                              fontSize: '15px'
-                            }}
-                          >
-                            {ic}
-                          </button>
-                        ))}
-                      </div>
-                      <input
-                        type="text"
-                        value={objIcon}
-                        onChange={(e) => setObjIcon(e.target.value)}
-                        placeholder="O escribe un emoji / símbolo libre"
-                        style={{
-                          width: '100%',
-                          padding: '5px 8px',
-                          backgroundColor: '#0c0e14',
-                          border: '1px solid #283042',
-                          color: '#f8fafc',
-                          borderRadius: '6px',
-                          fontSize: '12px'
-                        }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
-                        Icono Abierto / Activado:
-                      </label>
-                      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                        {POPULAR_OPEN_ICONS.map(ic => (
-                          <button
-                            key={ic}
-                            type="button"
-                            onClick={() => setObjOpenIcon(ic)}
-                            style={{
-                              padding: '4px 6px',
-                              borderRadius: '5px',
-                              border: objOpenIcon === ic ? '1px solid #f59e0b' : '1px solid #283042',
-                              backgroundColor: objOpenIcon === ic ? 'rgba(245, 158, 11, 0.2)' : '#131620',
-                              cursor: 'pointer',
-                              fontSize: '15px'
-                            }}
-                          >
-                            {ic}
-                          </button>
-                        ))}
-                      </div>
-                      <input
-                        type="text"
-                        value={objOpenIcon}
-                        onChange={(e) => setObjOpenIcon(e.target.value)}
-                        placeholder="O escribe un emoji libre"
-                        style={{
-                          width: '100%',
-                          padding: '5px 8px',
-                          backgroundColor: '#0c0e14',
-                          border: '1px solid #283042',
-                          color: '#f8fafc',
-                          borderRadius: '6px',
-                          fontSize: '12px'
-                        }}
-                      />
-                    </div>
-
-                    {/* Dimensiones y Casillas */}
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
-                        Tamaño en Cuadrícula:
-                      </label>
-                      <div style={{ display: 'flex', gap: '6px', marginBottom: '6px' }}>
-                        {[
-                          { label: '1x1 Casilla', w: 48, h: 48 },
-                          { label: '2x1 Grande', w: 96, h: 48 },
-                          { label: '2x2 Enorme', w: 96, h: 96 }
-                        ].map(preset => (
-                          <button
-                            key={preset.label}
-                            type="button"
-                            onClick={() => { setObjWidth(preset.w); setObjHeight(preset.h); }}
-                            className="vtt-brass-btn"
-                            style={{
-                              padding: '4px 8px',
-                              fontSize: '10px',
-                              borderRadius: '4px',
-                              cursor: 'pointer',
-                              borderColor: (objWidth === preset.w && objHeight === preset.h) ? '#f59e0b' : undefined,
-                              color: (objWidth === preset.w && objHeight === preset.h) ? '#fbbf24' : undefined
-                            }}
-                          >
-                            {preset.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Bloqueos Físicos */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', backgroundColor: '#0d1017', padding: '8px 10px', borderRadius: '6px', border: '1px solid #232938' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '11px', color: '#e2e8f0' }}>
-                        <input
-                          type="checkbox"
-                          checked={objBlocksMove}
-                          onChange={(e) => setObjBlocksMove(e.target.checked)}
-                        />
-                        <span>🛡️ <strong>Bloquea Movimiento:</strong> Los tokens no pueden atravesarlo mientras esté cerrado.</span>
-                      </label>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '11px', color: '#e2e8f0' }}>
-                        <input
-                          type="checkbox"
-                          checked={objBlocksVision}
-                          onChange={(e) => setObjBlocksVision(e.target.checked)}
-                        />
-                        <span>👁️ <strong>Bloquea Visión:</strong> Proyecta sombra y oculta lo que hay detrás en la niebla.</span>
-                      </label>
-                    </div>
-
-                    {/* Notas secretas / Botín */}
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
-                        Notas Secretas o Botín inicial (Solo Máster):
-                      </label>
-                      <textarea
-                        value={objNotes}
-                        onChange={(e) => setObjNotes(e.target.value)}
-                        placeholder="Anota qué contiene, qué cerradura tiene o qué pistas revela..."
-                        style={{
-                          width: '100%',
-                          height: '60px',
-                          backgroundColor: '#0c0e14',
-                          border: '1px solid #283042',
-                          color: '#f8fafc',
-                          borderRadius: '6px',
-                          padding: '6px 8px',
-                          fontSize: '11px',
-                          resize: 'none'
-                        }}
-                      />
-                    </div>
-                  </>
-                )}
-
-                {/* Opciones Específicas de Luz */}
-                {objCategory === 'light' && (
-                  <>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
-                        Radio de Iluminación: <strong>{lightRadius}px</strong>
-                      </label>
-                      <input
-                        type="range"
-                        min="100"
-                        max="500"
-                        step="20"
-                        value={lightRadius}
-                        onChange={(e) => setLightRadius(Number(e.target.value))}
-                        style={{ width: '100%', cursor: 'pointer' }}
-                      />
-                    </div>
-
-                    <div>
-                      <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
-                        Tono del Haz de Luz:
-                      </label>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        {[
-                          { color: '#f59e0b', label: 'Cálido' },
-                          { color: '#38bdf8', label: 'Etéreo' },
-                          { color: '#ef4444', label: 'Carmesí' },
-                          { color: '#a855f7', label: 'Arcano' },
-                          { color: '#f8fafc', label: 'Claro' }
-                        ].map(c => (
-                          <button
-                            key={c.color}
-                            type="button"
-                            onClick={() => setLightColor(c.color)}
-                            style={{
-                              width: '28px',
-                              height: '28px',
-                              borderRadius: '50%',
-                              backgroundColor: c.color,
-                              border: lightColor === c.color ? '3px solid #ffffff' : '2px solid #283042',
-                              boxShadow: lightColor === c.color ? `0 0 10px ${c.color}` : 'none',
-                              cursor: 'pointer'
-                            }}
-                            title={c.label}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </>
-                )}
-
-                {/* Opciones Específicas de Puerta / Ventana */}
-                {(objCategory === 'door' || objCategory === 'window') && (
-                  <div>
-                    <label style={{ display: 'block', fontSize: '11px', color: '#94a3b8', fontWeight: 600, marginBottom: '5px' }}>
-                      Orientación Inicial:
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        onClick={() => { setObjWidth(60); setObjHeight(objCategory === 'door' ? 16 : 14); }}
-                        className="vtt-brass-btn"
-                        style={{
-                          flex: 1,
-                          padding: '6px',
-                          fontSize: '11px',
-                          borderRadius: '5px',
-                          cursor: 'pointer',
-                          borderColor: objWidth >= objHeight ? '#f59e0b' : undefined,
-                          color: objWidth >= objHeight ? '#fbbf24' : undefined
-                        }}
-                      >
-                        Horizontal (60x16)
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => { setObjWidth(objCategory === 'door' ? 16 : 14); setObjHeight(60); }}
-                        className="vtt-brass-btn"
-                        style={{
-                          flex: 1,
-                          padding: '6px',
-                          fontSize: '11px',
-                          borderRadius: '5px',
-                          cursor: 'pointer',
-                          borderColor: objWidth < objHeight ? '#f59e0b' : undefined,
-                          color: objWidth < objHeight ? '#fbbf24' : undefined
-                        }}
-                      >
-                        Vertical (16x60)
-                      </button>
-                    </div>
-                    <div style={{ fontSize: '10px', color: '#94a3b8', marginTop: '6px', fontStyle: 'italic' }}>
-                      * Recuerda que siempre podrás girar la puerta o ventana 90º con clic derecho en el tablero.
-                    </div>
-                  </div>
-                )}
-
-                {/* Botonera de Acción */}
-                <div style={{ display: 'flex', gap: '8px', marginTop: 'auto', paddingTop: '8px' }}>
-                  <button
-                    type="button"
-                    onClick={handlePlaceNewObject}
-                    className="vtt-primary-cta"
-                    style={{ flex: 1, padding: '9px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
-                  >
-                    🎯 Colocar en el Tablero
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSaveToCatalog}
-                    className="vtt-brass-btn"
-                    style={{ padding: '9px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', borderColor: '#f59e0b', color: '#fbbf24' }}
-                    title="Guardar como plantilla permanente para reutilizar en cualquier momento"
-                  >
-                    ⭐ Guardar Plantilla
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* SUBPESTAÑA 2: ELEMENTOS ACTIVOS EN LA ESCENA */}
-            {objectsSubTab === 'scene' && (
-              <div className="vtt-wood-panel" style={{ padding: '12px 14px', borderRadius: '8px', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span className="vtt-gothic-title" style={{ fontSize: '12px', color: '#c5a059', fontWeight: 'bold' }}>
-                    Elementos en la Escena Activa ({interactiveItemsOnBoard.length})
-                  </span>
-                  <button
-                    onClick={() => { onClose(); openMapCreator(); }}
-                    style={{ background: 'none', border: 'none', color: '#fbbf24', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
-                  >
-                    Editor de Mapas
-                  </button>
-                </div>
-
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {interactiveItemsOnBoard.map(item => (
-                    <div
-                      key={item.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '6px 10px',
-                        backgroundColor: '#120b07',
-                        border: '1px solid #4a331d',
-                        borderRadius: '6px',
-                        fontSize: '12px'
-                      }}
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {onSaveAdventure && (
+                    <button
+                      type="button"
+                      onClick={handleOpenSaveAdventureModal}
+                      className="vtt-brass-plate-btn"
+                      title="Guardar la aventura completa con todas las escenas, mapas, fichas y estado"
                     >
-                      <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
-                        {item.type === 'light' ? (item.icon || '🔥') : item.type === 'door' ? '🚪' : item.type === 'window' ? '🪟' : (item.icon || '📦')}{' '}
-                        <strong>{item.name || item.type}</strong>
-                        {item.isLocked && <span style={{ marginLeft: '4px', fontSize: '10px' }}>🔒</span>}
-                      </span>
-                      <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
-                        {item.type === 'object' && onInspectObject && (
-                          <button
-                            type="button"
-                            onClick={() => onInspectObject(item)}
-                            className="vtt-brass-btn"
-                            style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer', borderColor: '#f59e0b', color: '#fbbf24' }}
-                            title="Editar notas, trampa y botín"
-                          >
-                            📝
-                          </button>
-                        )}
-                        {onToggleMapElementState && (
-                          <button
-                            type="button"
-                            onClick={() => onToggleMapElementState(item.id)}
-                            className="vtt-brass-btn"
-                            style={{ padding: '2px 7px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
-                          >
-                            {item.type === 'light'
-                              ? (item.isOn !== false ? 'Apagar' : 'Encender')
-                              : (item.isOpen ? 'Cerrar' : 'Abrir')}
-                          </button>
-                        )}
-                        {onRemoveMapElement && (
-                          <button
-                            type="button"
-                            onClick={() => onRemoveMapElement(item.id)}
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-                            title="Retirar del mapa"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {interactiveItemsOnBoard.length === 0 && (
-                    <div style={{ color: '#8a6d3b', fontSize: '12px', textAlign: 'center', marginTop: '20px', fontStyle: 'italic' }}>
-                      No hay objetos ni estructuras colocados en esta escena.
-                    </div>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                        <polyline points="17 21 17 13 7 13 7 21"/>
+                        <polyline points="7 3 7 8 15 8"/>
+                      </svg>
+                      <span>Guardar Aventura</span>
+                    </button>
+                  )}
+
+                  {onImportCampaign && (
+                    <button
+                      type="button"
+                      onClick={onImportCampaign}
+                      className="vtt-brass-plate-btn"
+                      title="Cargar e importar una aventura guardada previamente en formato .json"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                      </svg>
+                      <span>Cargar Aventura</span>
+                    </button>
+                  )}
+
+                  {onConcludeAdventure && (
+                    <button
+                      type="button"
+                      onClick={handleOpenConcludeModal}
+                      className="vtt-conclude-plate-btn"
+                      title="Concluir y sellar la crónica actual de forma inmutable, archivándola y dejando la mesa limpia"
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                      </svg>
+                      <span>Concluir Aventura</span>
+                    </button>
                   )}
                 </div>
               </div>
-            )}
-
-            {/* SUBPESTAÑA 3: CATÁLOGO PERSONALIZADO DE PLANTILLAS */}
-            {objectsSubTab === 'catalog' && (
-              <div className="vtt-wood-panel" style={{ padding: '12px 14px', borderRadius: '8px', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span className="vtt-gothic-title" style={{ fontSize: '12px', color: '#c5a059', fontWeight: 'bold' }}>
-                    Plantillas Guardadas ({customObjects.length})
-                  </span>
-                  <button
-                    onClick={() => setObjectsSubTab('creator')}
-                    style={{ background: 'none', border: 'none', color: '#fbbf24', fontSize: '11px', cursor: 'pointer', textDecoration: 'underline' }}
-                  >
-                    + Forjar Nueva
-                  </button>
-                </div>
-
-                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {customObjects.map(obj => (
-                    <div
-                      key={obj.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '6px 10px',
-                        backgroundColor: '#120b07',
-                        border: '1px solid #4a331d',
-                        borderRadius: '6px',
-                        fontSize: '12px'
-                      }}
-                    >
-                      <span>
-                        {obj.icon || '📦'} <strong>{obj.name || obj.label}</strong>
-                      </span>
-                      <div style={{ display: 'flex', gap: '5px' }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (onAddMapElement) {
-                              onAddMapElement(obj);
-                              notify(`Colocando ${obj.name} en el tablero`);
-                              onClose();
-                            }
-                          }}
-                          className="vtt-primary-cta"
-                          style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
-                        >
-                          🎯 Colocar
-                        </button>
-                        {onDeleteCustomObject && (
-                          <button
-                            type="button"
-                            onClick={() => onDeleteCustomObject(obj.id)}
-                            style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  {customObjects.length === 0 && (
-                    <div style={{ color: '#8a6d3b', fontSize: '12px', textAlign: 'center', marginTop: '20px', fontStyle: 'italic' }}>
-                      No tienes plantillas personalizadas guardadas aún.
-                      <div style={{ marginTop: '8px' }}>
-                        <button
-                          type="button"
-                          onClick={() => setObjectsSubTab('creator')}
-                          className="vtt-brass-btn"
-                          style={{ padding: '4px 10px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
-                        >
-                          🛠️ Forjar Mi Primer Decorado
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+            </div>
           </div>
         )}
 
-        {/* PESTAÑA: OBJETOS DE INVENTARIO Y EQUIPO COMÚN (LOOT / PERTENENCIAS) */}
+        {/* PESTAÑA 4: OBJETOS DE INVENTARIO (LOOT) & COMPENDIO */}
         {activeTab === 'items' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflow: 'hidden' }}>
             {/* Selector de Subpestañas */}
@@ -1639,17 +902,46 @@ const SettingsDrawer = ({
                   gap: '6px',
                   paddingRight: '4px'
                 }}>
-                  {commonItems
-                    .filter(item => {
-                      if (!itemSearchQuery.trim()) return true;
-                      const q = itemSearchQuery.toLowerCase();
+                  {!itemSearchQuery.trim() ? (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '24px 16px',
+                      backgroundColor: 'rgba(15, 23, 42, 0.45)',
+                      borderRadius: '8px',
+                      border: '1px dashed #28354c',
+                      color: '#94a3b8',
+                      fontSize: '11px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: '7px',
+                      margin: '6px 0'
+                    }}>
+                      <span style={{ fontSize: '22px' }}>🔍</span>
+                      <span style={{ color: '#cbd5e1', fontWeight: 700, fontSize: '12px' }}>
+                        Escribe en el buscador para localizar objetos del catálogo
+                      </span>
+                      <span style={{ fontSize: '11px', color: '#64748b', maxWidth: '380px', lineHeight: 1.4 }}>
+                        Introduce el nombre o tipo (ej: cuerda, linterna, ganzúa, mechero) para filtrarlo, entregarlo a un personaje o situarlo en el tablero.
+                      </span>
+                    </div>
+                  ) : (() => {
+                    const q = itemSearchQuery.toLowerCase();
+                    const filtered = commonItems.filter(item =>
+                      item.name.toLowerCase().includes(q) ||
+                      (item.notes && item.notes.toLowerCase().includes(q)) ||
+                      (item.category && item.category.toLowerCase().includes(q))
+                    );
+
+                    if (filtered.length === 0) {
                       return (
-                        item.name.toLowerCase().includes(q) ||
-                        (item.notes && item.notes.toLowerCase().includes(q)) ||
-                        (item.category && item.category.toLowerCase().includes(q))
+                        <div style={{ textAlign: 'center', padding: '20px 12px', color: '#64748b', fontSize: '11px', fontStyle: 'italic' }}>
+                          No se encontraron objetos que coincidan con "${itemSearchQuery}".
+                        </div>
                       );
-                    })
-                    .map(item => {
+                    }
+
+                    return filtered.map(item => {
                       const activeTurnToken = tokens.find(t => t.id === activeTurnTokenId) || null;
                       const targetId = selectedRecipientId || (activeTurnToken ? activeTurnToken.id : (tokens[0]?.id || characters[0]?.id || null));
                       const isDefaultPreset = typeof item.id === 'string' && item.id.startsWith('item_');
@@ -1776,7 +1068,8 @@ const SettingsDrawer = ({
                           )}
                         </div>
                       );
-                    })}
+                    });
+                  })()}
                 </div>
               </div>
             )}
@@ -2011,357 +1304,89 @@ const SettingsDrawer = ({
           </div>
         )}
 
-        {/* PESTAÑA 4: NIEBLA DE GUERRA Y VISIÓN */}
-        {activeTab === 'niebla' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div className="vtt-wood-panel" style={{ padding: '14px', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#d4af37', fontWeight: 'bold' }}>
-                  Niebla de Guerra y Conos de Visión
-                </div>
-                <div style={{ fontSize: '11px', color: '#b89f7d' }}>
-                  Translúcida para el Master, opaca para los Jugadores
-                </div>
-              </div>
-              <button
-                onClick={() => setFowEnabled(!fowEnabled)}
-                className="vtt-brass-btn"
-                style={{ padding: '6px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px', color: fowEnabled ? '#4ade80' : '#f87171' }}
-              >
-                {fowEnabled ? 'Activada' : 'Desactivada'}
-              </button>
-            </div>
-
-            <div className="vtt-wood-panel" style={{ padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600 }}>Memoria de Exploración (Penumbra)</span>
-                <button
-                  onClick={() => setFowMemoryEnabled(!fowMemoryEnabled)}
-                  className="vtt-brass-btn"
-                  style={{ padding: '4px 12px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer' }}
-                >
-                  {fowMemoryEnabled ? 'Con Memoria' : 'Visión Estricta'}
-                </button>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '12px', fontWeight: 600 }}>Auto-ocultar Enemigos fuera de vista</span>
-                <button
-                  onClick={() => setFowAutoHideEnemies(!fowAutoHideEnemies)}
-                  className="vtt-brass-btn"
-                  style={{ padding: '4px 12px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer', color: fowAutoHideEnemies ? '#4ade80' : '#f87171' }}
-                >
-                  {fowAutoHideEnemies ? 'Activo' : 'Siempre Visibles'}
-                </button>
-              </div>
-            </div>
-
-            <div className="vtt-wood-panel" style={{ padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              <div className="vtt-gothic-title" style={{ fontSize: '12px', color: '#c5a059', fontWeight: 'bold' }}>
-                Pincel Manual de Niebla
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                <button onClick={() => setFowMode('none')} className="vtt-brass-btn" style={{ padding: '7px 4px', borderRadius: '4px', fontSize: '11px', borderColor: fowMode === 'none' ? '#fbbf24' : undefined }}>Mover</button>
-                <button onClick={() => setFowMode('reveal')} className="vtt-brass-btn" style={{ padding: '7px 4px', borderRadius: '4px', fontSize: '11px', borderColor: fowMode === 'reveal' ? '#4ade80' : undefined }}>Despejar</button>
-                <button onClick={() => setFowMode('hide')} className="vtt-brass-btn" style={{ padding: '7px 4px', borderRadius: '4px', fontSize: '11px', borderColor: fowMode === 'hide' ? '#f87171' : undefined }}>Cubrir</button>
-              </div>
-              <label style={{ fontSize: '12px' }}>Tamaño de Pincel: <strong>{fowBrushSize}px</strong></label>
-              <input type="range" min="20" max="300" value={fowBrushSize} onChange={(e) => setFowBrushSize(Number(e.target.value))} style={{ width: '100%', accentColor: '#d4af37' }} />
-              <label style={{ fontSize: '12px' }}>Radio de Visión de Héroes: <strong>{fowVisionRadius}px</strong></label>
-              <input type="range" min="60" max="500" value={fowVisionRadius} onChange={(e) => setFowVisionRadius(Number(e.target.value))} style={{ width: '100%', accentColor: '#d4af37' }} />
-            </div>
-
-            {onResetFow && (
-              <button
-                onClick={onResetFow}
-                style={{
-                  padding: '10px',
-                  borderRadius: '6px',
-                  background: 'linear-gradient(180deg, #991b1b 0%, #450a0a 100%)',
-                  color: '#fecaca',
-                  border: '1px solid #f87171',
-                  fontWeight: 'bold',
-                  fontSize: '12px',
-                  cursor: 'pointer'
-                }}
-              >
-                Restaurar Oscuridad en Todo el Mapa
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* PESTAÑA 5: SERES (PERSONAJES) Y ESTADOS ALTERADOS */}
-        {activeTab === 'bestiario' && (
+        {/* PESTAÑA: ESTADOS Y CONDICIONES ALTERADAS */}
+        {activeTab === 'estados' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflow: 'hidden' }}>
-            {/* Conmutador interno: Personajes vs Estados y Condiciones */}
-            <div style={{ display: 'flex', gap: '6px', background: '#0e1118', padding: '4px', borderRadius: '8px', border: '1px solid #262c3a' }}>
-              <button
-                type="button"
-                onClick={() => setBestiarySubTab('characters')}
-                style={{
-                  flex: 1,
-                  padding: '7px 10px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: bestiarySubTab === 'characters' ? '1.5px solid #f59e0b' : '1px solid transparent',
-                  backgroundColor: bestiarySubTab === 'characters' ? '#2a1a08' : 'transparent',
-                  background: bestiarySubTab === 'characters'
-                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                    : 'transparent',
-                  color: bestiarySubTab === 'characters' ? '#fbbf24' : '#94a3b8',
-                  boxShadow: bestiarySubTab === 'characters' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none'
-                }}
-              >
-                Personajes ({characters.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setBestiarySubTab('statuses')}
-                style={{
-                  flex: 1,
-                  padding: '7px 10px',
-                  borderRadius: '6px',
-                  fontSize: '12px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  border: bestiarySubTab === 'statuses' ? '1.5px solid #f59e0b' : '1px solid transparent',
-                  backgroundColor: bestiarySubTab === 'statuses' ? '#2a1a08' : 'transparent',
-                  background: bestiarySubTab === 'statuses'
-                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                    : 'transparent',
-                  color: bestiarySubTab === 'statuses' ? '#fbbf24' : '#94a3b8',
-                  boxShadow: bestiarySubTab === 'statuses' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none'
-                }}
-              >
-                Estados y Condiciones ({customStatuses.length})
-              </button>
-            </div>
-
-            {bestiarySubTab === 'characters' ? (
-              <>
-                <div className="vtt-wood-panel" style={{ padding: '14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f59e0b', fontWeight: 'bold' }}>
-                    Expedientes de Personajes y Criaturas
-                  </div>
-                  <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: 1.4 }}>
-                    Abre el creador dedicado para definir nombre y apellidos, año de nacimiento, salud, magia, cordura, armadura, inventario y grimorio.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => onOpenCharacterCreator && onOpenCharacterCreator()}
-                    className="vtt-primary-cta"
-                    style={{ padding: '10px 14px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer', width: '100%' }}
-                  >
-                    + Abrir Creador de Nuevo Personaje
-                  </button>
+            <div className="vtt-wood-panel" style={{ padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflow: 'hidden' }}>
+              <div>
+                <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f59e0b', fontWeight: 'bold' }}>
+                  Estados Alterados y Condiciones de Combate
                 </div>
-
-                <div className="vtt-wood-panel" style={{ padding: '12px 14px', borderRadius: '8px', flex: 1, display: 'flex', flexDirection: 'column', gap: '8px', overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span className="vtt-gothic-title" style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 'bold' }}>
-                      Compendio ({characters.length})
-                    </span>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <button
-                        onClick={async () => {
-                          const res = await importJSON({ accept: '.json', description: 'Personajes VTT (*.json)' });
-                          if (res?.success && res.text) {
-                            try {
-                              const parsed = JSON.parse(res.text);
-                              const list = Array.isArray(parsed) ? parsed : [parsed];
-                              onImportCharacters(list.map(c => ({ ...c, id: Date.now() + Math.random() })));
-                              notify(`¡Importados ${list.length} personaje(s) con éxito!`);
-                            } catch (err) {
-                              notify('Archivo JSON inválido');
-                            }
-                          }
-                        }}
-                        className="vtt-brass-btn"
-                        style={{ padding: '4px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}
-                      >
-                        Importar JSON
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (!characters.length) return notify('No hay personajes para exportar');
-                          const res = await exportJSON('bestiario_vtt.json', characters);
-                          if (res?.success) notify(`¡Exportado: ${res.filename}!`);
-                        }}
-                        className="vtt-brass-btn"
-                        style={{ padding: '4px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}
-                      >
-                        Exportar Todo
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {characters.map(c => (
-                      <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#141822', padding: '7px 10px', borderRadius: '6px', border: c.isGraveWound ? '1px solid #ef4444' : '1px solid #2c3344', fontSize: '12px' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', overflow: 'hidden' }}>
-                          <span style={{ color: '#f8fafc', fontWeight: 'bold', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                            {c.isGraveWound ? '🩸 ' : ''}{c.name} <span style={{ color: c.faction === 'enemy' ? '#f87171' : '#60a5fa', fontSize: '10px' }}>({c.faction === 'enemy' ? 'Enemigo' : 'Aliado'})</span>
-                          </span>
-                          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
-                            ❤️ {c.hp ?? 20}/{c.maxHp ?? 20} • 💧 {c.mp ?? 10}/{c.maxMp ?? 10} • 👁️ {c.san ?? 60}/{c.maxSan ?? 60}
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '5px', flexShrink: 0 }}>
-                          {onEditCharacter && (
-                            <button onClick={() => onEditCharacter(c)} className="vtt-brass-btn" style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }} title="Editar ficha completa">
-                              ✏️ Ficha
-                            </button>
-                          )}
-                          {onAddToken && (
-                            <button onClick={() => { onAddToken(c); }} className="vtt-primary-cta" style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}>
-                              Invocar
-                            </button>
-                          )}
-                          {onRemoveCharacter && (
-                            <button onClick={() => onRemoveCharacter(c.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}>
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                    {characters.length === 0 && (
-                      <div style={{ color: '#64748b', fontSize: '12px', textAlign: 'center', marginTop: '10px', fontStyle: 'italic' }}>
-                        Registra o importa personajes para invocarlos en tus partidas.
-                      </div>
-                    )}
-                  </div>
-
-                  <input
-                    type="file"
-                    accept=".json"
-                    ref={charInputRef}
-                    style={{ display: 'none' }}
-                    onChange={(e) => {
-                      const file = e.target.files[0];
-                      if (!file) return;
-                      const r = new FileReader();
-                      r.onload = (ev) => {
-                        try {
-                          const parsed = JSON.parse(ev.target.result);
-                          const list = Array.isArray(parsed) ? parsed : [parsed];
-                          onImportCharacters(list.map(c => ({ ...c, id: Date.now() + Math.random() })));
-                          notify(`¡Importados ${list.length} personaje(s) con éxito!`);
-                        } catch (err) {}
-                      };
-                      r.readAsText(file);
-                      e.target.value = '';
-                    }}
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="vtt-wood-panel" style={{ padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflow: 'hidden' }}>
-                <div>
-                  <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f59e0b', fontWeight: 'bold' }}>
-                    Estados Alterados y Condiciones de Combate
-                  </div>
-                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-                    Se asignan haciendo clic derecho sobre cualquier ficha en el tablero
-                  </div>
-                </div>
-                
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                  {PRESET_ICONS.map(icon => (
-                    <button
-                      key={icon}
-                      type="button"
-                      onClick={() => setStatusIcon(icon)}
-                      style={{
-                        background: statusIcon === icon ? 'rgba(245, 158, 11, 0.25)' : '#12151e',
-                        border: statusIcon === icon ? '1px solid #fbbf24' : '1px solid #2b3244',
-                        borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', fontSize: '14px'
-                      }}
-                    >
-                      {icon}
-                    </button>
-                  ))}
-                  <button
-                    type="button"
-                    onClick={() => statusIconInputRef.current.click()}
-                    title="Subir icono de imagen personalizado"
-                    className="vtt-brass-btn"
-                    style={{ borderRadius: '6px', padding: '5px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
-                  >
-                    + 📷 Subir Icono
-                  </button>
-                  <input type="file" accept="image/*" ref={statusIconInputRef} onChange={handleStatusIconUpload} style={{ display: 'none' }} />
-                </div>
-
-                <form onSubmit={handleStatusSubmit} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                  <div style={{
-                    width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: '#12151e', border: '1px solid #fbbf24', borderRadius: '6px', flexShrink: 0
-                  }}>
-                    {statusIcon.startsWith('data:image') ? (
-                      <img src={statusIcon} alt="Custom Icon" style={{ width: '24px', height: '24px', borderRadius: '2px', objectFit: 'cover' }} />
-                    ) : (
-                      <span style={{ fontSize: '16px' }}>{statusIcon}</span>
-                    )}
-                  </div>
-                  <input
-                    type="text"
-                    value={statusLabel}
-                    onChange={(e) => setStatusLabel(e.target.value)}
-                    placeholder="Nombre (ej. Envenenado, Aturdido)..."
-                    style={{ flex: 1, padding: '8px', borderRadius: '6px', background: '#12151e', color: 'white', border: '1px solid #333a4d', fontSize: '12px' }}
-                  />
-                  <select
-                    value={statusEffect}
-                    onChange={(e) => setStatusEffect(e.target.value)}
-                    style={{ padding: '8px', borderRadius: '6px', background: '#12151e', color: '#e2e8f0', border: '1px solid #333a4d', fontSize: '11px' }}
-                  >
-                    <option value="none">Visual</option>
-                    <option value="immobilize">Inmoviliza</option>
-                  </select>
-                  <button type="submit" className="vtt-primary-cta" style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>
-                    + Añadir
-                  </button>
-                </form>
-
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', flex: 1, overflowY: 'auto', alignContent: 'flex-start', paddingTop: '4px' }}>
-                  {customStatuses.map(status => {
-                    const isImage = status.icon.startsWith('data:image');
-                    return (
-                      <div key={status.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#141822', border: '1px solid #2e3546', padding: '6px 10px', borderRadius: '7px', fontSize: '12px' }}>
-                        {isImage ? <img src={status.icon} style={{ width: '16px', height: '16px', borderRadius: '2px', objectFit: 'cover' }} alt="" /> : <span>{status.icon}</span>}
-                        <span style={{ fontWeight: 600 }}>{status.label}</span>
-                        {status.effect === 'immobilize' && <span style={{ fontSize: '10px', color: '#f87171' }}>(🔒)</span>}
-                        <button onClick={() => onRemoveCustomStatus(status.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', marginLeft: '2px' }}>✕</button>
-                      </div>
-                    );
-                  })}
+                <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                  Se asignan haciendo clic derecho sobre cualquier ficha en el tablero
                 </div>
               </div>
-            )}
-          </div>
-        )}
-
-        {/* PESTAÑA 6: ARCHIVO DE CRÓNICA Y RESPALDO */}
-        {activeTab === 'campana' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div className="vtt-wood-panel" style={{ padding: '18px', borderRadius: '10px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <p style={{ color: '#94a3b8', fontSize: '12px', margin: 0, lineHeight: 1.5 }}>
-                Exporta o restaura una copia de seguridad completa con todas tus escenas, mapas, muros, objetos interactivos, luces, fichas de personaje y niebla de guerra.
-              </p>
-              <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-                <button onClick={onImportCampaign} className="vtt-brass-btn" style={{ flex: 1, padding: '11px', borderRadius: '8px', fontWeight: 700, fontSize: '12px', cursor: 'pointer', borderColor: '#60a5fa', color: '#93c5fd' }}>
-                  Cargar aventura (.json)
-                </button>
-                <button 
-                  onClick={onSaveAdventure ? handleOpenSaveAdventureModal : onExportCampaign} 
-                  className="vtt-primary-cta" 
-                  style={{ flex: 1, padding: '11px', borderRadius: '8px', fontSize: '12px', cursor: 'pointer' }}
+              
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                {PRESET_ICONS.map(icon => (
+                  <button
+                    key={icon}
+                    type="button"
+                    onClick={() => setStatusIcon(icon)}
+                    style={{
+                      background: statusIcon === icon ? 'rgba(245, 158, 11, 0.25)' : '#12151e',
+                      border: statusIcon === icon ? '1px solid #fbbf24' : '1px solid #2b3244',
+                      borderRadius: '6px', padding: '5px 7px', cursor: 'pointer', fontSize: '14px'
+                    }}
+                  >
+                    {icon}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  onClick={() => statusIconInputRef.current.click()}
+                  title="Subir icono de imagen personalizado"
+                  className="vtt-brass-btn"
+                  style={{ borderRadius: '6px', padding: '5px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
                 >
-                  Guardar aventura (.json)
+                  + 📷 Subir Icono
                 </button>
+                <input type="file" accept="image/*" ref={statusIconInputRef} onChange={handleStatusIconUpload} style={{ display: 'none' }} />
+              </div>
+
+              <form onSubmit={handleStatusSubmit} style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <div style={{
+                  width: '34px', height: '34px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: '#12151e', border: '1px solid #fbbf24', borderRadius: '6px', flexShrink: 0
+                }}>
+                  {statusIcon.startsWith('data:image') ? (
+                    <img src={statusIcon} alt="Custom Icon" style={{ width: '24px', height: '24px', borderRadius: '2px', objectFit: 'cover' }} />
+                  ) : (
+                    <span style={{ fontSize: '16px' }}>{statusIcon}</span>
+                  )}
+                </div>
+                <input
+                  type="text"
+                  value={statusLabel}
+                  onChange={(e) => setStatusLabel(e.target.value)}
+                  placeholder="Nombre (ej. Envenenado, Aturdido)..."
+                  style={{ flex: 1, padding: '8px', borderRadius: '6px', background: '#12151e', color: 'white', border: '1px solid #333a4d', fontSize: '12px' }}
+                />
+                <select
+                  value={statusEffect}
+                  onChange={(e) => setStatusEffect(e.target.value)}
+                  style={{ padding: '8px', borderRadius: '6px', background: '#12151e', color: '#e2e8f0', border: '1px solid #333a4d', fontSize: '11px' }}
+                >
+                  <option value="none">Visual</option>
+                  <option value="immobilize">Inmoviliza</option>
+                </select>
+                <button type="submit" className="vtt-primary-cta" style={{ padding: '8px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}>
+                  + Añadir
+                </button>
+              </form>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', flex: 1, overflowY: 'auto', alignContent: 'flex-start', paddingTop: '4px' }}>
+                {customStatuses.map(status => {
+                  const isImage = status.icon.startsWith('data:image');
+                  return (
+                    <div key={status.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#141822', border: '1px solid #2e3546', padding: '6px 10px', borderRadius: '7px', fontSize: '12px' }}>
+                      {isImage ? <img src={status.icon} style={{ width: '16px', height: '16px', borderRadius: '2px', objectFit: 'cover' }} alt="" /> : <span>{status.icon}</span>}
+                      <span style={{ fontWeight: 600 }}>{status.label}</span>
+                      {status.effect === 'immobilize' && <span style={{ fontSize: '10px', color: '#f87171' }}>(🔒)</span>}
+                      <button onClick={() => onRemoveCustomStatus(status.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', marginLeft: '2px' }}>✕</button>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -2464,79 +1489,6 @@ const SettingsDrawer = ({
                 />
               </div>
 
-              {/* Tarjeta de Contenido que se Guardará */}
-              <div style={{
-                background: 'rgba(10, 13, 20, 0.7)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '8px',
-                padding: '14px'
-              }}>
-                <div style={{ fontSize: '11px', fontWeight: 'bold', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-                  Contenido incluido en la copia de seguridad:
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
-                    <span style={{ fontSize: '15px' }}>🗺️</span>
-                    <span><strong>{scenes.length}</strong> {scenes.length === 1 ? 'Escena preparada' : 'Escenas preparadas'}</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
-                    <span style={{ fontSize: '15px' }}>♟️</span>
-                    <span><strong>{tokens.length}</strong> Fichas en mesa</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
-                    <span style={{ fontSize: '15px' }}>🏰</span>
-                    <span><strong>{maps.length}</strong> Muros, planos y luces</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
-                    <span style={{ fontSize: '15px' }}>📜</span>
-                    <span><strong>{characters.length}</strong> Fichas en Códice</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
-                    <span style={{ fontSize: '15px' }}>🌫️</span>
-                    <span>Niebla de Guerra y Visión</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: '#e2e8f0' }}>
-                    <span style={{ fontSize: '15px' }}>🌧️</span>
-                    <span>Clima, Tintes y Audio</span>
-                  </div>
-                </div>
-
-                {/* Listado de Escenas incluidas */}
-                {scenes.length > 0 && (
-                  <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255, 255, 255, 0.1)', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-                    <span style={{ fontSize: '11px', color: '#64748b' }}>Escenas:</span>
-                    {scenes.map((s, idx) => (
-                      <span key={s.id || idx} style={{
-                        fontSize: '11px',
-                        background: s.id === activeSceneId ? 'rgba(212, 175, 55, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-                        border: s.id === activeSceneId ? '1px solid rgba(212, 175, 55, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
-                        color: s.id === activeSceneId ? '#fef3c7' : '#94a3b8',
-                        padding: '2px 7px',
-                        borderRadius: '4px'
-                      }}>
-                        {idx + 1}. {s.name} {s.id === activeSceneId ? '• Activa' : ''}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Compatibilidad Multiplataforma / AppData */}
-              <div style={{
-                background: 'rgba(30, 41, 59, 0.35)',
-                border: '1px solid rgba(96, 165, 250, 0.2)',
-                borderRadius: '8px',
-                padding: '12px 14px',
-                display: 'flex',
-                alignItems: 'flex-start',
-                gap: '10px'
-              }}>
-                <span style={{ fontSize: '18px', lineHeight: 1 }}>📁</span>
-                <div style={{ fontSize: '12px', color: '#93c5fd', lineHeight: 1.45 }}>
-                  <strong>Multiplataforma (Windows y Linux):</strong> Se archivará en la carpeta interna de la app (<code style={{ background: 'rgba(0,0,0,0.3)', padding: '1px 4px', borderRadius: '3px' }}>appdata/campaigns</code>) y estará disponible al instante con doble clic desde el menú principal.
-                </div>
-              </div>
-
               {/* Opción Exportar Archivo JSON */}
               <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#e2e8f0', userSelect: 'none' }}>
                 <input
@@ -2581,25 +1533,234 @@ const SettingsDrawer = ({
                 type="button"
                 onClick={handleConfirmSaveAdventure}
                 disabled={isSavingAdventure}
-                className="vtt-primary-cta"
+                className="vtt-brass-plate-btn"
                 style={{
-                  padding: '8px 20px',
+                  padding: '9px 22px',
                   fontSize: '13px',
                   cursor: isSavingAdventure ? 'not-allowed' : 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '8px',
                   opacity: isSavingAdventure ? 0.7 : 1
                 }}
               >
                 {isSavingAdventure ? (
                   <>
                     <span style={{ animation: 'spin 1s linear infinite' }}>⏳</span>
-                    Guardando Aventura...
+                    <span>Guardando Aventura...</span>
                   </>
                 ) : (
                   <>
-                    💾 Guardar Aventura
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                      <polyline points="17 21 17 13 7 13 7 21"/>
+                      <polyline points="7 3 7 8 15 8"/>
+                    </svg>
+                    <span>Guardar Aventura</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL GÓTICO: CONCLUIR AVENTURA Y ARCHIVAR */}
+      {isConcludeModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(5, 7, 12, 0.88)',
+          backdropFilter: 'blur(8px)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 99999,
+          padding: '20px'
+        }}>
+          <div 
+            className="vtt-wood-panel"
+            style={{
+              width: '100%',
+              maxWidth: '580px',
+              backgroundColor: '#121620',
+              backgroundImage: 'linear-gradient(180deg, rgba(24, 20, 28, 0.96) 0%, rgba(14, 12, 18, 0.98) 100%), url("/assets/textures/parchment_dossier_texture.jpg")',
+              backgroundBlendMode: 'overlay',
+              borderRadius: '12px',
+              border: '1.5px solid rgba(245, 158, 11, 0.6)',
+              boxShadow: '0 25px 60px rgba(0, 0, 0, 0.95), 0 0 30px rgba(245, 158, 11, 0.2)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            {/* Cabecera del Modal */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 20px',
+              borderBottom: '1px solid rgba(245, 158, 11, 0.3)',
+              background: 'linear-gradient(180deg, rgba(245, 158, 11, 0.15) 0%, rgba(0, 0, 0, 0.3) 100%)'
+            }}>
+              <div>
+                <h3 className="vtt-gothic-title" style={{ margin: 0, fontSize: '18px', color: '#fbbf24', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📜</span> Concluir Aventura y Archivar
+                </h3>
+                <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
+                  Sella esta crónica de forma permanente, archívala y despeja la mesa para tu próxima historia.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConcludeModalOpen(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#94a3b8',
+                  fontSize: '18px',
+                  cursor: 'pointer',
+                  padding: '4px 8px',
+                  lineHeight: 1
+                }}
+                title="Cerrar ventana"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Cuerpo del Modal */}
+            <div style={{ padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px', maxHeight: '70vh', overflowY: 'auto' }}>
+              {/* Campo Nombre de la Aventura Concluida */}
+              <div>
+                <label style={{ display: 'block', fontSize: '11px', fontWeight: 'bold', color: '#d4af37', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
+                  Título Definitivo de la Crónica Concluida
+                </label>
+                <input
+                  type="text"
+                  value={concludeNameInput}
+                  onChange={(e) => setConcludeNameInput(e.target.value)}
+                  placeholder="Ej. Las Máscaras de Nyarlathotep — Concluida"
+                  style={{
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    padding: '10px 14px',
+                    borderRadius: '6px',
+                    border: '1px solid #475569',
+                    backgroundColor: '#0a0d14',
+                    color: '#f8fafc',
+                    fontSize: '14px',
+                    outline: 'none',
+                    fontFamily: 'inherit'
+                  }}
+                  onFocus={(e) => (e.target.style.borderColor = '#f59e0b')}
+                  onBlur={(e) => (e.target.style.borderColor = '#475569')}
+                />
+              </div>
+
+              {/* Estadísticas de la Aventura que se archiva */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '8px',
+                padding: '12px',
+                borderRadius: '8px',
+                backgroundColor: 'rgba(15, 20, 30, 0.7)',
+                border: '1px solid rgba(245, 158, 11, 0.25)'
+              }}>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#f8fafc' }}>{scenes.length}</div>
+                  <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase' }}>Escenarios</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#60a5fa' }}>{characters.length}</div>
+                  <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase' }}>Personajes</div>
+                </div>
+                <div style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#f87171' }}>{tokens.length}</div>
+                  <div style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase' }}>Fichas Activas</div>
+                </div>
+              </div>
+
+              {/* Opción Exportar Archivo JSON */}
+              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px', color: '#e2e8f0', userSelect: 'none' }}>
+                <input
+                  type="checkbox"
+                  checked={concludeExportJson}
+                  onChange={(e) => setConcludeExportJson(e.target.checked)}
+                  style={{ accentColor: '#f59e0b', width: '16px', height: '16px', cursor: 'pointer' }}
+                />
+                <span>Descargar copia final de seguridad en archivo <strong>.json</strong></span>
+              </label>
+
+              {/* Aviso explicativo */}
+              <div style={{
+                padding: '10px 12px',
+                borderRadius: '6px',
+                backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                fontSize: '11px',
+                color: '#cbd5e1',
+                lineHeight: 1.5
+              }}>
+                ℹ️ <strong>Mesa Limpia:</strong> La crónica quedará archivada en tu historial como <em>«Concluida»</em> y el tablero se vaciará por completo. Cuando abras de nuevo el Grimorio VTT, arrancará <strong>100% limpio y vacío</strong> hasta que inicies una nueva aventura o cargues una anterior.
+              </div>
+            </div>
+
+            {/* Pie del Modal: Acciones */}
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '14px 20px',
+              borderTop: '1px solid rgba(245, 158, 11, 0.25)',
+              background: 'rgba(10, 13, 20, 0.85)'
+            }}>
+              <button
+                type="button"
+                onClick={() => setIsConcludeModalOpen(false)}
+                disabled={isConcluding}
+                style={{
+                  background: 'none',
+                  border: '1px solid #475569',
+                  color: '#94a3b8',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  fontSize: '13px',
+                  cursor: isConcluding ? 'not-allowed' : 'pointer',
+                  fontWeight: 600
+                }}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmConcludeAdventure}
+                disabled={isConcluding}
+                className="vtt-conclude-plate-btn"
+                style={{
+                  padding: '9px 22px',
+                  fontSize: '13px',
+                  cursor: isConcluding ? 'not-allowed' : 'pointer',
+                  opacity: isConcluding ? 0.7 : 1
+                }}
+              >
+                {isConcluding ? (
+                  <>
+                    <span style={{ animation: 'spin 1s linear infinite' }}>⏳</span>
+                    <span>Sellando Crónica...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                      <polyline points="14 2 14 8 20 8"/>
+                      <line x1="16" y1="13" x2="8" y2="13"/>
+                      <line x1="16" y1="17" x2="8" y2="17"/>
+                    </svg>
+                    <span>Sellar y Vaciar Mesa</span>
                   </>
                 )}
               </button>

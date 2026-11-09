@@ -60,10 +60,11 @@ export const saveCampaignToDB = async (stateData, createSnapshot = false) => {
   }
 };
 
-export const saveCampaignSnapshot = async (stateData, customTitle) => {
+export const saveCampaignSnapshot = async (stateData, customTitle, isConcluded = false) => {
   try {
     const payload = {
       ...stateData,
+      isConcluded: Boolean(isConcluded),
       version: '1.4.0',
       updatedAt: new Date().toISOString()
     };
@@ -93,6 +94,7 @@ export const saveCampaignSnapshot = async (stateData, customTitle) => {
       timestamp: Date.now(),
       title,
       dateStr,
+      isConcluded: Boolean(isConcluded),
       scenesCount: (payload.scenes || []).length,
       charactersCount: (payload.characters || []).length,
       data: payload
@@ -101,14 +103,26 @@ export const saveCampaignSnapshot = async (stateData, customTitle) => {
     const keysReq = snapStore.getAllKeys();
     keysReq.onsuccess = () => {
       const keys = keysReq.result || [];
-      if (keys.length > 10) {
-        const toDelete = keys.slice(0, keys.length - 10);
+      if (keys.length > 15) {
+        const toDelete = keys.slice(0, keys.length - 15);
         toDelete.forEach(k => snapStore.delete(k));
       }
     };
     return true;
   } catch (e) {
     console.error('Error guardando snapshot de campaña:', e);
+    return false;
+  }
+};
+
+export const clearActiveCampaignDB = async () => {
+  try {
+    const db = await openCampaignDB();
+    const tx = db.transaction('campaign_store', 'readwrite');
+    tx.objectStore('campaign_store').delete('active_campaign');
+    return true;
+  } catch (e) {
+    console.error('Error limpiando active_campaign en IndexedDB:', e);
     return false;
   }
 };
@@ -136,6 +150,7 @@ export const getRecentCampaigns = async () => {
             id: file.modified_timestamp || file.file_name,
             title: advTitle || `Crónica: ${sceneTitle}`,
             dateStr: formattedDate,
+            isConcluded: Boolean(parsedData?.isConcluded),
             scenesCount,
             charactersCount,
             data: parsedData,
@@ -162,6 +177,7 @@ export const getRecentCampaigns = async () => {
         id: s.timestamp,
         title: s.title || `Crónica: ${sceneTitle}`,
         dateStr: s.dateStr || formattedDate,
+        isConcluded: Boolean(s.isConcluded || s.data?.isConcluded),
         scenesCount,
         charactersCount,
         data: s.data

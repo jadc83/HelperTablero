@@ -6,6 +6,7 @@ import Toolbar from './components/Toolbar';
 import GameBoard from './components/GameBoard';
 import TokenSidebar from './components/TokenSidebar';
 import SettingsDrawer from './components/SettingsDrawer';
+import HandoutProjectorModal from './components/HandoutProjectorModal';
 import DiceRoller from './components/DiceRoller';
 import Dice3D from './components/Dice3D';
 import Soundboard, { playerSoundEngine, SOUND_CATALOG } from './components/Soundboard';
@@ -19,144 +20,13 @@ import MasterNotesDrawer from './components/MasterNotesDrawer';
 import { WEATHER_TYPES, AMBIENT_TINTS } from './components/WeatherOverlay';
 import { DEFAULT_COMMON_ITEMS } from './constants/commonItems';
 import useLocalStorage from './hooks/useLocalStorage';
-import { saveCampaignToDB, loadCampaignFromDB, exportCampaignJSON, saveCampaignSnapshot, getRecentCampaigns } from './utils/campaignStorage';
+import { saveCampaignToDB, loadCampaignFromDB, clearActiveCampaignDB, exportCampaignJSON, saveCampaignSnapshot, getRecentCampaigns } from './utils/campaignStorage';
 import { exportJSON, importJSON } from './utils/fileDialog';
 
 const isTauriDesktop = () => Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
 
-const STARTER_CHARACTERS = [
-  {
-    id: 1,
-    firstName: 'Arthur',
-    lastName: 'Pendelton',
-    birthYear: '1888',
-    name: 'Arthur Pendelton',
-    entityType: 'human',
-    color: '#3b82f6',
-    faction: 'ally',
-    hp: 24,
-    maxHp: 24,
-    mp: 12,
-    maxMp: 12,
-    san: 65,
-    maxSan: 65,
-    hasArmor: true,
-    armorType: 'Gabardina de Cuero Reforzado',
-    isGraveWound: false,
-    history: 'Investigador privado y anticuario de Arkham. Tras hallar un diario cifrado en el puerto de Kingsport, dedica su vida a documentar fenómenos que la ciencia oficial prefiere ignorar.',
-    notes: 'Siempre lleva un reloj de bolsillo de plata y un encendedor grabado.',
-    inventory: [
-      { id: 101, name: 'Revólver .38', state: 'equipped' },
-      { id: 102, name: 'Linterna de aceite', state: 'hand' },
-      { id: 103, name: 'Botiquín médico', state: 'stored' }
-    ],
-    spells: [
-      { id: 'sp1', name: 'Signo de Voor', cost: '2 MP / 1 SAN', desc: 'Revela presencias invisibles o astrales en una estancia.' }
-    ]
-  },
-  {
-    id: 2,
-    firstName: 'Eleanor',
-    lastName: 'Vance',
-    birthYear: '1894',
-    name: 'Dra. Eleanor Vance',
-    entityType: 'human',
-    color: '#10b981',
-    faction: 'ally',
-    hp: 18,
-    maxHp: 18,
-    mp: 16,
-    maxMp: 16,
-    san: 75,
-    maxSan: 75,
-    hasArmor: false,
-    armorType: 'Ninguna',
-    isGraveWound: false,
-    history: 'Catedrática de lenguas muertas y folclore precolombino en la Universidad Miskatonic. Experta en traducir tablillas cuneiformes y manuscritos prohibidos.',
-    notes: 'Sufre insomnio desde la expedición al círculo megalítico.',
-    inventory: [
-      { id: 104, name: 'Diario de traducciones arcanas', state: 'equipped' },
-      { id: 105, name: 'Daga ceremonial de obsidiana', state: 'hand' }
-    ],
-    spells: [
-      { id: 'sp2', name: 'Sello de Protección', cost: '4 MP', desc: 'Bloquea un umbral contra entidades extradimensionales.' }
-    ]
-  }
-];
-
-const STARTER_MONSTERS = [
-  {
-    id: 3,
-    firstName: 'Profundo',
-    lastName: 'de Innsmouth',
-    birthYear: 'Inmemorial',
-    name: 'Profundo de Innsmouth',
-    entityType: 'mythos_creature',
-    color: '#0d9488',
-    faction: 'enemy',
-    hp: 26,
-    maxHp: 26,
-    mp: 10,
-    maxMp: 10,
-    san: 0,
-    maxSan: 0,
-    hasArmor: true,
-    armorType: 'Escamas Batracias Naturales',
-    isGraveWound: false,
-    history: 'Criatura anfibia e inmortal que habita en las fosas oceánicas y rinde culto al Padre Dagón y a la Madre Hidra. Su aspecto combina rasgos ictiológicos y batracios.',
-    notes: 'Pérdida de Cordura al verlo: 0/1D6 SAN. Extremadamente ágil en zonas inundadas.',
-    inventory: [{ id: 201, name: 'Tridente de coral negro', state: 'equipped' }],
-    spells: []
-  },
-  {
-    id: 4,
-    firstName: 'Lobo',
-    lastName: 'del Bosque Negro',
-    birthYear: 'Salvaje',
-    name: 'Lobo del Bosque Negro',
-    entityType: 'animal',
-    color: '#ca8a04',
-    faction: 'enemy',
-    hp: 14,
-    maxHp: 14,
-    mp: 4,
-    maxMp: 4,
-    san: 20,
-    maxSan: 20,
-    hasArmor: true,
-    armorType: 'Pelaje Denso',
-    isGraveWound: false,
-    history: 'Depredador alfa de gran envergadura que acecha en manada los caminos rurales envueltos en niebla.',
-    notes: 'Ataca en grupo tratando de rodear al rezagado.',
-    inventory: [{ id: 202, name: 'Colmillos desgarradores', state: 'equipped' }],
-    spells: []
-  },
-  {
-    id: 5,
-    firstName: 'Avatar de',
-    lastName: 'Nyarlathotep',
-    birthYear: 'Antes del Tiempo',
-    name: 'Avatar de Nyarlathotep',
-    entityType: 'outer_god',
-    color: '#7c3aed',
-    faction: 'enemy',
-    hp: 85,
-    maxHp: 85,
-    mp: 60,
-    maxMp: 60,
-    san: 99,
-    maxSan: 99,
-    hasArmor: true,
-    armorType: 'Inmunidad Mundana / Aura del Caos',
-    isGraveWound: false,
-    history: 'El Caos Reptante, mensajero y alma de los Dioses Exteriores. Adopta mil máscaras entre los mortales para sembrar la locura y precipitar el fin de las eras.',
-    notes: 'Cualquier mirada directa a su verdadera forma provoca una pérdida masiva de Cordura.',
-    inventory: [],
-    spells: [
-      { id: 'sp3', name: 'Mirada del Vacío', cost: '10 MP', desc: 'Fractura la mente del objetivo con visiones del cosmos exterior.' }
-    ]
-  }
-];
+const STARTER_CHARACTERS = [];
+const STARTER_MONSTERS = [];
 
 const DEFAULT_STATUSES = [
   { id: 'bloodied', icon: '🩸', label: 'Malherido', effect: 'none' },
@@ -441,35 +311,32 @@ const HandoutFullscreenOverlay = ({ handout, isPlayerView, onStopProjection }) =
 function App() {
   const isPlayerView = new URLSearchParams(window.location.search).get('view') === 'player';
 
-  const [characters, setCharacters] = useLocalStorage('vtt_characters', [
-    ...STARTER_CHARACTERS,
-    ...STARTER_MONSTERS
-  ]);
-  const [tokens, setTokens] = useLocalStorage('vtt_tokens', []);
-  const [graveyard, setGraveyard] = useLocalStorage('vtt_graveyard', []);
-  const [maps, setMaps] = useLocalStorage('vtt_maps_array', []);
+  const [characters, setCharacters] = useState([]);
+  const [tokens, setTokens] = useState([]);
+  const [graveyard, setGraveyard] = useState([]);
+  const [maps, setMaps] = useState([]);
   const [fowEnabled, setFowEnabled] = useLocalStorage('vtt_fow_enabled', false);
   const [fowBrushSize, setFowBrushSize] = useLocalStorage('vtt_fow_brush', 80);
   const [fowVisionRadius, setFowVisionRadius] = useLocalStorage('vtt_fow_vision_radius', 180);
   const [fowMemoryEnabled, setFowMemoryEnabled] = useLocalStorage('vtt_fow_memory', true);
   const [fowAutoHideEnemies, setFowAutoHideEnemies] = useLocalStorage('vtt_fow_autohide_enemies', true);
-  const [fowActions, setFowActions] = useLocalStorage('vtt_fow_actions', []);
+  const [fowActions, setFowActions] = useState([]);
   const [snapToGrid, setSnapToGrid] = useLocalStorage('vtt_snap_grid', false);
   const [gridSize, setGridSize] = useLocalStorage('vtt_grid_size', 50);
   const [customStatuses, setCustomStatuses] = useLocalStorage('vtt_custom_statuses', DEFAULT_STATUSES);
-  const [weatherEffect, setWeatherEffect] = useLocalStorage('vtt_weather_effect', 'none');
-  const [ambientTint, setAmbientTint] = useLocalStorage('vtt_ambient_tint', 'none');
+  const [weatherEffect, setWeatherEffect] = useState('none');
+  const [ambientTint, setAmbientTint] = useState('none');
   const [syncCameraToPlayers, setSyncCameraToPlayers] = useLocalStorage('vtt_sync_camera', true);
   const [tutorialDismissed, setTutorialDismissed] = useLocalStorage('vtt_tutorial_dismissed', false);
-  const [customSounds, setCustomSounds] = useLocalStorage('vtt_custom_sounds', []);
-  const [customObjects, setCustomObjects] = useLocalStorage('vtt_custom_objects', []);
+  const [customSounds, setCustomSounds] = useState([]);
+  const [customObjects, setCustomObjects] = useState([]);
   const [commonItems, setCommonItems] = useLocalStorage('vtt_common_items', DEFAULT_COMMON_ITEMS);
 
   // Gestión de Múltiples Escenas y Proyector de Handouts
-  const [scenes, setScenes] = useLocalStorage('vtt_scenes_list', [
+  const [scenes, setScenes] = useState([
     {
       id: 'scene_default',
-      name: 'Escena Principal',
+      name: 'Escena 1',
       maps: [],
       tokens: [],
       fowActions: [],
@@ -477,9 +344,10 @@ function App() {
       ambientTint: 'none'
     }
   ]);
-  const [activeSceneId, setActiveSceneId] = useLocalStorage('vtt_active_scene_id', 'scene_default');
-  const [handouts, setHandouts] = useLocalStorage('vtt_handouts_list', []);
-  const [activeHandout, setActiveHandout] = useLocalStorage('vtt_active_handout', null);
+  const [activeSceneId, setActiveSceneId] = useState('scene_default');
+  const [handouts, setHandouts] = useState([]);
+  const [activeHandout, setActiveHandout] = useState(null);
+  const [isHandoutModalOpen, setIsHandoutModalOpen] = useState(false);
 
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -513,8 +381,8 @@ function App() {
 
   // Estados para el Diario & Bloc de Notas del Máster (Punto 1)
   const [isMasterNotesOpen, setIsMasterNotesOpen] = useState(false);
-  const [sceneNotes, setSceneNotes] = useLocalStorage('vtt_scene_notes', {});
-  const [campaignNotes, setCampaignNotes] = useLocalStorage('vtt_campaign_notes', '');
+  const [sceneNotes, setSceneNotes] = useState({});
+  const [campaignNotes, setCampaignNotes] = useState('');
 
   const [holdProgress, setHoldProgress] = useState(null);
   const [radialMenu, setRadialMenu] = useState(null);
@@ -524,6 +392,34 @@ function App() {
   // Estados de paneles y Dados 3D
   const [isDiceOpen, setIsDiceOpen] = useState(false);
   const [isSoundboardOpen, setIsSoundboardOpen] = useState(false);
+  const [isFogDockOpen, setIsFogDockOpen] = useState(false);
+  const dragStartYRef = useRef(null);
+  const dragDistanceRef = useRef(0);
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDraggingDock, setIsDraggingDock] = useState(false);
+
+  const handlePointerDownDock = (e) => {
+    e.stopPropagation();
+    dragStartYRef.current = e.clientY;
+    dragDistanceRef.current = 0;
+    setIsDraggingDock(true);
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMoveDock = (e) => {
+    if (dragStartYRef.current === null) return;
+    const dy = e.clientY - dragStartYRef.current;
+    dragDistanceRef.current = dy;
+    setDragOffset(dy);
+  };
+
+  const handlePointerUpDock = (e) => {
+    if (dragStartYRef.current === null) return;
+    dragStartYRef.current = null;
+    setIsDraggingDock(false);
+    setDragOffset(0);
+    setIsFogDockOpen(prev => !prev);
+  };
   const [player3DRoll, setPlayer3DRoll] = useState(null);
   const [master3DRoll, setMaster3DRoll] = useState(null);
   const [incomingRollResult, setIncomingRollResult] = useState(null);
@@ -600,27 +496,27 @@ function App() {
     });
   }, [maps, tokens, fowActions, weatherEffect, ambientTint, activeSceneId, isPlayerView, setScenes]);
 
-  // 1. Cargar campaña completa desde IndexedDB al iniciar
+  // 1. Restaurar campaña activa si hay una en curso; si fue concluida o está vacía, iniciar en limpio
   useEffect(() => {
     let mounted = true;
     loadCampaignFromDB().then((saved) => {
       if (!mounted) return;
-      if (saved) {
-        if (saved.characters) setCharacters(saved.characters);
-        if (saved.tokens) setTokens(saved.tokens);
-        if (saved.maps) setMaps(saved.maps);
+      if (saved && !saved.isConcluded) {
+        if (Array.isArray(saved.characters)) setCharacters(saved.characters);
+        if (Array.isArray(saved.tokens)) setTokens(saved.tokens);
+        if (Array.isArray(saved.maps)) setMaps(saved.maps);
         if (saved.fowEnabled !== undefined) setFowEnabled(saved.fowEnabled);
         if (saved.fowBrushSize) setFowBrushSize(saved.fowBrushSize);
         if (saved.fowVisionRadius) setFowVisionRadius(saved.fowVisionRadius);
         if (saved.fowMemoryEnabled !== undefined) setFowMemoryEnabled(saved.fowMemoryEnabled);
         if (saved.fowAutoHideEnemies !== undefined) setFowAutoHideEnemies(saved.fowAutoHideEnemies);
-        if (saved.fowActions) setFowActions(saved.fowActions);
+        if (Array.isArray(saved.fowActions)) setFowActions(saved.fowActions);
         if (saved.snapToGrid !== undefined) setSnapToGrid(saved.snapToGrid);
         if (saved.gridSize) setGridSize(saved.gridSize);
         if (saved.customStatuses) setCustomStatuses(saved.customStatuses);
         if (saved.weatherEffect) setWeatherEffect(saved.weatherEffect);
         if (saved.ambientTint) setAmbientTint(saved.ambientTint);
-        if (saved.customSounds) setCustomSounds(saved.customSounds);
+        if (Array.isArray(saved.customSounds)) setCustomSounds(saved.customSounds);
         if (Array.isArray(saved.scenes) && saved.scenes.length > 0) setScenes(saved.scenes);
         if (saved.activeSceneId) setActiveSceneId(saved.activeSceneId);
         if (Array.isArray(saved.handouts)) setHandouts(saved.handouts);
@@ -628,15 +524,29 @@ function App() {
         if (Array.isArray(saved.graveyard)) setGraveyard(saved.graveyard);
         if (Array.isArray(saved.customObjects)) setCustomObjects(saved.customObjects);
         if (Array.isArray(saved.commonItems)) setCommonItems(saved.commonItems);
+        if (saved.sceneNotes) setSceneNotes(saved.sceneNotes);
+        if (saved.campaignNotes !== undefined) setCampaignNotes(saved.campaignNotes);
       }
       setDbLoaded(true);
     });
     return () => { mounted = false; };
   }, []);
 
-  // 2. Auto-guardar en IndexedDB cada vez que cambie el estado en la vista del Master
+  // 2. Auto-guardado en segundo plano de la sesión activa en curso (solo si no está vacía de todo)
   useEffect(() => {
     if (!dbLoaded || isPlayerView) return;
+
+    // Si el tablero está en estado limpio/vacío inicial (ej. tras concluir aventura), no sobreescribir la DB
+    const isEmptyCleanSlate = (
+      tokens.length === 0 &&
+      maps.length === 0 &&
+      characters.length === 0 &&
+      scenes.length === 1 &&
+      (scenes[0].maps || []).length === 0 &&
+      (scenes[0].tokens || []).length === 0
+    );
+    if (isEmptyCleanSlate) return;
+
     const timer = setTimeout(() => {
       saveCampaignToDB({
         characters,
@@ -660,15 +570,18 @@ function App() {
         activeHandout,
         graveyard,
         customObjects,
-        commonItems
+        commonItems,
+        sceneNotes,
+        campaignNotes
       });
-    }, 350);
+    }, 400);
     return () => clearTimeout(timer);
   }, [
     dbLoaded, isPlayerView, characters, tokens, maps,
     fowEnabled, fowBrushSize, fowVisionRadius, fowMemoryEnabled, fowAutoHideEnemies,
     fowActions, snapToGrid, gridSize, customStatuses, weatherEffect, ambientTint,
-    customSounds, scenes, activeSceneId, handouts, activeHandout, graveyard, customObjects, commonItems
+    customSounds, scenes, activeSceneId, handouts, activeHandout, graveyard, customObjects, commonItems,
+    sceneNotes, campaignNotes
   ]);
 
   // 3. Sincronización en tiempo real entre ventana de Master y ventana de Jugador
@@ -2168,6 +2081,39 @@ function App() {
     );
   };
 
+  const handleResetToCleanSlate = () => {
+    isSwitchingSceneRef.current = true;
+    setCharacters([]);
+    setTokens([]);
+    setMaps([]);
+    setFowActions([]);
+    setGraveyard([]);
+    setHandouts([]);
+    setActiveHandout(null);
+    setCustomObjects([]);
+    setSceneNotes({});
+    setCampaignNotes('');
+    setWeatherEffect('none');
+    setAmbientTint('none');
+    const defaultScene = {
+      id: 'scene_default',
+      name: 'Escena 1',
+      maps: [],
+      tokens: [],
+      fowActions: [],
+      weatherEffect: 'none',
+      ambientTint: 'none'
+    };
+    setScenes([defaultScene]);
+    setActiveSceneId('scene_default');
+    setPan({ x: 0, y: 0 });
+    setScale(1);
+    setTimeout(() => {
+      isSwitchingSceneRef.current = false;
+    }, 120);
+    showMasterFeedback('Mesa y crónica vaciadas por completo', '🧹');
+  };
+
   const applyCampaignData = (d) => {
     isSwitchingSceneRef.current = true;
     if (d.characters) setCharacters(d.characters);
@@ -2257,6 +2203,74 @@ function App() {
     }
 
     showMasterFeedback(`Aventura guardada: ${advTitle}`, '💾');
+    return fileResult || { success: true };
+  };
+
+  const handleConcludeAdventure = async (adventureName, shouldExportFile = true) => {
+    // 1. Sincronizar el estado en vivo de la escena activa dentro del listado de escenas
+    const syncedScenes = scenes.map((sc) =>
+      sc.id === activeSceneId
+        ? { ...sc, maps, tokens, fowActions, weatherEffect, ambientTint }
+        : sc
+    );
+    const activeScene = syncedScenes.find(sc => sc.id === activeSceneId) || syncedScenes[0];
+    const advTitle = adventureName?.trim() || (activeScene ? `${activeScene.name} (Concluida)` : 'Crónica Concluida');
+
+    const payload = {
+      adventureName: advTitle,
+      isConcluded: true,
+      concludedAt: new Date().toISOString(),
+      characters,
+      tokens,
+      maps,
+      fowEnabled,
+      fowBrushSize,
+      fowVisionRadius,
+      fowMemoryEnabled,
+      fowAutoHideEnemies,
+      fowActions,
+      snapToGrid,
+      gridSize,
+      customStatuses,
+      weatherEffect,
+      ambientTint,
+      customSounds,
+      scenes: syncedScenes,
+      activeSceneId,
+      handouts,
+      activeHandout,
+      graveyard,
+      customObjects,
+      commonItems,
+      sceneNotes,
+      campaignNotes,
+      savedAt: new Date().toISOString(),
+      version: '1.4.0',
+      app: 'Grimorio VTT'
+    };
+
+    // 2. Guardar snapshot sellado como Concluida en disco (Tauri) y en IndexedDB
+    try {
+      await saveCampaignSnapshot(payload, advTitle, true);
+    } catch (err) {
+      console.warn('Error archivando snapshot concluido:', err);
+    }
+
+    // 3. Exportar archivo .json independiente si el máster lo solicitó
+    let fileResult = null;
+    if (shouldExportFile) {
+      const safeTitle = advTitle.toLowerCase().replace(/[^a-z0-9]/gi, '_');
+      const filename = `cronica_concluida_${safeTitle}_${new Date().toISOString().slice(0, 10)}.json`;
+      fileResult = await exportJSON(filename, payload);
+    }
+
+    // 4. Limpiar la sesión activa de IndexedDB para que en el próximo arranque inicie limpia
+    await clearActiveCampaignDB();
+
+    // 5. Vaciar el estado completo de la mesa (clean slate)
+    handleResetToCleanSlate();
+
+    showMasterFeedback(`Crónica concluida y archivada: "${advTitle}". Mesa despejada.`, '📜');
     return fileResult || { success: true };
   };
 
@@ -2541,7 +2555,11 @@ function App() {
           onSelectScene={handleSelectScene}
           onOpenHome={() => setIsHomeOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+          onOpenTutorial={() => setIsTutorialOpen(true)}
           onOpenPlayerView={handleOpenPlayerView}
+          onOpenHandouts={() => setIsHandoutModalOpen(true)}
+          handoutsCount={handouts.length}
+          hasActiveHandout={Boolean(activeHandout)}
           onOpenMasterNotes={() => setIsMasterNotesOpen(!isMasterNotesOpen)}
           onOpenGraveyard={() => setEncyclopediaState({ isOpen: true, category: 'graveyard' })}
           graveyardCount={(graveyard || []).length}
@@ -2789,6 +2807,10 @@ function App() {
         <TokenSidebar
           tokens={tokens}
           characters={characters}
+          onImportCharacters={(list) => {
+            setCharacters(prev => [...prev, ...list]);
+            showMasterFeedback(`Importados ${list.length} registros a la mesa`, '📜');
+          }}
           graveyard={graveyard}
           onOpenGraveyard={() => setEncyclopediaState({ isOpen: true, category: 'graveyard' })}
           onSendToGraveyard={handleSendToGraveyard}
@@ -2990,188 +3012,541 @@ function App() {
           tokenDragMeasurement={tokenDragMeasurement}
         />
 
-        {/* Dock Central Flotante Inferior Reorganizado y Compacto */}
+        {/* Dock Central Flotante Inferior - Sistema de Barras Apilables (Estilo Lineage II) */}
         <div
           onPointerDown={(e) => e.stopPropagation()}
           onWheel={(e) => e.stopPropagation()}
           style={{
             position: 'fixed',
-            bottom: '18px',
+            bottom: '12px',
             left: isSettingsOpen ? 'calc(50vw + 150px - 240px)' : 'calc(50vw + 150px)',
             transform: 'translateX(-50%)',
             transition: 'left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
             zIndex: 4000,
             display: 'flex',
-            gap: '6px',
-            alignItems: 'center',
-            background: 'rgba(15, 18, 25, 0.95)',
-            padding: '6px 12px',
-            borderRadius: '12px',
-            border: '1px solid #2d3446',
-            boxShadow: '0 12px 35px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06)',
-            backdropFilter: 'blur(12px)',
-            whiteSpace: 'nowrap'
+            flexDirection: 'column',
+            alignItems: 'stretch',
+            gap: '5px',
+            whiteSpace: 'nowrap',
+            userSelect: 'none'
           }}
         >
-          {/* Herramientas de Juego */}
-          <button
-            onClick={() => {
-              setIsDiceOpen(!isDiceOpen);
-              setIsSoundboardOpen(false);
-            }}
-            className={`vtt-brass-btn ${isDiceOpen ? 'vtt-btn-active' : ''}`}
-            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
-            title="Abrir Cubilete de Dados Físicos 3D"
-          >
-            Dados
-          </button>
-
-          <button
-            onClick={() => {
-              setIsSoundboardOpen(!isSoundboardOpen);
-              setIsDiceOpen(false);
-            }}
-            className={`vtt-brass-btn ${isSoundboardOpen || activeLoops.length > 0 ? 'vtt-btn-active' : ''}`}
-            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600, gap: '6px' }}
-            title="Abrir Órgano de Ecos y Sonidos Atmosféricos"
-          >
-            <span>Ecos</span>
-            {activeLoops.length > 0 && (
-              <span style={{ backgroundColor: '#f59e0b', color: '#0f1115', borderRadius: '999px', padding: '1px 5px', fontSize: '9px', fontWeight: 800 }}>
-                {activeLoops.length}
-              </span>
-            )}
-          </button>
-
-          <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
-
-          <button
-            onClick={() => { setRulerActive(!rulerActive); setPingActive(false); setFowMode('none'); }}
-            className={`vtt-brass-btn ${rulerActive ? 'vtt-btn-active' : ''}`}
-            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
-            title="Medir distancia en el mapa (pies, metros y casillas)"
-          >
-            Regla
-          </button>
-
-          <button
-            onClick={() => { setPingActive(!pingActive); setRulerActive(false); setFowMode('none'); }}
-            className={`vtt-brass-btn ${pingActive ? 'vtt-btn-active' : ''}`}
-            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
-            title="Señalar punto en el mapa a los jugadores (o Alt + Clic)"
-          >
-            Señal
-          </button>
-
-          <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
-
-          {/* Atmósfera y Ambiente */}
-          <select
-            value={weatherEffect}
-            onChange={(e) => setWeatherEffect(e.target.value)}
+          {/* BARRA 1: Herramientas Principales de Mesa */}
+          <div
             style={{
-              padding: '5px 8px',
-              borderRadius: '6px',
-              backgroundColor: '#141822',
-              color: '#cbd5e1',
-              border: '1px solid #2d3546',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              outline: 'none'
+              display: 'flex',
+              gap: '6px',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'rgba(15, 18, 25, 0.96)',
+              padding: '6px 12px',
+              borderRadius: '12px',
+              border: '1px solid #2d3446',
+              boxShadow: '0 8px 30px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06)',
+              backdropFilter: 'blur(12px)',
+              boxSizing: 'border-box',
+              height: '44px',
+              minHeight: '44px',
+              whiteSpace: 'nowrap'
             }}
-            title="Efecto de clima atmosférico"
           >
-            {WEATHER_TYPES.map(w => (
-              <option key={w.id} value={w.id}>{w.label}</option>
-            ))}
-          </select>
+            {/* Agarre táctil de 4 puntos a la izquierda para arrastrar / desplegar barra */}
+            <div
+              onPointerDown={handlePointerDownDock}
+              onPointerMove={handlePointerMoveDock}
+              onPointerUp={handlePointerUpDock}
+              onPointerCancel={handlePointerUpDock}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: isDraggingDock ? 'grabbing' : 'grab',
+                color: isFogDockOpen ? '#38bdf8' : '#64748b',
+                padding: '4px',
+                borderRadius: '4px',
+                backgroundColor: isDraggingDock ? 'rgba(2, 132, 199, 0.25)' : 'transparent',
+                touchAction: 'none',
+                userSelect: 'none',
+                transition: 'color 0.15s ease'
+              }}
+              title="Arrastra o haz clic para desplegar/ocultar la barra secundaria"
+            >
+              <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
+                <rect x="2" y="2" width="3" height="3" rx="0.7"/>
+                <rect x="8.5" y="2" width="3" height="3" rx="0.7"/>
+                <rect x="2" y="8.5" width="3" height="3" rx="0.7"/>
+                <rect x="8.5" y="8.5" width="3" height="3" rx="0.7"/>
+              </svg>
+            </div>
 
-          <select
-            value={ambientTint}
-            onChange={(e) => setAmbientTint(e.target.value)}
-            style={{
-              padding: '5px 8px',
-              borderRadius: '6px',
-              backgroundColor: '#141822',
-              color: '#cbd5e1',
-              border: '1px solid #2d3546',
-              fontSize: '11px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              outline: 'none'
-            }}
-            title="Iluminación ambiental del mapa"
-          >
-            {AMBIENT_TINTS.map(t => (
-              <option key={t.id} value={t.id}>{t.label}</option>
-            ))}
-          </select>
+            {/* Herramientas de Juego */}
+            <button
+              onClick={() => {
+                setIsDiceOpen(!isDiceOpen);
+                setIsSoundboardOpen(false);
+              }}
+              className={`vtt-brass-btn ${isDiceOpen ? 'vtt-btn-active' : ''}`}
+              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
+              title="Abrir Cubilete de Dados Físicos 3D"
+            >
+              Dados
+            </button>
 
-          <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+            <button
+              onClick={() => {
+                setIsSoundboardOpen(!isSoundboardOpen);
+                setIsDiceOpen(false);
+              }}
+              className={`vtt-brass-btn ${isSoundboardOpen || activeLoops.length > 0 ? 'vtt-btn-active' : ''}`}
+              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600, gap: '6px' }}
+              title="Abrir Órgano de Ecos y Sonidos Atmosféricos"
+            >
+              <span>Ecos</span>
+              {activeLoops.length > 0 && (
+                <span style={{ backgroundColor: '#f59e0b', color: '#0f1115', borderRadius: '999px', padding: '1px 5px', fontSize: '9px', fontWeight: 800 }}>
+                  {activeLoops.length}
+                </span>
+              )}
+            </button>
 
-          {/* Navegación y Cámara */}
-          <button
-            onClick={() => { setPan({ x: 0, y: 0 }); setScale(1); }}
-            className="vtt-brass-btn"
-            style={{ padding: '6px 11px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
-            title="Centrar tablero y restablecer zoom al 100%"
-          >
-            Centrar
-          </button>
+            <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
 
-          <button
-            onClick={() => {
-              const nextSync = !syncCameraToPlayers;
-              setSyncCameraToPlayers(nextSync);
-              showMasterFeedback(
-                nextSync
-                  ? 'Cámara sincronizada con la pantalla de jugadores'
-                  : 'Cámara libre (desvinculada de los jugadores)'
-              );
-            }}
-            className={`vtt-brass-btn ${syncCameraToPlayers ? 'vtt-btn-active' : ''}`}
-            style={{ padding: '6px 11px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
-            title={syncCameraToPlayers ? "Cámara vinculada: los jugadores ven tus movimientos de pantalla" : "Cámara libre: navega en secreto sin mover la pantalla de los jugadores"}
-          >
-            {syncCameraToPlayers ? 'Cámara: ON' : 'Cámara: OFF'}
-          </button>
+            <button
+              onClick={() => { setRulerActive(!rulerActive); setPingActive(false); setFowMode('none'); }}
+              className={`vtt-brass-btn ${rulerActive ? 'vtt-btn-active' : ''}`}
+              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
+              title="Medir distancia en el mapa (pies, metros y casillas)"
+            >
+              Regla
+            </button>
 
-          <button
-            onClick={() => {
-              if (confirmResetBoard) {
-                setTokens([]);
-                setFowActions([]);
-                setConfirmResetBoard(false);
-                showMasterFeedback('Mesa despejada');
-              } else {
-                setConfirmResetBoard(true);
-                setTimeout(() => setConfirmResetBoard(false), 3000);
-              }
-            }}
-            className={confirmResetBoard ? 'vtt-btn-danger' : 'vtt-brass-btn'}
-            style={{
-              padding: '6px 10px',
-              borderRadius: '6px',
-              fontSize: '11px',
-              cursor: 'pointer',
-              fontWeight: 600,
-              borderColor: confirmResetBoard ? '#ef4444' : undefined,
-              color: confirmResetBoard ? '#ffffff' : '#94a3b8'
-            }}
-            title="Limpiar fichas y niebla de la mesa activa"
-          >
-            {confirmResetBoard ? '¿Limpiar?' : 'Limpiar'}
-          </button>
+            <button
+              onClick={() => { setPingActive(!pingActive); setRulerActive(false); setFowMode('none'); }}
+              className={`vtt-brass-btn ${pingActive ? 'vtt-btn-active' : ''}`}
+              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
+              title="Señalar punto en el mapa a los jugadores (o Alt + Clic)"
+            >
+              Señal
+            </button>
 
-          <button
-            onClick={() => setIsTutorialOpen(true)}
-            className="vtt-brass-btn"
-            style={{ padding: '6px 10px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', color: '#94a3b8', fontWeight: 600 }}
-            title="Guía de uso rápido del Grimorio VTT"
-          >
-            Ayuda
-          </button>
+            <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+
+            {/* Cuadrícula Táctica y Calibrador */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <button
+                onClick={() => setSnapToGrid(!snapToGrid)}
+                className={`vtt-brass-btn ${snapToGrid ? 'vtt-btn-active' : ''}`}
+                style={{
+                  padding: '5px 9px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  color: snapToGrid ? '#86efac' : '#94a3b8',
+                  borderColor: snapToGrid ? '#10b981' : undefined,
+                  gap: '5px'
+                }}
+                title="Ajuste magnético automático de fichas a la cuadrícula"
+              >
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: snapToGrid ? '#10b981' : '#475569',
+                  boxShadow: snapToGrid ? '0 0 5px #10b981' : 'none',
+                  display: 'inline-block'
+                }} />
+                <span>Cuadrícula: {snapToGrid ? `${gridSize}px` : 'OFF'}</span>
+              </button>
+
+              <input
+                type="range"
+                min="20"
+                max="150"
+                step="5"
+                value={gridSize}
+                onChange={(e) => setGridSize(Number(e.target.value))}
+                className="vtt-brass-slider"
+                style={{ width: '75px' }}
+                title={`Ajustar tamaño de cuadrícula: ${gridSize}px`}
+              />
+            </div>
+
+            <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+
+            {/* Atmósfera y Ambiente */}
+            <select
+              value={weatherEffect}
+              onChange={(e) => setWeatherEffect(e.target.value)}
+              style={{
+                padding: '5px 8px',
+                borderRadius: '6px',
+                backgroundColor: '#141822',
+                color: '#cbd5e1',
+                border: '1px solid #2d3546',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+              title="Efecto de clima atmosférico"
+            >
+              {WEATHER_TYPES.map(w => (
+                <option key={w.id} value={w.id}>{w.label}</option>
+              ))}
+            </select>
+
+            <select
+              value={ambientTint}
+              onChange={(e) => setAmbientTint(e.target.value)}
+              style={{
+                padding: '5px 8px',
+                borderRadius: '6px',
+                backgroundColor: '#141822',
+                color: '#cbd5e1',
+                border: '1px solid #2d3546',
+                fontSize: '11px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                outline: 'none'
+              }}
+              title="Iluminación ambiental del mapa"
+            >
+              {AMBIENT_TINTS.map(t => (
+                <option key={t.id} value={t.id}>{t.label}</option>
+              ))}
+            </select>
+
+            <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+
+            {/* Navegación y Cámara */}
+            <button
+              onClick={() => { setPan({ x: 0, y: 0 }); setScale(1); }}
+              className="vtt-brass-btn"
+              style={{ padding: '6px 11px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
+              title="Centrar tablero y restablecer zoom al 100%"
+            >
+              Centrar
+            </button>
+
+            <button
+              onClick={() => {
+                const nextSync = !syncCameraToPlayers;
+                setSyncCameraToPlayers(nextSync);
+                showMasterFeedback(
+                  nextSync
+                    ? 'Cámara sincronizada con la pantalla de jugadores'
+                    : 'Cámara libre (desvinculada de los jugadores)'
+                );
+              }}
+              className={`vtt-brass-btn ${syncCameraToPlayers ? 'vtt-btn-active' : ''}`}
+              style={{ padding: '6px 11px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+              title={syncCameraToPlayers ? "Cámara vinculada: los jugadores ven tus movimientos de pantalla" : "Cámara libre: navega en secreto sin mover la pantalla de los jugadores"}
+            >
+              {syncCameraToPlayers ? 'Cámara: ON' : 'Cámara: OFF'}
+            </button>
+
+            <button
+              onClick={() => {
+                if (confirmResetBoard) {
+                  handleResetToCleanSlate();
+                  setConfirmResetBoard(false);
+                } else {
+                  setConfirmResetBoard(true);
+                  setTimeout(() => setConfirmResetBoard(false), 3000);
+                }
+              }}
+              className={confirmResetBoard ? 'vtt-btn-danger' : 'vtt-brass-btn'}
+              style={{
+                padding: '6px 10px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                borderColor: confirmResetBoard ? '#ef4444' : undefined,
+                color: confirmResetBoard ? '#ffffff' : '#94a3b8'
+              }}
+              title="Vaciar por completo el tablero, fichas y crónicas para empezar de cero"
+            >
+              {confirmResetBoard ? '¿Vaciar Mesa?' : 'Vaciar Mesa'}
+            </button>
+
+            <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+
+            {/* Conmutador Flecha / Desplegable Barra II */}
+            <button
+              onClick={() => setIsFogDockOpen(!isFogDockOpen)}
+              className={`vtt-brass-btn ${isFogDockOpen ? 'vtt-btn-active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '5px 9px',
+                borderRadius: '6px',
+                fontSize: '12px',
+                fontWeight: 800,
+                cursor: 'pointer',
+                borderColor: isFogDockOpen ? '#38bdf8' : '#334155',
+                color: isFogDockOpen ? '#38bdf8' : '#cbd5e1',
+                backgroundColor: isFogDockOpen ? 'rgba(2, 132, 199, 0.22)' : '#141822',
+                transition: 'all 0.15s ease'
+              }}
+              title={isFogDockOpen ? "Ocultar barra táctica secundaria" : "Desplegar barra táctica secundaria"}
+            >
+              <span>{isFogDockOpen ? '▲' : '▼'}</span>
+            </button>
+          </div>
+
+          {/* BARRA 2: Controles Tácticos de Niebla y Visión (Mismo aspecto, ancho y alto que Barra 1) */}
+          {isFogDockOpen && (
+            <div
+              style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                background: 'rgba(15, 18, 25, 0.96)',
+                padding: '6px 12px',
+                borderRadius: '12px',
+                border: '1px solid #2d3446',
+                boxShadow: '0 8px 30px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06)',
+                backdropFilter: 'blur(12px)',
+                boxSizing: 'border-box',
+                height: '44px',
+                minHeight: '44px',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {/* Agarre táctil de 4 puntos a la izquierda para Barra 2 */}
+              <div
+                onPointerDown={handlePointerDownDock}
+                onPointerMove={handlePointerMoveDock}
+                onPointerUp={handlePointerUpDock}
+                onPointerCancel={handlePointerUpDock}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: isDraggingDock ? 'grabbing' : 'grab',
+                  color: '#38bdf8',
+                  padding: '4px',
+                  borderRadius: '4px',
+                  backgroundColor: isDraggingDock ? 'rgba(2, 132, 199, 0.25)' : 'transparent',
+                  touchAction: 'none',
+                  userSelect: 'none',
+                  transition: 'color 0.15s ease'
+                }}
+                title="Arrastra o haz clic para cerrar la barra secundaria"
+              >
+                <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
+                  <rect x="2" y="2" width="3" height="3" rx="0.7"/>
+                  <rect x="8.5" y="2" width="3" height="3" rx="0.7"/>
+                  <rect x="2" y="8.5" width="3" height="3" rx="0.7"/>
+                  <rect x="8.5" y="8.5" width="3" height="3" rx="0.7"/>
+                </svg>
+              </div>
+
+              {/* Conmutador Niebla Global */}
+              <button
+                onClick={() => setFowEnabled(!fowEnabled)}
+                className={`vtt-brass-btn ${fowEnabled ? 'vtt-btn-active' : ''}`}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  color: fowEnabled ? '#4ade80' : '#f87171',
+                  borderColor: fowEnabled ? '#10b981' : '#ef4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  height: '30px',
+                  boxSizing: 'border-box'
+                }}
+                title="Niebla de Guerra y Conos de Visión: Translúcida para el Máster, opaca para los Jugadores"
+              >
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: fowEnabled ? '#10b981' : '#ef4444',
+                  boxShadow: fowEnabled ? '0 0 6px #10b981' : '0 0 4px #ef4444',
+                  display: 'inline-block'
+                }} />
+                <span>Niebla: {fowEnabled ? 'ON' : 'OFF'}</span>
+              </button>
+
+              {/* Memoria de Exploración (Penumbra) */}
+              <button
+                onClick={() => setFowMemoryEnabled(!fowMemoryEnabled)}
+                className={`vtt-brass-btn ${fowMemoryEnabled ? 'vtt-btn-active' : ''}`}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  color: fowMemoryEnabled ? '#fbbf24' : '#94a3b8',
+                  height: '30px',
+                  boxSizing: 'border-box'
+                }}
+                title="Memoria de Exploración: deja en penumbra lo descubierto por los héroes"
+              >
+                Memoria: {fowMemoryEnabled ? 'ON' : 'OFF'}
+              </button>
+
+              {/* Auto-ocultar Enemigos fuera de vista */}
+              <button
+                onClick={() => setFowAutoHideEnemies(!fowAutoHideEnemies)}
+                className={`vtt-brass-btn ${fowAutoHideEnemies ? 'vtt-btn-active' : ''}`}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  color: fowAutoHideEnemies ? '#4ade80' : '#94a3b8',
+                  height: '30px',
+                  boxSizing: 'border-box'
+                }}
+                title="Ocultar enemigos que estén fuera del cono de visión de los héroes"
+              >
+                Ocultar PNJ: {fowAutoHideEnemies ? 'ON' : 'OFF'}
+              </button>
+
+              <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+
+              {/* Selector de Modo de Pincel de Niebla */}
+              <div style={{
+                display: 'flex',
+                gap: '3px',
+                backgroundColor: '#121622',
+                padding: '2px',
+                borderRadius: '6px',
+                border: '1px solid #262e40',
+                height: '30px',
+                boxSizing: 'border-box',
+                alignItems: 'center'
+              }}>
+                <button
+                  onClick={() => setFowMode('none')}
+                  className={`vtt-brass-btn ${fowMode === 'none' ? 'vtt-btn-active' : ''}`}
+                  style={{
+                    padding: '3px 9px',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    color: fowMode === 'none' ? '#fbbf24' : '#94a3b8',
+                    borderColor: fowMode === 'none' ? '#f59e0b' : 'transparent',
+                    background: fowMode === 'none' ? '#241a0d' : 'transparent'
+                  }}
+                  title="Modo Mover: interactúa con fichas y navega por el tablero normalmente"
+                >
+                  Mover
+                </button>
+                <button
+                  onClick={() => { setFowMode('reveal'); setRulerActive(false); setPingActive(false); }}
+                  className={`vtt-brass-btn ${fowMode === 'reveal' ? 'vtt-btn-active' : ''}`}
+                  style={{
+                    padding: '3px 9px',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    color: fowMode === 'reveal' ? '#4ade80' : '#94a3b8',
+                    borderColor: fowMode === 'reveal' ? '#10b981' : 'transparent',
+                    background: fowMode === 'reveal' ? '#0f291e' : 'transparent'
+                  }}
+                  title="Pincel Despejar: arrastra sobre el mapa para desvelar zonas a los jugadores"
+                >
+                  👁️ Despejar
+                </button>
+                <button
+                  onClick={() => { setFowMode('hide'); setRulerActive(false); setPingActive(false); }}
+                  className={`vtt-brass-btn ${fowMode === 'hide' ? 'vtt-btn-active' : ''}`}
+                  style={{
+                    padding: '3px 9px',
+                    borderRadius: '4px',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    color: fowMode === 'hide' ? '#f87171' : '#94a3b8',
+                    borderColor: fowMode === 'hide' ? '#ef4444' : 'transparent',
+                    background: fowMode === 'hide' ? '#2b1111' : 'transparent'
+                  }}
+                  title="Pincel Cubrir: arrastra sobre el mapa para volver a ocultar zonas en la niebla"
+                >
+                  ⬛ Cubrir
+                </button>
+              </div>
+
+              {/* Slider de Tamaño de Pincel */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
+                  Pincel: <strong style={{ color: '#f8fafc' }}>{fowBrushSize}px</strong>
+                </span>
+                <input
+                  type="range"
+                  min="20"
+                  max="300"
+                  step="5"
+                  value={fowBrushSize}
+                  onChange={(e) => setFowBrushSize(Number(e.target.value))}
+                  className="vtt-brass-slider"
+                  style={{ width: '75px' }}
+                  title={`Tamaño del pincel de niebla: ${fowBrushSize}px`}
+                />
+              </div>
+
+              <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+
+              {/* Slider Radio de Visión de Héroes */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
+                  Visión: <strong style={{ color: '#f8fafc' }}>{fowVisionRadius}px</strong>
+                </span>
+                <input
+                  type="range"
+                  min="60"
+                  max="500"
+                  step="10"
+                  value={fowVisionRadius}
+                  onChange={(e) => setFowVisionRadius(Number(e.target.value))}
+                  className="vtt-brass-slider"
+                  style={{ width: '75px' }}
+                  title={`Radio de visión dinámica proyectada por los héroes: ${fowVisionRadius}px`}
+                />
+              </div>
+
+              <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+
+              {/* Botón Cubrir Todo (Restaurar Oscuridad) */}
+              <button
+                onClick={() => {
+                  if (window.confirm('¿Deseas restaurar la oscuridad y cubrir todo el mapa con niebla?')) {
+                    setFowActions([]);
+                    showMasterFeedback('Oscuridad restaurada en todo el mapa');
+                  }
+                }}
+                className="vtt-btn-danger"
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  color: '#ffffff',
+                  height: '30px',
+                  boxSizing: 'border-box'
+                }}
+                title="Restaurar oscuridad y cubrir con niebla todo el mapa"
+              >
+                Cubrir Todo
+              </button>
+            </div>
+          )}
         </div>
 
         <Soundboard
@@ -3260,6 +3635,7 @@ function App() {
         onDeleteCommonItem={handleDeleteCommonItem}
         onPlaceGroundItem={handleStartPlaceGroundItem}
         onSaveAdventure={handleSaveAdventure}
+        onConcludeAdventure={handleConcludeAdventure}
       />
 
       <TutorialModal
@@ -3342,6 +3718,20 @@ function App() {
         onUpdateObject={handleUpdateObject}
         onProjectHandout={handleProjectHandout}
         onRemoveObject={handleRemoveMapElement}
+      />
+
+      {/* Proyector de Ilustraciones y Pistas (Handouts) */}
+      <HandoutProjectorModal
+        isOpen={isHandoutModalOpen}
+        onClose={() => setIsHandoutModalOpen(false)}
+        handouts={handouts}
+        activeHandout={activeHandout}
+        onAddHandout={(h) => setHandouts(prev => [...prev, h])}
+        onRemoveHandout={(id) => {
+          setHandouts(prev => prev.filter(h => h.id !== id));
+          if (activeHandout && activeHandout.id === id) setActiveHandout(null);
+        }}
+        onProjectHandout={handleProjectHandout}
       />
 
       {/* Diario & Notas del Máster (Punto 1) */}

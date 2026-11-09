@@ -37,17 +37,8 @@ const HomeScreen = ({
         setRecentCampaigns(list);
         setSelectedCampaignId(list[0].id);
       } else {
-        const currentEntry = {
-          id: 'current_session',
-          title: activeScene ? `Crónica: ${activeScene.name}` : 'Crónica Principal',
-          dateStr: new Date().toLocaleDateString([], { day: '2-digit', month: '2-digit' }) + ' ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          scenesCount: scenes.length,
-          charactersCount: characters.length,
-          isCurrent: true,
-          data: { scenes, characters, graveyard, activeSceneId }
-        };
-        setRecentCampaigns([currentEntry]);
-        setSelectedCampaignId(currentEntry.id);
+        setRecentCampaigns([]);
+        setSelectedCampaignId(null);
       }
     });
     return () => { isMounted = false; };
@@ -85,6 +76,65 @@ const HomeScreen = ({
         overflowY: 'auto'
       }}
     >
+      <style>{`
+        @keyframes vttKenBurnsDiceLive {
+          0% {
+            transform: scale(1.05) translate(0%, 0%);
+          }
+          50% {
+            transform: scale(1.18) translate(-3%, -2%);
+          }
+          100% {
+            transform: scale(1.05) translate(0%, 0%);
+          }
+        }
+
+        @keyframes vttKenBurnsProjectorLive {
+          0% {
+            transform: scale(1.18) translate(-2%, 0%);
+          }
+          50% {
+            transform: scale(1.05) translate(2%, -2%);
+          }
+          100% {
+            transform: scale(1.18) translate(-2%, 0%);
+          }
+        }
+
+        .vtt-live-kenburns-dice {
+          animation: vttKenBurnsDiceLive 10s ease-in-out infinite alternate !important;
+          will-change: transform;
+          transform-origin: center center;
+        }
+
+        .vtt-live-kenburns-projector {
+          animation: vttKenBurnsProjectorLive 12s ease-in-out infinite alternate !important;
+          will-change: transform;
+          transform-origin: center center;
+        }
+
+        .vtt-image-action-btn {
+          transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.16s ease, box-shadow 0.16s ease;
+          cursor: pointer;
+          outline: none;
+          user-select: none;
+        }
+        .vtt-image-action-btn:hover {
+          transform: translateY(-2px);
+        }
+        .vtt-image-action-btn:active {
+          transform: translateY(1px) scale(0.99);
+        }
+        .vtt-image-action-btn-amber:hover {
+          border-color: #fbbf24 !important;
+          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(245, 158, 11, 0.3) !important;
+        }
+        .vtt-image-action-btn-emerald:hover {
+          border-color: #34d399 !important;
+          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(16, 185, 129, 0.3) !important;
+        }
+      `}</style>
+
       {/* Cabecera Superior del Hub */}
       <div style={{
         padding: '22px 44px',
@@ -161,42 +211,78 @@ const HomeScreen = ({
         gap: '32px'
       }}>
         
-        {/* SECCIÓN 1: TARJETAS DE INICIO RÁPIDO Y CAMPAÑA */}
+        {/* SECCIÓN 1: ACCIONES DE INICIO RÁPIDO Y CAMPAÑA */}
         <div>
           <div className="vtt-retro-badge" style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, marginBottom: '12px' }}>
-            ⚡ ACCIONES DE INICIO RÁPIDO Y CRÓNICA
+            ACCIONES DE INICIO RÁPIDO Y CRÓNICA
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
             
-            {/* Card 1: Continuar Partida */}
-            <div style={{
-              background: 'linear-gradient(180deg, #191e2b 0%, #12151f 100%)',
-              border: '1px solid #f59e0b',
-              borderRadius: '14px',
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '16px',
-              boxShadow: '0 12px 30px rgba(0,0,0,0.5)'
-            }}>
-              <div>
-                <div style={{ fontSize: '28px', marginBottom: '10px' }}>🏰</div>
-                <div className="vtt-gothic-title" style={{ fontSize: '16px', fontWeight: 'bold', color: '#f8fafc', marginBottom: '6px' }}>
-                  Inicio Rápido / Mesa
+            {/* Botón Grande: Entrar a la Mesa */}
+            <button
+              type="button"
+              onClick={onResumeGame}
+              className="vtt-image-action-btn vtt-image-action-btn-amber"
+              style={{
+                position: 'relative',
+                overflow: 'hidden',
+                border: '1.5px solid #d4af37',
+                borderRadius: '14px',
+                padding: '28px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                textAlign: 'center',
+                boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5)',
+                backgroundColor: '#11151f'
+              }}
+              title="Entrar directamente a la mesa y reanudar la partida"
+            >
+              {/* Fondo Cinematográfico con Movimiento Vivo Ken Burns */}
+              <div
+                className="vtt-live-kenburns-dice"
+                style={{
+                  position: 'absolute',
+                  inset: '-30px',
+                  backgroundImage: 'url("/assets/textures/dice_tower_button_bg.jpg")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  pointerEvents: 'none',
+                  zIndex: 0
+                }}
+              />
+
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div className="vtt-gothic-title" style={{
+                  fontSize: '22px',
+                  fontWeight: 'bold',
+                  color: '#f8fafc',
+                  letterSpacing: '0.06em',
+                  textShadow: '0 2px 14px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.9)',
+                  margin: 0
+                }}>
+                  Entrar a la Mesa
                 </div>
-                <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
-                  Entra directamente a la escena activa (<strong style={{ color: '#fbbf24' }}>{activeScene?.name || 'Escena Principal'}</strong>) con todas tus fichas y muros listos.
-                </p>
+
+                <div style={{
+                  fontSize: '12px',
+                  color: '#fbbf24',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  marginTop: '8px',
+                  textShadow: '0 1px 8px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.9)'
+                }}>
+                  <span>Reanudar partida</span>
+                  <span style={{ fontSize: '14px' }}>→</span>
+                </div>
               </div>
-              <button
-                onClick={onResumeGame}
-                className="vtt-primary-cta"
-                style={{ width: '100%', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px' }}
-              >
-                ▶️ Entrar a la Mesa
-              </button>
-            </div>
+            </button>
 
             {/* Card 2: Crónicas y Partidas Recientes */}
             <div style={{
@@ -222,60 +308,92 @@ const HomeScreen = ({
                   Doble clic sobre una crónica para cargarla:
                 </div>
 
-                {/* Lista de las 3 últimas campañas */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {recentCampaigns.slice(0, 3).map((camp, idx) => {
-                    const isSelected = selectedCampaignId === camp.id;
-                    return (
-                      <div
-                        key={camp.id || idx}
-                        onClick={() => setSelectedCampaignId(camp.id)}
-                        onDoubleClick={() => handleExecuteLoad(camp)}
-                        style={{
-                          padding: '8px 10px',
-                          borderRadius: '8px',
-                          backgroundColor: isSelected ? 'rgba(245, 158, 11, 0.16)' : '#0e121a',
-                          border: isSelected ? '1.5px solid #f59e0b' : '1px solid #232b3b',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          transition: 'all 0.14s ease'
-                        }}
-                        title="Doble clic para cargar esta crónica directamente"
-                      >
-                        <div style={{ overflow: 'hidden', paddingRight: '8px' }}>
-                          <div style={{
-                            fontSize: '12px',
-                            fontWeight: 700,
-                            color: isSelected ? '#fbbf24' : '#f1f5f9',
-                            whiteSpace: 'nowrap',
-                            textOverflow: 'ellipsis',
-                            overflow: 'hidden'
-                          }}>
-                            {camp.title}
+                {/* Lista de las 3 últimas campañas o estado vacío */}
+                {recentCampaigns.length === 0 ? (
+                  <div style={{
+                    padding: '16px 12px',
+                    borderRadius: '8px',
+                    backgroundColor: '#0c0f16',
+                    border: '1px dashed #232b3b',
+                    fontSize: '11px',
+                    color: '#64748b',
+                    textAlign: 'center',
+                    lineHeight: 1.5
+                  }}>
+                    Sin crónicas guardadas en el equipo. Crea tu aventura y usa «Guardar Aventura», o carga un archivo .json externo.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {recentCampaigns.slice(0, 3).map((camp, idx) => {
+                      const isSelected = selectedCampaignId === camp.id;
+                      return (
+                        <div
+                          key={camp.id || idx}
+                          onClick={() => setSelectedCampaignId(camp.id)}
+                          onDoubleClick={() => handleExecuteLoad(camp)}
+                          style={{
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            backgroundColor: isSelected ? 'rgba(245, 158, 11, 0.16)' : '#0e121a',
+                            border: isSelected ? '1.5px solid #f59e0b' : '1px solid #232b3b',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            transition: 'all 0.14s ease'
+                          }}
+                          title="Doble clic para cargar esta crónica directamente"
+                        >
+                          <div style={{ overflow: 'hidden', paddingRight: '8px' }}>
+                            <div style={{
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              color: isSelected ? '#fbbf24' : '#f1f5f9',
+                              whiteSpace: 'nowrap',
+                              textOverflow: 'ellipsis',
+                              overflow: 'hidden',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}>
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{camp.title}</span>
+                              {camp.isConcluded && (
+                                <span style={{
+                                  fontSize: '9px',
+                                  backgroundColor: 'rgba(245, 158, 11, 0.2)',
+                                  color: '#fbbf24',
+                                  border: '1px solid rgba(245, 158, 11, 0.45)',
+                                  padding: '1px 5px',
+                                  borderRadius: '4px',
+                                  fontWeight: 700,
+                                  flexShrink: 0
+                                }}>
+                                  📜 Concluida
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: '10px', color: isSelected ? '#d4af37' : '#6b7a90', marginTop: '1px' }}>
+                              {camp.dateStr} • {camp.scenesCount} esc. • {camp.charactersCount} fichas
+                            </div>
                           </div>
-                          <div style={{ fontSize: '10px', color: isSelected ? '#d4af37' : '#6b7a90', marginTop: '1px' }}>
-                            {camp.dateStr} • {camp.scenesCount} esc. • {camp.charactersCount} fichas
-                          </div>
-                        </div>
 
-                        {isSelected && (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleExecuteLoad(camp);
-                            }}
-                            className="vtt-primary-cta"
-                            style={{ padding: '4px 8px', borderRadius: '5px', fontSize: '10px', cursor: 'pointer' }}
-                          >
-                            Cargar
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                          {isSelected && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleExecuteLoad(camp);
+                              }}
+                              className="vtt-primary-cta"
+                              style={{ padding: '4px 8px', borderRadius: '5px', fontSize: '10px', cursor: 'pointer' }}
+                            >
+                              Cargar
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Botón único para cargar otro archivo externo */}
@@ -289,43 +407,71 @@ const HomeScreen = ({
               </button>
             </div>
 
-            {/* Card 3: Sala de Jugadores */}
-            <div style={{
-              background: 'linear-gradient(180deg, #161a24 0%, #10131b 100%)',
-              border: '1px solid #2c3344',
-              borderRadius: '14px',
-              padding: '20px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '16px'
-            }}>
-              <div>
-                <div style={{ fontSize: '28px', marginBottom: '10px' }}>🖥️</div>
-                <div className="vtt-gothic-title" style={{ fontSize: '16px', fontWeight: 'bold', color: '#f8fafc', marginBottom: '6px' }}>
+            {/* Botón Grande: Pantalla de Jugadores */}
+            <button
+              type="button"
+              onClick={onOpenPlayerView}
+              className="vtt-image-action-btn vtt-image-action-btn-emerald"
+              style={{
+                position: 'relative',
+                overflow: 'hidden',
+                border: '1.5px solid #059669',
+                borderRadius: '14px',
+                padding: '28px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                textAlign: 'center',
+                boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5)',
+                backgroundColor: '#0c1a16'
+              }}
+              title="Lanzar una segunda ventana sincronizada para los jugadores"
+            >
+              {/* Fondo Cinematográfico con Movimiento Vivo Ken Burns */}
+              <div
+                className="vtt-live-kenburns-projector"
+                style={{
+                  position: 'absolute',
+                  inset: '-30px',
+                  backgroundImage: 'url("/assets/textures/player_projector_button_bg.jpg")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  backgroundRepeat: 'no-repeat',
+                  pointerEvents: 'none',
+                  zIndex: 0
+                }}
+              />
+
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <div className="vtt-gothic-title" style={{
+                  fontSize: '22px',
+                  fontWeight: 'bold',
+                  color: '#f8fafc',
+                  letterSpacing: '0.06em',
+                  textShadow: '0 2px 14px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.9)',
+                  margin: 0
+                }}>
                   Pantalla de Jugadores
                 </div>
-                <p style={{ fontSize: '12px', color: '#94a3b8', margin: 0, lineHeight: 1.5 }}>
-                  Lanza una segunda ventana sincronizada con niebla opaca, efectos climáticos y dados 3D para tus jugadores.
-                </p>
-              </div>
-              <button
-                onClick={onOpenPlayerView}
-                className="vtt-brass-btn"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
+
+                <div style={{
                   fontSize: '12px',
-                  fontWeight: 700,
-                  borderColor: '#059669',
-                  color: '#6ee7b7'
-                }}
-              >
-                🖥️ Lanzar Ventana Jugadores
-              </button>
-            </div>
+                  color: '#34d399',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  marginTop: '8px',
+                  textShadow: '0 1px 8px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.9)'
+                }}>
+                  <span>Lanzar ventana sincronizada</span>
+                  <span style={{ fontSize: '14px' }}>→</span>
+                </div>
+              </div>
+            </button>
 
           </div>
         </div>

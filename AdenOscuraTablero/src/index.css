@@ -109,3 +109,312 @@ code {
   padding: 4px 8px;
   background: var(--code-bg);
 }
+
+/* Animaciones Ken Burns para fondos de botones en HomeScreen */
+@keyframes vttKenBurnsDiceLive {
+  0% {
+    transform: scale(1.05) translate(0%, 0%);
+  }
+  50% {
+    transform: scale(1.18) translate(-3%, -2%);
+  }
+  100% {
+    transform: scale(1.05) translate(0%, 0%);
+  }
+}
+
+@keyframes vttKenBurnsProjectorLive {
+  0% {
+    transform: scale(1.18) translate(-2%, 0%);
+  }
+  50% {
+    transform: scale(1.05) translate(2%, -2%);
+  }
+  100% {
+    transform: scale(1.18) translate(-2%, 0%);
+  }
+}
+
+.vtt-live-kenburns-dice {
+  animation: vttKenBurnsDiceLive 10s ease-in-out infinite alternate !important;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+.vtt-live-kenburns-projector {
+  animation: vttKenBurnsProjectorLive 12s ease-in-out infinite alternate !important;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+/* ==========================================================================
+   SISTEMA DE COMPONENTES TÁCTILES GÓTICO/VICTORIANO (VTT CUSTOM DESIGN SYSTEM)
+   ========================================================================== */
+
+/* 1. LENGÜETAS DE EXPEDIENTE (DOSSIER TABS) */
+.vtt-dossier-tab-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 3px;
+  padding: 8px 10px 0 10px;
+  background: #080a0f;
+  background-image: linear-gradient(180deg, rgba(8, 10, 15, 0.95) 0%, rgba(13, 16, 23, 0.98) 100%);
+  border-bottom: 2px solid #2a3448;
+  overflow: hidden;
+}
+
+.vtt-dossier-tab {
+  position: relative;
+  padding: 8px 5px 7px 5px;
+  border-radius: 7px 7px 0 0;
+  border: 1px solid #2a3346;
+  border-bottom: none;
+  background: linear-gradient(180deg, #171b26 0%, #10131c 100%);
+  color: #8e9caa;
+  font-family: 'Cinzel', Georgia, serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  user-select: none;
+  white-space: nowrap;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.vtt-dossier-tab:hover:not(.vtt-dossier-tab-active) {
+  background: linear-gradient(180deg, #202636 0%, #141824 100%);
+  color: #f1f5f9;
+  border-color: #3e4b66;
+  transform: translateY(-1px);
+}
+
+.vtt-dossier-tab-active {
+  background: linear-gradient(180deg, #2c1f13 0%, #17120a 100%) !important;
+  border: 1.5px solid #d4af37 !important;
+  border-bottom: 2px solid #17120a !important;
+  margin-bottom: -2px;
+  z-index: 5;
+  color: #fef08a !important;
+  box-shadow: 0 -3px 12px rgba(212, 175, 55, 0.22), inset 0 1px 0 rgba(255, 240, 180, 0.45) !important;
+  font-weight: 800 !important;
+}
+
+/* 2. BOTONES DE PLACA METÁLICA BRUÑIDA (BRASS / GOLD / CONCLUDE / DANGER) */
+.vtt-brass-plate-btn {
+  font-family: 'Cinzel', Georgia, serif;
+  background: linear-gradient(180deg, #382815 0%, #251a0d 50%, #181007 100%);
+  border: 1.5px solid #d4af37;
+  color: #fef3c7;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-shadow: inset 0 1px 0 rgba(255, 240, 180, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.7), 0 3px 8px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 1px 2px #000000;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.vtt-brass-plate-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #4d371d 0%, #362613 50%, #221609 100%);
+  border-color: #fbbf24;
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 245, 200, 0.5), inset 0 -1px 0 rgba(0, 0, 0, 0.7), 0 4px 14px rgba(212, 175, 55, 0.35);
+  transform: translateY(-1px);
+}
+
+.vtt-brass-plate-btn:active:not(:disabled) {
+  background: linear-gradient(180deg, #181007 0%, #251a0d 50%, #352512 100%);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.85), 0 1px 2px rgba(0, 0, 0, 0.4);
+  transform: translateY(1.5px);
+}
+
+/* Variante Concluir Aventura (Sello Lacre / Ámbar Solemne) */
+.vtt-conclude-plate-btn {
+  font-family: 'Cinzel', Georgia, serif;
+  background: linear-gradient(180deg, #4a1c0d 0%, #331107 50%, #1f0903 100%);
+  border: 1.5px solid #f59e0b;
+  color: #fde68a;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  box-shadow: inset 0 1px 0 rgba(254, 215, 170, 0.35), inset 0 -1px 0 rgba(0, 0, 0, 0.7), 0 3px 8px rgba(0, 0, 0, 0.7);
+  text-shadow: 0 1px 2px #000000;
+  transition: all 0.12s ease;
+  user-select: none;
+}
+
+.vtt-conclude-plate-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #5f2411 0%, #431709 50%, #290d04 100%);
+  border-color: #fbbf24;
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(254, 215, 170, 0.5), inset 0 -1px 0 rgba(0, 0, 0, 0.7), 0 4px 14px rgba(245, 158, 11, 0.35);
+  transform: translateY(-1px);
+}
+
+.vtt-conclude-plate-btn:active:not(:disabled) {
+  background: linear-gradient(180deg, #1f0903 0%, #331107 50%, #431709 100%);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.85);
+  transform: translateY(1.5px);
+}
+
+/* Variante Peligro / Borrado (Hierro Forjado & Ceniza) */
+.vtt-danger-plate-btn {
+  font-family: 'Cinzel', Georgia, serif;
+  background: linear-gradient(180deg, #2a0f0f 0%, #1a0808 100%);
+  border: 1px solid #7f1d1d;
+  color: #fca5a5;
+  padding: 5px 12px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 2px 5px rgba(0, 0, 0, 0.6);
+  transition: all 0.12s ease;
+}
+
+.vtt-danger-plate-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #450a0a 0%, #2d0606 100%);
+  border-color: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+}
+
+.vtt-danger-plate-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* Micro-botones de herramientas tácticas (subir, bajar, editar, borrar en listas) */
+.vtt-icon-tool-btn {
+  background: #141824;
+  border: 1px solid #283244;
+  color: #94a3b8;
+  padding: 3px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+  line-height: 1;
+}
+
+.vtt-icon-tool-btn:hover:not(:disabled) {
+  background: #1f2738;
+  border-color: #d4af37;
+  color: #fef08a;
+  box-shadow: 0 0 6px rgba(212, 175, 55, 0.25);
+}
+
+.vtt-icon-tool-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+/* 3. FICHA DE ESCENARIO / EXPEDIENTE */
+.vtt-scene-dossier-card {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 7px;
+  background: linear-gradient(180deg, #131722 0%, #0d1017 100%);
+  border: 1px solid #232c3d;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 3px 8px rgba(0, 0, 0, 0.5);
+  transition: all 0.14s ease;
+}
+
+.vtt-scene-dossier-card:hover {
+  border-color: rgba(212, 175, 55, 0.45);
+  background: linear-gradient(180deg, #181e2b 0%, #11141e 100%);
+}
+
+.vtt-scene-dossier-card-active {
+  background: linear-gradient(180deg, #2b1f13 0%, #1a130b 100%) !important;
+  border: 1.5px solid #d4af37 !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.7), 0 0 14px rgba(212, 175, 55, 0.2), inset 0 1px 0 rgba(255, 240, 180, 0.3) !important;
+}
+
+/* 4. INPUT DE EXPEDIENTE */
+.vtt-dossier-input {
+  box-sizing: border-box;
+  padding: 8px 12px;
+  background-color: #0b0d13;
+  color: #f8fafc;
+  border: 1px solid #333d52;
+  border-radius: 5px;
+  font-size: 12px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.vtt-dossier-input:focus {
+  border-color: #d4af37;
+  box-shadow: 0 0 8px rgba(212, 175, 55, 0.25);
+}
+
+/* 5. SLIDER DE LATÓN (BRASS CALIBRATION SLIDER) */
+.vtt-brass-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #090c12 0%, #171d28 100%);
+  border: 1px solid #2b3548;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.85);
+  outline: none;
+  cursor: pointer;
+}
+
+.vtt-brass-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fef3c7 0%, #d4af37 55%, #78350f 100%);
+  border: 1.5px solid #fef08a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85), 0 0 5px rgba(212, 175, 55, 0.5);
+  cursor: grab;
+  transition: transform 0.1s ease;
+}
+
+.vtt-brass-slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+  transform: scale(1.15);
+}
+
+.vtt-brass-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fef3c7 0%, #d4af37 55%, #78350f 100%);
+  border: 1.5px solid #fef08a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85), 0 0 5px rgba(212, 175, 55, 0.5);
+  cursor: grab;
+}

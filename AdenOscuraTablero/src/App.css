@@ -182,3 +182,60 @@
     border-right-color: var(--border);
   }
 }
+
+/* Botones de acción con imagen de fondo en HomeScreen */
+.vtt-image-action-btn {
+  transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.16s ease, box-shadow 0.16s ease;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+.vtt-image-action-btn:hover {
+  transform: translateY(-2px);
+}
+.vtt-image-action-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+.vtt-image-action-btn-amber:hover {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(245, 158, 11, 0.25) !important;
+}
+.vtt-image-action-btn-emerald:hover {
+  border-color: #34d399 !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(16, 185, 129, 0.25) !important;
+}
+
+/* Animación de movimiento cinematográfico Ken Burns para imágenes de fondo */
+@keyframes vttKenBurnsDice {
+  0% {
+    transform: scale(1) translate(0%, 0%);
+  }
+  50% {
+    transform: scale(1.08) translate(-1.5%, -1%);
+  }
+  100% {
+    transform: scale(1) translate(0%, 0%);
+  }
+}
+
+@keyframes vttKenBurnsProjector {
+  0% {
+    transform: scale(1.08) translate(-1%, 0%);
+  }
+  50% {
+    transform: scale(1) translate(1%, -1%);
+  }
+  100% {
+    transform: scale(1.08) translate(-1%, 0%);
+  }
+}
+
+.vtt-kenburns-dice {
+  animation: vttKenBurnsDice 22s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.vtt-kenburns-projector {
+  animation: vttKenBurnsProjector 26s ease-in-out infinite alternate;
+  will-change: transform;
+}
