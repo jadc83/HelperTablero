@@ -20,13 +20,30 @@ const SettingsDrawer = ({
   handouts = [], activeHandout = null, onAddHandout, onRemoveHandout, onProjectHandout,
   customObjects = [], onSaveCustomObject, onDeleteCustomObject, onInspectObject,
   tokens = [], activeTurnTokenId = null,
-  commonItems = [], onGiveItemToCharacter, onSaveCommonItem, onDeleteCommonItem, onPlaceGroundItem,
-  onSaveAdventure, onConcludeAdventure
+  commonItems = [], onGiveItemToCharacter, onSaveCommonItem, onDeleteCommonItem, onPlaceGroundItem, onTransferItem,
+  onSaveAdventure, onConcludeAdventure,
+  sceneNotes = {}, onUpdateSceneNotes, campaignNotes = '', onUpdateCampaignNotes,
+  initialTab = null
 }) => {
-  const [activeTab, setActiveTab] = useState('escenario');
+  const [activeTab, setActiveTab] = useState(initialTab || 'escenario');
+  const [selectedNoteSceneId, setSelectedNoteSceneId] = useState(activeSceneId || (scenes[0] && scenes[0].id));
+  const [newClueText, setNewClueText] = useState('');
+
+  React.useEffect(() => {
+    if (activeSceneId) {
+      setSelectedNoteSceneId(activeSceneId);
+    }
+  }, [activeSceneId]);
+
+  React.useEffect(() => {
+    if (initialTab && isOpen) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, isOpen]);
   const [bestiarySubTab, setBestiarySubTab] = useState('characters'); // 'characters' | 'statuses'
   const [statusMessage, setStatusMessage] = useState(null);
   const [confirmDeleteAllScenes, setConfirmDeleteAllScenes] = useState(false);
+  const [confirmDeleteSceneId, setConfirmDeleteSceneId] = useState(null);
 
   // Estados para Guardar Aventura Completa
   const [isSaveAdventureModalOpen, setIsSaveAdventureModalOpen] = useState(false);
@@ -116,13 +133,15 @@ const SettingsDrawer = ({
   const charAvatarInputRef = useRef(null);
 
   // Estados para Objetos de Inventario y Equipo Común (Loot / Pertenencias)
-  const [itemsSubTab, setItemsSubTab] = useState('catalog'); // 'catalog' | 'creator'
+  const [itemsSubTab, setItemsSubTab] = useState('catalog');
+  const [isCreatorExpanded, setIsCreatorExpanded] = useState(false); // 'catalog' | 'creator'
   const [commonItemName, setCommonItemName] = useState('');
   const [commonItemIcon, setCommonItemIcon] = useState('🚬');
   const [commonItemCategory, setCommonItemCategory] = useState('Herramienta');
   const [commonItemState, setCommonItemState] = useState('equipped');
   const [commonItemNotes, setCommonItemNotes] = useState('');
   const [itemSearchQuery, setItemSearchQuery] = useState('');
+  const [selectedGiverId, setSelectedGiverId] = useState('');
   const [selectedRecipientId, setSelectedRecipientId] = useState('');
 
   // Estados para Condiciones
@@ -251,6 +270,16 @@ const renderTabIcon = (tabId, isActive) => {
           <circle cx="12" cy="12" r="3"/>
         </svg>
       );
+    case 'notas':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+      );
     case 'estados':
       return (
         <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
@@ -272,8 +301,9 @@ const renderTabIcon = (tabId, isActive) => {
 
   const TABS = [
     { id: 'escenario', label: 'Escenas' },
+    { id: 'notas', label: 'Notas' },
     { id: 'estados', label: 'Estados' },
-    { id: 'items', label: 'Objetos & Loot' }
+    { id: 'items', label: 'Objetos' }
   ];
 
   return (
@@ -663,22 +693,102 @@ const renderTabIcon = (tabId, isActive) => {
                             </button>
                           </div>
                         )}
-                        {onDeleteScene && (
+                        {openMapCreator && (
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              onDeleteScene(sc.id);
+                              if (!isCurrent && onSelectScene) onSelectScene(sc.id);
+                              if (onClose) onClose();
+                              openMapCreator(sc.id);
                             }}
                             className="vtt-icon-tool-btn"
-                            style={{ color: '#f87171', padding: '3px 6px' }}
-                            title="Eliminar esta escena"
+                            style={{ color: '#fbbf24', padding: '3px 5px' }}
+                            title={`Editar plano de "${sc.name}" en el Creador de Mapas`}
                           >
-                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                              <line x1="18" y1="6" x2="6" y2="18"/>
-                              <line x1="6" y1="6" x2="18" y2="18"/>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+                              <line x1="8" y1="2" x2="8" y2="18"/>
+                              <line x1="16" y1="6" x2="16" y2="22"/>
                             </svg>
                           </button>
+                        )}
+                        {confirmDeleteSceneId === sc.id ? (
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              backgroundColor: 'rgba(127, 29, 29, 0.45)',
+                              border: '1px solid #ef4444',
+                              borderRadius: '5px',
+                              padding: '2px 5px'
+                            }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span style={{ fontSize: '9.5px', color: '#fca5a5', fontWeight: 700 }}>
+                              ¿Borrar?
+                            </span>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteScene(sc.id);
+                                setConfirmDeleteSceneId(null);
+                              }}
+                              style={{
+                                background: '#ef4444',
+                                border: 'none',
+                                color: '#ffffff',
+                                borderRadius: '3px',
+                                padding: '1px 5px',
+                                fontSize: '9.5px',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                              title={`Confirmar eliminación definitiva de "${sc.name}"`}
+                            >
+                              Sí
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeleteSceneId(null);
+                              }}
+                              style={{
+                                background: '#334155',
+                                border: 'none',
+                                color: '#cbd5e1',
+                                borderRadius: '3px',
+                                padding: '1px 5px',
+                                fontSize: '9.5px',
+                                fontWeight: 600,
+                                cursor: 'pointer'
+                              }}
+                              title="Cancelar borrado"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          onDeleteScene && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setConfirmDeleteSceneId(sc.id);
+                              }}
+                              className="vtt-icon-tool-btn"
+                              style={{ color: '#f87171', padding: '3px 6px' }}
+                              title={`Eliminar escena "${sc.name}"`}
+                            >
+                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <line x1="18" y1="6" x2="6" y2="18"/>
+                                <line x1="6" y1="6" x2="18" y2="18"/>
+                              </svg>
+                            </button>
+                          )
                         )}
                       </div>
                     </div>
@@ -743,250 +853,443 @@ const renderTabIcon = (tabId, isActive) => {
           </div>
         )}
 
-        {/* PESTAÑA 4: OBJETOS DE INVENTARIO (LOOT) & COMPENDIO */}
-        {activeTab === 'items' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflow: 'hidden' }}>
-            {/* Selector de Subpestañas */}
-            <div style={{ display: 'flex', gap: '6px', backgroundColor: '#0e1118', padding: '4px', borderRadius: '8px', border: '1px solid #262c3a' }}>
-              <button
-                type="button"
-                onClick={() => setItemsSubTab('catalog')}
-                style={{
-                  flex: 1,
-                  padding: '7px 4px',
-                  borderRadius: '6px',
-                  border: itemsSubTab === 'catalog' ? '1.5px solid #f59e0b' : '1px solid transparent',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  backgroundColor: itemsSubTab === 'catalog' ? '#2a1a08' : 'transparent',
-                  background: itemsSubTab === 'catalog'
-                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                    : 'transparent',
-                  color: itemsSubTab === 'catalog' ? '#fbbf24' : '#94a3b8',
-                  boxShadow: itemsSubTab === 'catalog' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                📚 Catálogo Común ({commonItems.length})
-              </button>
-              <button
-                type="button"
-                onClick={() => setItemsSubTab('creator')}
-                style={{
-                  flex: 1,
-                  padding: '7px 4px',
-                  borderRadius: '6px',
-                  border: itemsSubTab === 'creator' ? '1.5px solid #f59e0b' : '1px solid transparent',
-                  fontSize: '11px',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  backgroundColor: itemsSubTab === 'creator' ? '#2a1a08' : 'transparent',
-                  background: itemsSubTab === 'creator'
-                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                    : 'transparent',
-                  color: itemsSubTab === 'creator' ? '#fbbf24' : '#94a3b8',
-                  boxShadow: itemsSubTab === 'creator' ? '0 2px 8px rgba(245, 158, 11, 0.2)' : 'none',
-                  transition: 'all 0.15s ease'
-                }}
-              >
-                🛠️ Forjar Nuevo Objeto
-              </button>
-            </div>
-
-            {/* Banner de Destinatario: Turno Activo vs Selección Manual */}
-            {(() => {
-              const activeTurnToken = tokens.find(t => t.id === activeTurnTokenId) || null;
-              const effectiveRecipientId = selectedRecipientId || (activeTurnToken ? activeTurnToken.id : (tokens[0]?.id || characters[0]?.id || ''));
-              const effectiveRecipientName = (() => {
-                const foundT = tokens.find(t => t.id === effectiveRecipientId || t.characterId === effectiveRecipientId);
-                if (foundT) return foundT.name;
-                const foundC = characters.find(c => c.id === effectiveRecipientId);
-                return foundC ? foundC.name : 'Nadie seleccionado';
-              })();
-
-              return (
-                <div style={{
-                  padding: '8px 12px',
-                  backgroundColor: activeTurnToken ? 'rgba(245, 158, 11, 0.12)' : '#141824',
-                  border: activeTurnToken ? '1px solid #f59e0b' : '1px solid #2b3345',
-                  borderRadius: '8px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '8px',
-                  flexShrink: 0
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                    <span style={{ fontSize: '15px' }}>{activeTurnToken ? '🎯' : '👤'}</span>
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '10px', color: activeTurnToken ? '#fbbf24' : '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
-                        {activeTurnToken ? 'Destinatario: Turno Activo' : 'Destinatario de Entrega:'}
-                      </span>
-                      <span style={{ fontSize: '12px', color: '#f8fafc', fontWeight: 700, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                        {effectiveRecipientName}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Selector rápido para cambiar destinatario si se desea */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <select
-                      value={effectiveRecipientId}
-                      onChange={(e) => setSelectedRecipientId(e.target.value)}
-                      style={{
-                        backgroundColor: '#0c0f17',
-                        color: '#cbd5e1',
-                        border: '1px solid #333d52',
-                        borderRadius: '6px',
-                        padding: '4px 8px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        outline: 'none',
-                        maxWidth: '150px'
-                      }}
-                      title="Elegir qué personaje recibe los objetos de inventario"
-                    >
-                      {tokens.length > 0 && (
-                        <optgroup label="En Tablero (Escena)">
-                          {tokens.map(t => (
-                            <option key={t.id} value={t.id}>
-                              {t.id === activeTurnTokenId ? '⭐ (Turno) ' : ''}{t.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                      {characters.length > 0 && (
-                        <optgroup label="Biblioteca de Personajes">
-                          {characters.map(c => (
-                            <option key={c.id} value={c.id}>
-                              {c.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* SUBPESTAÑA 1: CATÁLOGO DE OBJETOS COMUNES */}
-            {itemsSubTab === 'catalog' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflow: 'hidden' }}>
-                {/* Buscador de Objetos */}
-                <input
-                  type="text"
-                  value={itemSearchQuery}
-                  onChange={(e) => setItemSearchQuery(e.target.value)}
-                  placeholder="Buscar mechero, cuerda, linterna, botiquín..."
+        {/* PESTAÑA 2: NOTAS DE ESCENA */}
+        {activeTab === 'notas' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            {/* Selector de Escena para las Notas */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 12px',
+              backgroundColor: '#121620',
+              border: '1px solid #283144',
+              borderRadius: '8px',
+              gap: '10px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                <span style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  Escena:
+                </span>
+                <select
+                  value={selectedNoteSceneId || activeSceneId || (scenes[0] && scenes[0].id) || ''}
+                  onChange={(e) => setSelectedNoteSceneId(e.target.value)}
                   style={{
-                    backgroundColor: '#121622',
-                    border: '1px solid #283042',
-                    borderRadius: '7px',
-                    padding: '7px 10px',
+                    flex: 1,
+                    minWidth: 0,
+                    padding: '5px 8px',
+                    borderRadius: '5px',
+                    backgroundColor: '#0a0d14',
+                    border: '1px solid #3b4255',
                     color: '#f8fafc',
                     fontSize: '12px',
-                    outline: 'none',
-                    flexShrink: 0
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    outline: 'none'
+                  }}
+                >
+                  {scenes.map(sc => (
+                    <option key={sc.id} value={sc.id}>
+                      {sc.name}{sc.id === activeSceneId ? ' (En mesa activa)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {selectedNoteSceneId === activeSceneId && (
+                <span style={{
+                  fontSize: '10px',
+                  color: '#34d399',
+                  backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                  border: '1px solid rgba(16, 185, 129, 0.4)',
+                  padding: '2px 7px',
+                  borderRadius: '999px',
+                  fontWeight: 700,
+                  whiteSpace: 'nowrap'
+                }}>
+                  ● En Mesa
+                </span>
+              )}
+            </div>
+
+            {/* Checklist de Pistas & Objetivos de la Escena */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '6px',
+              backgroundColor: '#121620',
+              border: '1px solid #283144',
+              borderRadius: '8px',
+              padding: '10px 12px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', color: '#f8fafc', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  PISTAS Y SECRETOS DE LA SALA
+                </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                  {((sceneNotes[selectedNoteSceneId]?.clues) || []).filter(c => c.completed).length} / {((sceneNotes[selectedNoteSceneId]?.clues) || []).length} descubiertas
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', maxHeight: '140px', overflowY: 'auto' }}>
+                {((sceneNotes[selectedNoteSceneId]?.clues) || []).map(clue => (
+                  <div
+                    key={clue.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '5px 8px',
+                      backgroundColor: clue.completed ? 'rgba(16, 185, 129, 0.08)' : '#0d1017',
+                      border: clue.completed ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #232b3b',
+                      borderRadius: '5px',
+                      gap: '8px'
+                    }}
+                  >
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, cursor: 'pointer', overflow: 'hidden' }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(clue.completed)}
+                        onChange={() => {
+                          const currentData = sceneNotes[selectedNoteSceneId] || { notes: '', clues: [] };
+                          const updated = (currentData.clues || []).map(c => c.id === clue.id ? { ...c, completed: !c.completed } : c);
+                          if (onUpdateSceneNotes) onUpdateSceneNotes(selectedNoteSceneId, { ...currentData, clues: updated });
+                        }}
+                      />
+                      <span style={{
+                        fontSize: '11px',
+                        color: clue.completed ? '#94a3b8' : '#e2e8f0',
+                        textDecoration: clue.completed ? 'line-through' : 'none',
+                        lineHeight: '1.4',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {clue.text}
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const currentData = sceneNotes[selectedNoteSceneId] || { notes: '', clues: [] };
+                        const filtered = (currentData.clues || []).filter(c => c.id !== clue.id);
+                        if (onUpdateSceneNotes) onUpdateSceneNotes(selectedNoteSceneId, { ...currentData, clues: filtered });
+                      }}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#64748b',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        padding: '2px 4px'
+                      }}
+                      title="Eliminar pista"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+
+                {((sceneNotes[selectedNoteSceneId]?.clues) || []).length === 0 && (
+                  <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', padding: '4px 0' }}>
+                    Sin pistas registradas para esta sala.
+                  </div>
+                )}
+              </div>
+
+              {/* Formulario para añadir pista */}
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!newClueText.trim()) return;
+                  const currentData = sceneNotes[selectedNoteSceneId] || { notes: '', clues: [] };
+                  const newClues = [
+                    ...(currentData.clues || []),
+                    {
+                      id: 'clue_' + Date.now() + Math.random().toString(36).slice(2, 5),
+                      text: newClueText.trim(),
+                      completed: false
+                    }
+                  ];
+                  if (onUpdateSceneNotes) {
+                    onUpdateSceneNotes(selectedNoteSceneId, { ...currentData, clues: newClues });
+                  }
+                  setNewClueText('');
+                }}
+                style={{ display: 'flex', gap: '6px', marginTop: '4px' }}
+              >
+                <input
+                  type="text"
+                  value={newClueText}
+                  onChange={(e) => setNewClueText(e.target.value)}
+                  placeholder="Añadir pista (ej: Diario bajo la alfombra, trampa en el cofre...)"
+                  style={{
+                    flex: 1,
+                    padding: '5px 8px',
+                    backgroundColor: '#0a0d14',
+                    border: '1px solid #283144',
+                    color: '#f8fafc',
+                    borderRadius: '5px',
+                    fontSize: '11px',
+                    outline: 'none'
                   }}
                 />
+                <button
+                  type="submit"
+                  className="vtt-brass-btn"
+                  style={{ padding: '4px 9px', fontSize: '11px', borderRadius: '5px', fontWeight: 600, cursor: 'pointer' }}
+                >
+                  + Añadir
+                </button>
+              </form>
+            </div>
 
-                {/* Lista de Objetos con Scroll */}
-                <div style={{
+            {/* Cuaderno de Notas Narrativas de la Escena */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              minHeight: '260px',
+              backgroundColor: '#121620',
+              border: '1px solid #283144',
+              borderRadius: '8px',
+              padding: '10px 12px',
+              gap: '6px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '11px', color: '#f8fafc', fontWeight: 700, letterSpacing: '0.04em' }}>
+                  APUNTES Y SECRETOS DEL MÁSTER
+                </span>
+                <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+                  Guardado automático
+                </span>
+              </div>
+              <textarea
+                value={sceneNotes[selectedNoteSceneId]?.notes || ''}
+                onChange={(e) => {
+                  const currentData = sceneNotes[selectedNoteSceneId] || { notes: '', clues: [] };
+                  if (onUpdateSceneNotes) {
+                    onUpdateSceneNotes(selectedNoteSceneId, {
+                      ...currentData,
+                      notes: e.target.value
+                    });
+                  }
+                }}
+                placeholder="Escribe aquí los secretos de la sala, atmósfera, descripciones para leer a los jugadores, tiradas requeridas, trampas..."
+                style={{
+                  width: '100%',
                   flex: 1,
-                  overflowY: 'auto',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  paddingRight: '4px'
-                }}>
-                  {!itemSearchQuery.trim() ? (
-                    <div style={{
-                      textAlign: 'center',
-                      padding: '24px 16px',
-                      backgroundColor: 'rgba(15, 23, 42, 0.45)',
-                      borderRadius: '8px',
-                      border: '1px dashed #28354c',
-                      color: '#94a3b8',
+                  minHeight: '220px',
+                  backgroundColor: '#0a0d14',
+                  border: '1px solid #232b3b',
+                  borderRadius: '6px',
+                  padding: '10px 12px',
+                  color: '#e2e8f0',
+                  fontSize: '12px',
+                  fontFamily: 'inherit',
+                  resize: 'none',
+                  outline: 'none',
+                  lineHeight: '1.6',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* PESTAÑA 4: OBJETOS DE INVENTARIO (LOOT) & COMPENDIO */}
+        {activeTab === 'items' && (() => {
+          const activeTurnToken = tokens.find(t => String(t.id) === String(activeTurnTokenId)) || null;
+          const effectiveGiverId = selectedGiverId || (activeTurnToken ? String(activeTurnToken.id) : 'master');
+
+          const giverToken = tokens.find(tok => String(tok.id) === String(effectiveGiverId) || (tok.characterId && String(tok.characterId) === String(effectiveGiverId)));
+          const giverChar = characters.find(ch => String(ch.id) === String(effectiveGiverId));
+          const effectiveGiverName = (() => {
+            if (effectiveGiverId === 'master') return '⚜️ El Máster (Alijo)';
+            if (giverToken) return giverToken.name;
+            if (giverChar) return giverChar.name;
+            return 'Emisor';
+          })();
+
+          // Inventario del que lo da
+          const giverInventory = Array.isArray(giverToken?.inventory)
+            ? giverToken.inventory
+            : (Array.isArray(giverChar?.inventory) ? giverChar.inventory : []);
+
+          // Destinatarios disponibles: excluye estrictamente al que lo da
+          const recipientTokens = tokens.filter(t => {
+            if (effectiveGiverId === 'master') return true;
+            if (String(t.id) === String(effectiveGiverId)) return false;
+            if (t.characterId && String(t.characterId) === String(effectiveGiverId)) return false;
+            if (giverToken && t.characterId && giverToken.characterId && String(t.characterId) === String(giverToken.characterId)) return false;
+            if (effectiveGiverName && t.name.trim().toLowerCase() === effectiveGiverName.trim().toLowerCase()) return false;
+            return true;
+          });
+
+          const recipientCharacters = characters.filter(c => {
+            if (effectiveGiverId === 'master') return true;
+            if (String(c.id) === String(effectiveGiverId)) return false;
+            if (giverToken && giverToken.characterId && String(c.id) === String(giverToken.characterId)) return false;
+            if (effectiveGiverName && c.name.trim().toLowerCase() === effectiveGiverName.trim().toLowerCase()) return false;
+            return true;
+          });
+
+          const isValidRecipient = (id) => {
+            if (!id) return false;
+            return recipientTokens.some(t => String(t.id) === String(id) || (t.characterId && String(t.characterId) === String(id))) ||
+                   recipientCharacters.some(c => String(c.id) === String(id));
+          };
+
+          const effectiveRecipientId = isValidRecipient(selectedRecipientId)
+            ? selectedRecipientId
+            : (recipientTokens[0] ? String(recipientTokens[0].id) : (recipientCharacters[0] ? String(recipientCharacters[0].id) : ''));
+
+          const effectiveRecipientName = (() => {
+            const foundT = recipientTokens.find(t => String(t.id) === String(effectiveRecipientId) || (t.characterId && String(t.characterId) === String(effectiveRecipientId)));
+            if (foundT) return foundT.name;
+            const foundC = recipientCharacters.find(c => String(c.id) === String(effectiveRecipientId));
+            return foundC ? foundC.name : 'Nadie disponible';
+          })();
+
+          const q = itemSearchQuery.toLowerCase().trim();
+          const filteredCommonItems = commonItems.filter(item =>
+            !q ||
+            item.name.toLowerCase().includes(q) ||
+            (item.notes && item.notes.toLowerCase().includes(q)) ||
+            (item.category && item.category.toLowerCase().includes(q))
+          );
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: '4px' }}>
+              
+              {/* ========================================================= */}
+              {/* 1. SECCIÓN PRINCIPAL: CATÁLOGO COMÚN (Encabezado + Buscador) */}
+              {/* ========================================================= */}
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                backgroundColor: '#121622',
+                border: '1px solid #283042',
+                borderRadius: '8px',
+                padding: '12px'
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '15px' }}>📚</span>
+                    <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
+                      Catálogo Común de Objetos
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, backgroundColor: '#0c0f17', padding: '2px 7px', borderRadius: '4px', border: '1px solid #252d3d' }}>
+                    {commonItems.length} plantillas
+                  </span>
+                </div>
+
+                {/* Buscador de Objetos del Catálogo */}
+                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                  <span style={{ position: 'absolute', left: '10px', fontSize: '12px', color: '#64748b', pointerEvents: 'none' }}>
+                    🔍
+                  </span>
+                  <input
+                    type="text"
+                    value={itemSearchQuery}
+                    onChange={(e) => setItemSearchQuery(e.target.value)}
+                    placeholder="Buscar mechero, cuerda, linterna, ganzúa, botiquín..."
+                    style={{
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      backgroundColor: '#0c0f17',
+                      border: '1px solid #2d3748',
+                      borderRadius: '6px',
+                      padding: '7px 30px 7px 30px',
+                      color: '#f8fafc',
                       fontSize: '11px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '7px',
-                      margin: '6px 0'
-                    }}>
-                      <span style={{ fontSize: '22px' }}>🔍</span>
-                      <span style={{ color: '#cbd5e1', fontWeight: 700, fontSize: '12px' }}>
-                        Escribe en el buscador para localizar objetos del catálogo
-                      </span>
-                      <span style={{ fontSize: '11px', color: '#64748b', maxWidth: '380px', lineHeight: 1.4 }}>
-                        Introduce el nombre o tipo (ej: cuerda, linterna, ganzúa, mechero) para filtrarlo, entregarlo a un personaje o situarlo en el tablero.
-                      </span>
-                    </div>
-                  ) : (() => {
-                    const q = itemSearchQuery.toLowerCase();
-                    const filtered = commonItems.filter(item =>
-                      item.name.toLowerCase().includes(q) ||
-                      (item.notes && item.notes.toLowerCase().includes(q)) ||
-                      (item.category && item.category.toLowerCase().includes(q))
-                    );
+                      outline: 'none'
+                    }}
+                  />
+                  {itemSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setItemSearchQuery('')}
+                      style={{
+                        position: 'absolute',
+                        right: '8px',
+                        background: 'none',
+                        border: 'none',
+                        color: '#94a3b8',
+                        cursor: 'pointer',
+                        fontSize: '11px',
+                        padding: '2px'
+                      }}
+                      title="Borrar búsqueda"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
 
-                    if (filtered.length === 0) {
-                      return (
-                        <div style={{ textAlign: 'center', padding: '20px 12px', color: '#64748b', fontSize: '11px', fontStyle: 'italic' }}>
-                          No se encontraron objetos que coincidan con "${itemSearchQuery}".
-                        </div>
-                      );
-                    }
+                {/* Lista de Objetos del Catálogo (Solo visible si hay búsqueda activa) */}
+                {Boolean(itemSearchQuery.trim()) && (
+                  <div style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    marginTop: '4px'
+                  }}>
+                    {filteredCommonItems.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '16px 8px', color: '#64748b', fontSize: '11px', fontStyle: 'italic' }}>
+                        No se encontraron objetos que coincidan con "{itemSearchQuery}".
+                      </div>
+                    ) : (
+                      filteredCommonItems.map(item => {
+                        const isDefaultPreset = typeof item.id === 'string' && item.id.startsWith('item_');
 
-                    return filtered.map(item => {
-                      const activeTurnToken = tokens.find(t => t.id === activeTurnTokenId) || null;
-                      const targetId = selectedRecipientId || (activeTurnToken ? activeTurnToken.id : (tokens[0]?.id || characters[0]?.id || null));
-                      const isDefaultPreset = typeof item.id === 'string' && item.id.startsWith('item_');
-
-                      return (
-                        <div
-                          key={item.id}
-                          style={{
-                            backgroundColor: '#141824',
-                            border: '1px solid #252d3d',
-                            borderRadius: '8px',
-                            padding: '9px 12px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            gap: '6px',
-                            transition: 'border 0.15s ease'
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                        return (
+                          <div
+                            key={item.id}
+                            style={{
+                              backgroundColor: '#0c0f17',
+                              border: '1px solid #232d3f',
+                              borderRadius: '7px',
+                              padding: '8px 10px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '8px'
+                            }}
+                          >
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
-                              <span style={{ fontSize: '18px', flexShrink: 0 }}>{item.icon || '📦'}</span>
+                              <span style={{ fontSize: '17px', flexShrink: 0 }}>{item.icon || '📦'}</span>
                               <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                                  <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                                     {item.name}
                                   </span>
                                   {item.category && (
                                     <span style={{
                                       fontSize: '9px',
-                                      backgroundColor: '#1e2638',
+                                      backgroundColor: '#161f30',
                                       color: '#93c5fd',
                                       padding: '1px 5px',
-                                      borderRadius: '4px',
+                                      borderRadius: '3px',
                                       fontWeight: 600,
-                                      flexShrink: 0
+                                      border: '1px solid rgba(59, 130, 246, 0.3)'
                                     }}>
                                       {item.category}
                                     </span>
                                   )}
                                 </div>
+                                {item.notes && (
+                                  <span style={{ fontSize: '9.5px', color: '#94a3b8', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={item.notes}>
+                                    {item.notes}
+                                  </span>
+                                )}
                               </div>
                             </div>
 
-                            {/* Botones de Acción */}
-                            <div style={{ display: 'flex', gap: '5px', alignItems: 'center', flexShrink: 0 }}>
+                            <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
                               {onPlaceGroundItem && (
                                 <button
                                   type="button"
@@ -996,16 +1299,13 @@ const renderTabIcon = (tabId, isActive) => {
                                   }}
                                   className="vtt-brass-btn"
                                   style={{
-                                    padding: '4px 8px',
-                                    borderRadius: '6px',
-                                    fontSize: '11px',
+                                    padding: '3px 7px',
+                                    borderRadius: '5px',
+                                    fontSize: '10px',
                                     fontWeight: 700,
                                     cursor: 'pointer',
                                     color: '#38bdf8',
-                                    borderColor: '#0284c7',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '3px'
+                                    borderColor: '#0284c7'
                                   }}
                                   title="Colocar en el suelo del tablero para que los personajes puedan recogerlo"
                                 >
@@ -1014,21 +1314,28 @@ const renderTabIcon = (tabId, isActive) => {
                               )}
                               <button
                                 type="button"
-                                onClick={() => onGiveItemToCharacter && onGiveItemToCharacter(targetId, item)}
+                                onClick={() => {
+                                  if (onGiveItemToCharacter) {
+                                    if (effectiveRecipientId) {
+                                      onGiveItemToCharacter(effectiveRecipientId, item);
+                                    } else {
+                                      notify('Selecciona un destinatario abajo para entregar');
+                                    }
+                                  }
+                                }}
+                                disabled={!effectiveRecipientId}
                                 className="vtt-brass-btn"
                                 style={{
-                                  padding: '4px 9px',
-                                  borderRadius: '6px',
-                                  fontSize: '11px',
+                                  padding: '3px 8px',
+                                  borderRadius: '5px',
+                                  fontSize: '10px',
                                   fontWeight: 700,
-                                  cursor: 'pointer',
+                                  cursor: effectiveRecipientId ? 'pointer' : 'default',
                                   color: '#fbbf24',
                                   borderColor: '#f59e0b',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
+                                  opacity: effectiveRecipientId ? 1 : 0.4
                                 }}
-                                title="Añadir inmediatamente al inventario del personaje seleccionado"
+                                title={effectiveRecipientId ? `Entregar a ${effectiveRecipientName}` : 'Selecciona un destinatario abajo'}
                               >
                                 🎁 Entregar
                               </button>
@@ -1041,7 +1348,7 @@ const renderTabIcon = (tabId, isActive) => {
                                     border: 'none',
                                     color: '#ef4444',
                                     cursor: 'pointer',
-                                    fontSize: '12px',
+                                    fontSize: '11px',
                                     padding: '2px 4px'
                                   }}
                                   title="Eliminar plantilla del catálogo"
@@ -1051,258 +1358,487 @@ const renderTabIcon = (tabId, isActive) => {
                               )}
                             </div>
                           </div>
-
-                          {/* Notas / Descripción legible */}
-                          {item.notes && (
-                            <div style={{
-                              fontSize: '11px',
-                              color: '#94a3b8',
-                              backgroundColor: '#0c0f17',
-                              padding: '5px 8px',
-                              borderRadius: '5px',
-                              borderLeft: '2px solid #3b82f6',
-                              lineHeight: 1.35
-                            }}>
-                              {item.notes}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
               </div>
-            )}
 
-            {/* SUBPESTAÑA 2: FORJAR NUEVO OBJETO DE INVENTARIO */}
-            {itemsSubTab === 'creator' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, overflowY: 'auto', paddingRight: '4px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Nombre del Objeto:</label>
-                  <input
-                    type="text"
-                    value={commonItemName}
-                    onChange={(e) => setCommonItemName(e.target.value)}
-                    placeholder="Ej: Mechero de latón con iniciales / Cuerda de seda"
-                    style={{
-                      backgroundColor: '#121622',
-                      border: '1px solid #283042',
-                      borderRadius: '7px',
-                      padding: '8px 10px',
-                      color: '#f8fafc',
-                      fontSize: '12px',
-                      outline: 'none'
-                    }}
-                  />
+              {/* ========================================================= */}
+              {/* 2. SECCIÓN: CREAR / FORJAR NUEVO OBJETO (Justo debajo)     */}
+              {/* ========================================================= */}
+              <div style={{
+                backgroundColor: '#121622',
+                border: '1px solid #283042',
+                borderRadius: '8px',
+                padding: '10px 12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div
+                  onClick={() => setIsCreatorExpanded(!isCreatorExpanded)}
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    userSelect: 'none'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '15px' }}>🛠️</span>
+                    <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: '#f59e0b', letterSpacing: '0.04em' }}>
+                      Forjar Nuevo Objeto
+                    </span>
+                  </div>
+                  <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600 }}>
+                    {isCreatorExpanded ? '▲ Plegar' : '▼ Desplegar'}
+                  </span>
                 </div>
 
-                {/* Selector de Icono Popular */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Icono:</label>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', backgroundColor: '#0e1118', padding: '6px', borderRadius: '7px', border: '1px solid #262c3a' }}>
-                    {POPULAR_ITEM_ICONS.map(ic => (
-                      <button
-                        key={ic}
-                        type="button"
-                        onClick={() => setCommonItemIcon(ic)}
+                {isCreatorExpanded && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '6px', borderTop: '1px solid #242c3d' }}>
+                    {/* Nombre del objeto */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                        Nombre del Objeto:
+                      </label>
+                      <input
+                        type="text"
+                        value={commonItemName}
+                        onChange={(e) => setCommonItemName(e.target.value)}
+                        placeholder="Ej: Mechero de latón con iniciales / Daga ritual"
                         style={{
-                          width: '28px',
-                          height: '28px',
+                          backgroundColor: '#0c0f17',
+                          border: '1px solid #2d3748',
+                          borderRadius: '6px',
+                          padding: '7px 9px',
+                          color: '#f8fafc',
+                          fontSize: '11px',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+
+                    {/* Selector de Icono Popular */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                        Icono:
+                      </label>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', backgroundColor: '#0c0f17', padding: '5px', borderRadius: '6px', border: '1px solid #232d3f' }}>
+                        {POPULAR_ITEM_ICONS.map(ic => (
+                          <button
+                            key={ic}
+                            type="button"
+                            onClick={() => setCommonItemIcon(ic)}
+                            style={{
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '4px',
+                              border: commonItemIcon === ic ? '1.5px solid #f59e0b' : '1px solid transparent',
+                              backgroundColor: commonItemIcon === ic ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
+                              fontSize: '13px',
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center'
+                            }}
+                          >
+                            {ic}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Categoría y Ubicación en Ficha */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Categoría:
+                        </label>
+                        <select
+                          value={commonItemCategory}
+                          onChange={(e) => setCommonItemCategory(e.target.value)}
+                          style={{
+                            backgroundColor: '#0c0f17',
+                            border: '1px solid #2d3748',
+                            borderRadius: '6px',
+                            padding: '6px 8px',
+                            color: '#f8fafc',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            outline: 'none'
+                          }}
+                        >
+                          {ITEM_CATEGORIES.map(cat => (
+                            <option key={cat} value={cat}>{cat}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                          Ubicación:
+                        </label>
+                        <select
+                          value={commonItemState}
+                          onChange={(e) => setCommonItemState(e.target.value)}
+                          style={{
+                            backgroundColor: '#0c0f17',
+                            border: '1px solid #2d3748',
+                            borderRadius: '6px',
+                            padding: '6px 8px',
+                            color: '#f8fafc',
+                            fontSize: '11px',
+                            cursor: 'pointer',
+                            outline: 'none'
+                          }}
+                        >
+                          <option value="equipped">Equipado (Puesto)</option>
+                          <option value="hand">A mano (Bolsillo / Cinturón)</option>
+                          <option value="stored">Guardado (Mochila)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Notas / Propiedades */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                      <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                        Notas / Propiedades:
+                      </label>
+                      <input
+                        type="text"
+                        value={commonItemNotes}
+                        onChange={(e) => setCommonItemNotes(e.target.value)}
+                        placeholder="Detalles sobre el objeto, inscripciones, bonificaciones..."
+                        style={{
+                          backgroundColor: '#0c0f17',
+                          border: '1px solid #2d3748',
+                          borderRadius: '6px',
+                          padding: '6px 9px',
+                          color: '#f8fafc',
+                          fontSize: '11px',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+
+                    {/* Botones de Guardar / Entregar / En Suelo */}
+                    <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!commonItemName.trim()) return;
+                          const itemObj = {
+                            id: `custom_item_${Date.now()}`,
+                            name: commonItemName.trim(),
+                            icon: commonItemIcon,
+                            category: commonItemCategory,
+                            state: commonItemState,
+                            notes: commonItemNotes.trim()
+                          };
+                          if (onSaveCommonItem) onSaveCommonItem(itemObj);
+                          setCommonItemName('');
+                          setCommonItemNotes('');
+                          notify(`Objeto "${itemObj.name}" guardado en el catálogo`);
+                        }}
+                        disabled={!commonItemName.trim()}
+                        className="vtt-brass-btn"
+                        style={{
+                          flex: 1,
+                          padding: '7px 8px',
                           borderRadius: '5px',
-                          border: commonItemIcon === ic ? '1px solid #f59e0b' : '1px solid transparent',
-                          backgroundColor: commonItemIcon === ic ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
-                          fontSize: '14px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          cursor: commonItemName.trim() ? 'pointer' : 'default',
+                          opacity: commonItemName.trim() ? 1 : 0.4
                         }}
                       >
-                        {ic}
+                        ⭐ Guardar
                       </button>
-                    ))}
+
+                      {onPlaceGroundItem && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            if (!commonItemName.trim()) return;
+                            const itemObj = {
+                              id: `custom_item_${Date.now()}`,
+                              name: commonItemName.trim(),
+                              icon: commonItemIcon,
+                              category: commonItemCategory,
+                              state: commonItemState,
+                              notes: commonItemNotes.trim()
+                            };
+                            onPlaceGroundItem(itemObj);
+                            setCommonItemName('');
+                            setCommonItemNotes('');
+                            onClose();
+                          }}
+                          disabled={!commonItemName.trim()}
+                          className="vtt-brass-btn"
+                          style={{
+                            flex: 1,
+                            padding: '7px 8px',
+                            borderRadius: '5px',
+                            fontSize: '10px',
+                            fontWeight: 700,
+                            cursor: commonItemName.trim() ? 'pointer' : 'default',
+                            color: '#38bdf8',
+                            borderColor: '#0284c7',
+                            opacity: commonItemName.trim() ? 1 : 0.4
+                          }}
+                          title="Colocar directamente en el suelo del tablero"
+                        >
+                          📍 En Suelo
+                        </button>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!commonItemName.trim()) return;
+                          if (!effectiveRecipientId) {
+                            notify('Selecciona un destinatario abajo para entregar');
+                            return;
+                          }
+                          const itemObj = {
+                            id: `custom_item_${Date.now()}`,
+                            name: commonItemName.trim(),
+                            icon: commonItemIcon,
+                            category: commonItemCategory,
+                            state: commonItemState,
+                            notes: commonItemNotes.trim()
+                          };
+                          if (onGiveItemToCharacter) onGiveItemToCharacter(effectiveRecipientId, itemObj);
+                          setCommonItemName('');
+                          setCommonItemNotes('');
+                        }}
+                        disabled={!commonItemName.trim() || !effectiveRecipientId}
+                        className="vtt-brass-btn"
+                        style={{
+                          flex: 1.2,
+                          padding: '7px 8px',
+                          borderRadius: '5px',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          cursor: commonItemName.trim() && effectiveRecipientId ? 'pointer' : 'default',
+                          color: '#fbbf24',
+                          borderColor: '#f59e0b',
+                          opacity: commonItemName.trim() && effectiveRecipientId ? 1 : 0.4
+                        }}
+                        title={effectiveRecipientId ? `Entregar directamente a ${effectiveRecipientName}` : 'Selecciona un destinatario abajo'}
+                      >
+                        🎁 Entregar
+                      </button>
+                    </div>
                   </div>
-                </div>
-
-                {/* Categoría y Estado en Inventario */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Categoría:</label>
-                    <select
-                      value={commonItemCategory}
-                      onChange={(e) => setCommonItemCategory(e.target.value)}
-                      style={{
-                        backgroundColor: '#121622',
-                        border: '1px solid #283042',
-                        borderRadius: '7px',
-                        padding: '7px 8px',
-                        color: '#f8fafc',
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        outline: 'none'
-                      }}
-                    >
-                      {ITEM_CATEGORIES.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Ubicación en Ficha:</label>
-                    <select
-                      value={commonItemState}
-                      onChange={(e) => setCommonItemState(e.target.value)}
-                      style={{
-                        backgroundColor: '#121622',
-                        border: '1px solid #283042',
-                        borderRadius: '7px',
-                        padding: '7px 8px',
-                        color: '#f8fafc',
-                        fontSize: '11px',
-                        cursor: 'pointer',
-                        outline: 'none'
-                      }}
-                    >
-                      <option value="equipped">Equipado (Llevado puesto)</option>
-                      <option value="hand">A mano (Cinturón / Bolsillo)</option>
-                      <option value="stored">Guardado (Mochila)</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Textarea de Notas / Descripción */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Notas, Pistas o Propiedades:</label>
-                  <textarea
-                    rows={3}
-                    value={commonItemNotes}
-                    onChange={(e) => setCommonItemNotes(e.target.value)}
-                    placeholder="Detalles sobre el objeto, pistas escritas, bonificaciones o efectos..."
-                    style={{
-                      backgroundColor: '#121622',
-                      border: '1px solid #283042',
-                      borderRadius: '7px',
-                      padding: '8px 10px',
-                      color: '#f8fafc',
-                      fontSize: '11px',
-                      resize: 'vertical',
-                      outline: 'none',
-                      lineHeight: 1.4
-                    }}
-                  />
-                </div>
-
-                {/* Botones de Guardar / Entregar */}
-                <div style={{ display: 'flex', gap: '8px', marginTop: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!commonItemName.trim()) return;
-                      const activeTurnToken = tokens.find(t => t.id === activeTurnTokenId) || null;
-                      const targetId = selectedRecipientId || (activeTurnToken ? activeTurnToken.id : (tokens[0]?.id || characters[0]?.id || null));
-                      const itemObj = {
-                        id: `custom_item_${Date.now()}`,
-                        name: commonItemName.trim(),
-                        icon: commonItemIcon,
-                        category: commonItemCategory,
-                        state: commonItemState,
-                        notes: commonItemNotes.trim()
-                      };
-                      if (onGiveItemToCharacter) onGiveItemToCharacter(targetId, itemObj);
-                      setCommonItemName('');
-                      setCommonItemNotes('');
-                    }}
-                    disabled={!commonItemName.trim()}
-                    className="vtt-brass-btn"
-                    style={{
-                      flex: 1,
-                      padding: '9px 12px',
-                      borderRadius: '7px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: commonItemName.trim() ? 'pointer' : 'default',
-                      color: '#fbbf24',
-                      borderColor: '#f59e0b',
-                      opacity: commonItemName.trim() ? 1 : 0.4
-                    }}
-                  >
-                    🎁 Entregar al Personaje
-                  </button>
-
-                  {onPlaceGroundItem && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!commonItemName.trim()) return;
-                        const itemObj = {
-                          id: `custom_item_${Date.now()}`,
-                          name: commonItemName.trim(),
-                          icon: commonItemIcon,
-                          category: commonItemCategory,
-                          state: commonItemState,
-                          notes: commonItemNotes.trim()
-                        };
-                        onPlaceGroundItem(itemObj);
-                        setCommonItemName('');
-                        setCommonItemNotes('');
-                        onClose();
-                      }}
-                      disabled={!commonItemName.trim()}
-                      className="vtt-brass-btn"
-                      style={{
-                        flex: 1,
-                        padding: '9px 12px',
-                        borderRadius: '7px',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        cursor: commonItemName.trim() ? 'pointer' : 'default',
-                        color: '#38bdf8',
-                        borderColor: '#0284c7',
-                        opacity: commonItemName.trim() ? 1 : 0.4
-                      }}
-                      title="Colocar directamente en el suelo del tablero"
-                    >
-                      📍 En Suelo
-                    </button>
-                  )}
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!commonItemName.trim()) return;
-                      const itemObj = {
-                        id: `custom_item_${Date.now()}`,
-                        name: commonItemName.trim(),
-                        icon: commonItemIcon,
-                        category: commonItemCategory,
-                        state: commonItemState,
-                        notes: commonItemNotes.trim()
-                      };
-                      if (onSaveCommonItem) onSaveCommonItem(itemObj);
-                      setCommonItemName('');
-                      setCommonItemNotes('');
-                      setItemsSubTab('catalog');
-                    }}
-                    disabled={!commonItemName.trim()}
-                    className="vtt-brass-btn"
-                    style={{
-                      flex: 1,
-                      padding: '9px 12px',
-                      borderRadius: '7px',
-                      fontSize: '12px',
-                      fontWeight: 700,
-                      cursor: commonItemName.trim() ? 'pointer' : 'default',
-                      opacity: commonItemName.trim() ? 1 : 0.4
-                    }}
-                  >
-                    ⭐ Guardar en Catálogo
-                  </button>
-                </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
+
+              {/* ========================================================= */}
+              {/* 3. SECCIÓN: TRASPASO DE OBJETOS ENTRE PERSONAJES (Abajo)  */}
+              {/* ========================================================= */}
+              <div style={{
+                backgroundColor: '#141824',
+                border: '1px solid #2b3345',
+                borderRadius: '8px',
+                padding: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ fontSize: '15px' }}>🎁</span>
+                  <div>
+                    <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                      Traspaso de Objetos entre Personajes
+                    </span>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: '#94a3b8' }}>
+                      Transfiere pertenencias directamente del inventario de un personaje a otro.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Fila de Selectores: Quién lo da ➔ Destinatario */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: '8px' }}>
+                  {/* Quién lo da */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+                    <span style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Quién lo da:
+                    </span>
+                    <select
+                      value={effectiveGiverId}
+                      onChange={(e) => setSelectedGiverId(e.target.value)}
+                      style={{
+                        backgroundColor: '#0c0f17',
+                        color: '#cbd5e1',
+                        border: '1px solid #333d52',
+                        borderRadius: '5px',
+                        padding: '5px 7px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        outline: 'none',
+                        width: '100%',
+                        textOverflow: 'ellipsis'
+                      }}
+                      title="Personaje que entrega el objeto (queda excluido de los destinatarios)"
+                    >
+                      <option value="master">⚜️ El Máster (Alijo)</option>
+                      {tokens.length > 0 && (
+                        <optgroup label="En Tablero (Escena)">
+                          {tokens.map(t => (
+                            <option key={t.id} value={t.id}>
+                              {t.id === activeTurnTokenId ? '⭐ (Turno) ' : ''}{t.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {characters.length > 0 && (
+                        <optgroup label="Biblioteca">
+                          {characters.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </select>
+                  </div>
+
+                  {/* Flecha indicadora */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '14px', color: '#fbbf24', fontSize: '13px', fontWeight: 700 }}>
+                    ➔
+                  </div>
+
+                  {/* Destinatario de Entrega */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
+                    <span style={{ fontSize: '9.5px', color: '#38bdf8', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Destinatario de Entrega:
+                    </span>
+                    <select
+                      value={effectiveRecipientId}
+                      onChange={(e) => setSelectedRecipientId(e.target.value)}
+                      style={{
+                        backgroundColor: '#0c0f17',
+                        color: effectiveRecipientId ? '#f8fafc' : '#ef4444',
+                        border: '1px solid #333d52',
+                        borderRadius: '5px',
+                        padding: '5px 7px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        outline: 'none',
+                        width: '100%',
+                        textOverflow: 'ellipsis'
+                      }}
+                      title="Personaje que recibe el objeto (excluye al que lo da)"
+                    >
+                      {recipientTokens.length > 0 && (
+                        <optgroup label="En Tablero (Escena)">
+                          {recipientTokens.map(t => (
+                            <option key={t.id} value={t.id}>{t.name}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {recipientCharacters.length > 0 && (
+                        <optgroup label="Biblioteca de Personajes">
+                          {recipientCharacters.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {recipientTokens.length === 0 && recipientCharacters.length === 0 && (
+                        <option value="" disabled>Sin otros destinatarios disponibles</option>
+                      )}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Inventario del Emisor para Traspasar */}
+                {effectiveGiverId !== 'master' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
+                    <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                      Inventario de {effectiveGiverName} ({giverInventory.length}):
+                    </span>
+                    {giverInventory.length === 0 ? (
+                      <div style={{
+                        fontSize: '11px',
+                        color: '#64748b',
+                        fontStyle: 'italic',
+                        padding: '10px',
+                        backgroundColor: '#0c0f17',
+                        borderRadius: '6px',
+                        textAlign: 'center',
+                        border: '1px dashed #242c3d'
+                      }}>
+                        {effectiveGiverName} no tiene objetos en su inventario para transferir.
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '160px', overflowY: 'auto' }}>
+                        {giverInventory.map(item => (
+                          <div
+                            key={item.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              padding: '6px 10px',
+                              backgroundColor: '#0c0f17',
+                              border: '1px solid #232d3f',
+                              borderRadius: '6px',
+                              gap: '8px'
+                            }}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
+                              <span style={{ fontSize: '15px' }}>{item.icon || '📦'}</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {item.name}
+                                </span>
+                                {item.notes && (
+                                  <span style={{ fontSize: '9px', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {item.notes}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onTransferItem && effectiveRecipientId) {
+                                  onTransferItem(effectiveGiverId, effectiveRecipientId, item);
+                                }
+                              }}
+                              disabled={!effectiveRecipientId}
+                              className="vtt-brass-btn"
+                              style={{
+                                padding: '3px 8px',
+                                borderRadius: '5px',
+                                fontSize: '10px',
+                                fontWeight: 700,
+                                cursor: effectiveRecipientId ? 'pointer' : 'default',
+                                color: '#38bdf8',
+                                borderColor: '#0284c7',
+                                whiteSpace: 'nowrap',
+                                opacity: effectiveRecipientId ? 1 : 0.4
+                              }}
+                              title={effectiveRecipientId ? `Transferir "${item.name}" a ${effectiveRecipientName}` : 'Selecciona un destinatario'}
+                            >
+                              Traspasar ➔
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+            </div>
+          );
+        })()}
 
         {/* PESTAÑA: ESTADOS Y CONDICIONES ALTERADAS */}
         {activeTab === 'estados' && (

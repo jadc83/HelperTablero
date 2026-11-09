@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LIGHT_PRESETS } from './MapCreator';
 import { getGameIconComponent } from './icons/GameIcons';
 import { importJSON } from '../utils/fileDialog';
@@ -80,6 +80,8 @@ const TokenSidebar = ({
   onOpenGraveyard,
   onSendToGraveyard,
   onAddToken, 
+  onStartDragCharacter,
+  onEndDragCharacter,
   onAddMapElement,
   onOpenMapCreator,
   onOpenEncyclopedia,
@@ -114,10 +116,25 @@ const TokenSidebar = ({
   movementLimitsEnabled = true,
   onToggleMovementLimits,
   onResetTokenMovement,
-  onSelectActiveTurn
+  onSelectActiveTurn,
+  combatGroups = [],
+  onCreateCombatGroup,
+  onRemoveCombatGroup,
+  onUpdateCombatGroup,
+  onAssignTokenToGroup,
+  onStartGroupCombat,
+  onNextGroupTurn,
+  onEndGroupCombat,
+  onSelectGroupActiveTurn,
+  onDisbandAllGroups
 }) => {
   // Pestaña principal: 'scene' (En Escena) o 'library' (Biblioteca/Invocación)
   const [activeMainTab, setActiveMainTab] = useState('scene');
+
+  // Estados para gestión de grupos de combate
+  const [editingGroupId, setEditingGroupId] = useState(null);
+  const [editingGroupName, setEditingGroupName] = useState('');
+  const [activeGroupMenuTokenId, setActiveGroupMenuTokenId] = useState(null);
 
   // Acordeones de compendio dentro de la pestaña Biblioteca
   const [isCharactersExpanded, setIsCharactersExpanded] = useState(true);
@@ -127,17 +144,249 @@ const TokenSidebar = ({
   const [isLightsExpanded, setIsLightsExpanded] = useState(false);
   const [isStructuresExpanded, setIsStructuresExpanded] = useState(false);
 
-  // Estados de acordeón y Drag & Drop para los personajes en escena (turnos de combate)
+  // Estados de acordeón y Drag & Drop fluido para los personajes en escena (turnos de combate)
   const [expandedTokenIds, setExpandedTokenIds] = useState(new Set());
-  const [draggedTokenIndex, setDraggedTokenIndex] = useState(null);
-  const [dragOverTokenIndex, setDragOverTokenIndex] = useState(null);
-  const [dragHandleActiveTokenId, setDragHandleActiveTokenId] = useState(null);
+  const [activeDrag, setActiveDrag] = useState(null);
+  const dragRef = useRef(null);
+  const cardRefs = useRef({});
+  const groupRefs = useRef({});
+  const freeGroupRef = useRef(null);
+  const [dragOverGroupId, setDragOverGroupId] = useState(null);
+  const trashRef = useRef(null);
+  const nameHoldTimerRef = useRef(null);
+  const lastDragEndTimeRef = useRef(0);
 
-  useEffect(() => {
-    const handleGlobalMouseUp = () => setDragHandleActiveTokenId(null);
-    window.addEventListener('mouseup', handleGlobalMouseUp);
-    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
-  }, []);
+  const handleNamePointerDown = (e, index, tokenId) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const startX = e.clientX;
+    const startY = e.clientY;
+    let dragTriggered = false;
+
+    const cleanup = () => {
+      if (nameHoldTimerRef.current) {
+        clearTimeout(nameHoldTimerRef.current);
+        nameHoldTimerRef.current = null;
+      }
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+
+    const triggerDrag = (evt) => {
+      if (dragTriggered) return;
+      dragTriggered = true;
+      lastDragEndTimeRef.current = Date.now();
+      cleanup();
+      handleStartDrag(evt, index, tokenId);
+    };
+
+    // Al mantener presionado 180ms se activa el arrastre y aparece la papelera abajo
+    nameHoldTimerRef.current = setTimeout(() => {
+      triggerDrag(e);
+    }, 180);
+
+    const onMove = (moveEvt) => {
+      const dist = Math.hypot(moveEvt.clientX - startX, moveEvt.clientY - startY);
+      if (dist > 4) {
+        triggerDrag(moveEvt);
+      }
+    };
+
+    const onUp = () => {
+      cleanup();
+    };
+
+    window.addEventListener('pointermove', onMove, { passive: true });
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  };
+
+  const handleStartDrag = (e, index, tokenId) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rects = tokens.map(t => cardRefs.current[t.id]?.getBoundingClientRect());
+    const draggedRect = rects[index];
+    if (!draggedRect) return;
+
+    const midpoints = rects.map(r => r ? r.top + r.height / 2 : 0);
+
+    dragRef.current = {
+      index,
+      tokenId,
+      startY: e.clientY,
+      targetIndex: index,
+      draggedHeight: draggedRect.height,
+      midpoints,
+      rects,
+      isOverTrash: false
+    };
+
+    setActiveDrag({
+      index,
+      deltaY: 0,
+      targetIndex: index,
+      draggedHeight: draggedRect.height,
+      isDropping: false,
+      isOverTrash: false
+    });
+
+    const handlePointerMove = (moveEvent) => {
+      if (!dragRef.current || dragRef.current.isDropping) return;
+      const deltaY = moveEvent.clientY - dragRef.current.startY;
+      const currentCenter = dragRef.current.midpoints[dragRef.current.index] + deltaY;
+
+      // Comprobar si el puntero se encuentra sobre la zona de papelera inferior (abajo del todo)
+      let isOverTrash = false;
+      if (trashRef.current) {
+        const trashRect = trashRef.current.getBoundingClientRect();
+        isOverTrash = (
+          moveEvent.clientX >= trashRect.left &&
+          moveEvent.clientX <= trashRect.right &&
+          moveEvent.clientY >= trashRect.top &&
+          moveEvent.clientY <= trashRect.bottom + 20
+        );
+      }
+      dragRef.current.isOverTrash = isOverTrash;
+
+      // Comprobar si el puntero está sobre algún grupo de combate
+      let overGroupId = null;
+      if (combatGroups && combatGroups.length > 0) {
+        for (const cg of combatGroups) {
+          const gEl = groupRefs.current[cg.id];
+          if (gEl) {
+            const gRect = gEl.getBoundingClientRect();
+            if (
+              moveEvent.clientX >= gRect.left - 20 &&
+              moveEvent.clientX <= gRect.right + 20 &&
+              moveEvent.clientY >= gRect.top &&
+              moveEvent.clientY <= gRect.bottom
+            ) {
+              overGroupId = cg.id;
+              break;
+            }
+          }
+        }
+        if (!overGroupId && freeGroupRef.current) {
+          const fRect = freeGroupRef.current.getBoundingClientRect();
+          if (
+            moveEvent.clientX >= fRect.left - 20 &&
+            moveEvent.clientX <= fRect.right + 20 &&
+            moveEvent.clientY >= fRect.top &&
+            moveEvent.clientY <= fRect.bottom
+          ) {
+            overGroupId = 'free';
+          }
+        }
+      }
+      dragRef.current.overGroupId = overGroupId;
+
+      let targetIndex = dragRef.current.index;
+      const { midpoints: mids, index: originIndex } = dragRef.current;
+
+      for (let i = 0; i < mids.length; i++) {
+        if (i < originIndex) {
+          if (currentCenter < mids[i]) {
+            targetIndex = Math.min(targetIndex, i);
+          }
+        } else if (i > originIndex) {
+          if (currentCenter > mids[i]) {
+            targetIndex = Math.max(targetIndex, i);
+          }
+        }
+      }
+
+      dragRef.current.deltaY = deltaY;
+      dragRef.current.targetIndex = targetIndex;
+
+      setActiveDrag({
+        index: originIndex,
+        deltaY,
+        targetIndex,
+        draggedHeight: dragRef.current.draggedHeight,
+        isDropping: false,
+        isOverTrash,
+        overGroupId
+      });
+    };
+
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
+      lastDragEndTimeRef.current = Date.now();
+
+      if (!dragRef.current || dragRef.current.isDropping) return;
+      dragRef.current.isDropping = true;
+
+      // Si se soltó sobre la papelera: retirar token de la mesa y de la lista
+      if (dragRef.current.isOverTrash) {
+        const tokenIdToRemove = dragRef.current.tokenId;
+        setActiveDrag(prev => ({
+          ...prev,
+          isDropping: true,
+          isOverTrash: true
+        }));
+
+        setTimeout(() => {
+          if (onRemoveToken) {
+            onRemoveToken(tokenIdToRemove);
+          }
+          dragRef.current = null;
+          setActiveDrag(null);
+        }, 150);
+        return;
+      }
+
+      // Si se soltó sobre un grupo o sobre la zona de fuera de combate
+      if (dragRef.current.overGroupId !== undefined && dragRef.current.overGroupId !== null) {
+        const tokenId = dragRef.current.tokenId;
+        const targetGroupId = dragRef.current.overGroupId === 'free' ? null : dragRef.current.overGroupId;
+        if (onAssignTokenToGroup) {
+          onAssignTokenToGroup(tokenId, targetGroupId);
+        }
+        dragRef.current = null;
+        setActiveDrag(null);
+        return;
+      }
+
+      const { index: originIdx, targetIndex: finalTargetIdx, rects } = dragRef.current;
+
+      // Calcular el desplazamiento exacto del slot destino para una transición suave y continua
+      let targetDeltaY = 0;
+      if (rects && rects[finalTargetIdx] && rects[originIdx]) {
+        if (originIdx < finalTargetIdx) {
+          targetDeltaY = (rects[finalTargetIdx].bottom - dragRef.current.draggedHeight) - rects[originIdx].top;
+        } else if (originIdx > finalTargetIdx) {
+          targetDeltaY = rects[finalTargetIdx].top - rects[originIdx].top;
+        }
+      }
+
+      // Deslizar con animación fluida hacia el slot final
+      setActiveDrag({
+        index: originIdx,
+        deltaY: targetDeltaY,
+        targetIndex: finalTargetIdx,
+        draggedHeight: dragRef.current.draggedHeight,
+        isDropping: true,
+        isOverTrash: false
+      });
+
+      // Al terminar la animación de asentamiento, se actualiza el orden en los datos sin salto visual
+      setTimeout(() => {
+        if (originIdx !== finalTargetIdx && onReorderTokens) {
+          onReorderTokens(originIdx, finalTargetIdx);
+        }
+        dragRef.current = null;
+        setActiveDrag(null);
+      }, 200);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove, { passive: true });
+    window.addEventListener('pointerup', handlePointerUp);
+    window.addEventListener('pointercancel', handlePointerUp);
+  };
 
   const toggleTokenExpand = (id) => {
     setExpandedTokenIds(prev => {
@@ -284,29 +533,7 @@ const TokenSidebar = ({
           flexDirection: 'column',
           overflowY: 'auto'
         }}>
-          {onOpenMapCreator && (
-            <button
-              type="button"
-              onClick={onOpenMapCreator}
-              className="vtt-brass-btn"
-              style={{
-                padding: '7px 10px',
-                borderRadius: '7px',
-                fontSize: '11px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                borderColor: '#f59e0b',
-                color: '#fbbf24',
-                width: '100%',
-                justifyContent: 'center',
-                marginBottom: '12px',
-                flexShrink: 0
-              }}
-              title="Abrir el Creador y Editor de Mapas"
-            >
-              Editor de Mapas y Muros
-            </button>
-          )}
+
 
           {/* 1. ARCHIVO DE PERSONAJES */}
           <SectionAccordion
@@ -316,9 +543,32 @@ const TokenSidebar = ({
             onClick={() => setIsCharactersExpanded(!isCharactersExpanded)}
             tooltip="Investigadores y personajes aliados"
           >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+              <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Investigadores</span>
+              {onCreateNewCharacter && (
+                <button
+                  type="button"
+                  onClick={() => onCreateNewCharacter('human')}
+                  className="vtt-brass-btn"
+                  style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '10px', fontWeight: 700, cursor: 'pointer', color: '#fbbf24', borderColor: '#f59e0b' }}
+                  title="Inscribir nuevo personaje o investigador"
+                >
+                  + Inscribir
+                </button>
+              )}
+            </div>
             {humanCharacters.map(char => (
               <div 
                 key={char.id}
+                draggable={true}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'character', id: char.id }));
+                  e.dataTransfer.effectAllowed = 'copy';
+                  if (onStartDragCharacter) onStartDragCharacter(char);
+                }}
+                onDragEnd={() => {
+                  if (onEndDragCharacter) onEndDragCharacter();
+                }}
                 style={{
                   background: '#191d27',
                   border: char.isGraveWound ? '1px solid #ef4444' : '1px solid #2c3344',
@@ -326,11 +576,23 @@ const TokenSidebar = ({
                   padding: '7px 9px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px'
+                  gap: '6px',
+                  cursor: 'grab',
+                  userSelect: 'none',
+                  transition: 'border-color 0.15s, box-shadow 0.15s'
                 }}
+                title="Arrastra este personaje al tablero para desplegarlo"
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                    <span style={{ color: '#64748b', display: 'inline-flex', cursor: 'grab', userSelect: 'none' }} title="Arrastrar al tablero">
+                      <svg width="10" height="10" viewBox="0 0 14 14" fill="currentColor">
+                        <rect x="2" y="2" width="3" height="3" rx="0.7"/>
+                        <rect x="8.5" y="2" width="3" height="3" rx="0.7"/>
+                        <rect x="2" y="8.5" width="3" height="3" rx="0.7"/>
+                        <rect x="8.5" y="8.5" width="3" height="3" rx="0.7"/>
+                      </svg>
+                    </span>
                     <div style={{
                       width: '24px',
                       height: '24px',
@@ -363,7 +625,10 @@ const TokenSidebar = ({
                     {onEditCharacter && (
                       <button
                         type="button"
-                        onClick={() => onEditCharacter(char)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditCharacter(char);
+                        }}
                         className="vtt-brass-btn"
                         style={{ borderRadius: '6px', padding: '4px 7px', cursor: 'pointer', fontSize: '11px' }}
                         title="Abrir y editar ficha"
@@ -371,15 +636,6 @@ const TokenSidebar = ({
                         ✏️
                       </button>
                     )}
-                    <button 
-                      type="button"
-                      onClick={() => onAddToken(char)} 
-                      className="vtt-primary-cta"
-                      style={{ borderRadius: '6px', padding: '4px 9px', cursor: 'pointer', fontSize: '11px' }}
-                      title="Seleccionar casilla para desplegar en el tablero"
-                    >
-                      Invocar
-                    </button>
                   </div>
                 </div>
               </div>
@@ -433,9 +689,32 @@ const TokenSidebar = ({
             onClick={() => setIsMonstersExpanded(!isMonstersExpanded)}
             tooltip="Criaturas y monstruos de los Mitos"
           >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+              <span style={{ fontSize: '10px', color: '#fca5a5', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Entidades y Horrores</span>
+              {onCreateNewCharacter && (
+                <button
+                  type="button"
+                  onClick={() => onCreateNewCharacter('mythos_creature')}
+                  className="vtt-brass-btn"
+                  style={{ padding: '3px 8px', borderRadius: '5px', fontSize: '10px', fontWeight: 700, cursor: 'pointer', color: '#fca5a5', borderColor: '#ef4444' }}
+                  title="Registrar nueva criatura o monstruo de los Mitos"
+                >
+                  + Criatura
+                </button>
+              )}
+            </div>
             {monsterCharacters.map(char => (
               <div 
                 key={char.id}
+                draggable={true}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'character', id: char.id }));
+                  e.dataTransfer.effectAllowed = 'copy';
+                  if (onStartDragCharacter) onStartDragCharacter(char);
+                }}
+                onDragEnd={() => {
+                  if (onEndDragCharacter) onEndDragCharacter();
+                }}
                 style={{
                   background: '#191d27',
                   border: '1px solid #7f1d1d',
@@ -443,11 +722,23 @@ const TokenSidebar = ({
                   padding: '7px 9px',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px'
+                  gap: '6px',
+                  cursor: 'grab',
+                  userSelect: 'none',
+                  transition: 'border-color 0.15s, box-shadow 0.15s'
                 }}
+                title="Arrastra esta criatura al tablero para desplegarla"
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                    <span style={{ color: '#64748b', display: 'inline-flex', cursor: 'grab', userSelect: 'none' }} title="Arrastrar al tablero">
+                      <svg width="10" height="10" viewBox="0 0 14 14" fill="currentColor">
+                        <rect x="2" y="2" width="3" height="3" rx="0.7"/>
+                        <rect x="8.5" y="2" width="3" height="3" rx="0.7"/>
+                        <rect x="2" y="8.5" width="3" height="3" rx="0.7"/>
+                        <rect x="8.5" y="8.5" width="3" height="3" rx="0.7"/>
+                      </svg>
+                    </span>
                     <div style={{
                       width: '24px',
                       height: '24px',
@@ -480,7 +771,10 @@ const TokenSidebar = ({
                     {onEditCharacter && (
                       <button
                         type="button"
-                        onClick={() => onEditCharacter(char)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onEditCharacter(char);
+                        }}
                         className="vtt-brass-btn"
                         style={{ borderRadius: '6px', padding: '4px 7px', cursor: 'pointer', fontSize: '11px' }}
                         title="Abrir y editar ficha"
@@ -488,14 +782,6 @@ const TokenSidebar = ({
                         ✏️
                       </button>
                     )}
-                    <button 
-                      type="button"
-                      onClick={() => onAddToken(char)} 
-                      className="vtt-primary-cta"
-                      style={{ borderRadius: '6px', padding: '4px 9px', cursor: 'pointer', fontSize: '11px' }}
-                    >
-                      Invocar
-                    </button>
                   </div>
                 </div>
               </div>
@@ -726,8 +1012,8 @@ const TokenSidebar = ({
       {activeMainTab === 'scene' && (
         <div style={{ padding: '12px 10px', flex: 1, minHeight: 0, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         
-        {/* Barra de Gestión de Turnos e Iniciativa */}
-        {tokens.length > 1 && (
+        {/* Barra de Gestión de Turnos e Iniciativa (Modo Estándar Global) */}
+        {tokens.length > 1 && combatGroups.length === 0 && (
           <div style={{
             display: 'flex',
             flexDirection: 'column',
@@ -749,6 +1035,17 @@ const TokenSidebar = ({
               </div>
 
               <div style={{ display: 'flex', gap: '4px' }}>
+                {!isCombatActive && onCreateCombatGroup && (
+                  <button
+                    type="button"
+                    onClick={() => onCreateCombatGroup('Encuentro 1')}
+                    className="vtt-brass-btn"
+                    style={{ padding: '3px 7px', fontSize: '10px', borderRadius: '4px', cursor: 'pointer' }}
+                    title="Dividir en grupos de combate independientes para personajes en distintas zonas"
+                  >
+                    ⚔️ + Grupos
+                  </button>
+                )}
                 {!isCombatActive ? (
                   onStartCombat && (
                     <button
@@ -828,6 +1125,59 @@ const TokenSidebar = ({
           </div>
         )}
 
+        {/* Barra Superior de Grupos / Encuentros cuando están activos */}
+        {combatGroups.length > 0 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '10px',
+            padding: '7px 9px',
+            background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, rgba(19, 22, 32, 0.95) 100%)',
+            border: '1px solid #3b4255',
+            borderRadius: '8px',
+            flexShrink: 0
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 700 }}>
+                ⚔️ Encuentros ({combatGroups.length})
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              {onCreateCombatGroup && (
+                <button
+                  type="button"
+                  onClick={() => onCreateCombatGroup()}
+                  className="vtt-brass-btn"
+                  style={{ padding: '3px 7px', fontSize: '10px', borderRadius: '4px', cursor: 'pointer' }}
+                  title="Crear un nuevo grupo de combate independiente"
+                >
+                  + Grupo
+                </button>
+              )}
+              {onDisbandAllGroups && (
+                <button
+                  type="button"
+                  onClick={onDisbandAllGroups}
+                  style={{
+                    padding: '3px 6px',
+                    fontSize: '10px',
+                    borderRadius: '4px',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    border: '1px solid rgba(239, 68, 68, 0.35)',
+                    color: '#fca5a5',
+                    cursor: 'pointer',
+                    fontWeight: 600
+                  }}
+                  title="Disolver todos los encuentros y volver a la lista unificada"
+                >
+                  ✕ Disolver
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Botón para abrir y cerrar desplegables de personajes */}
         {tokens.length > 0 && (
           <div style={{
@@ -862,12 +1212,82 @@ const TokenSidebar = ({
           </div>
         )}
         
-        {/* Lista de Fichas Desplegables con Soporte Drag & Drop */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-          {tokens.map((token, idx) => {
+        {/* Renderizado de Fichas con soporte de Grupos de Combate */}
+        {(() => {
+          const renderTokenCard = (token, idx) => {
             const isExpanded = expandedTokenIds.has(token.id);
-            const isCurrentTurn = isCombatActive && token.id === activeTurnTokenId;
-            const isDragOver = dragOverTokenIndex === idx && draggedTokenIndex !== idx;
+            const myGroup = combatGroups.find(g => g.id === token.combatGroupId);
+            const isCurrentTurn = combatGroups.length > 0
+              ? Boolean(myGroup && myGroup.isCombatActive && token.id === myGroup.activeTurnTokenId)
+              : Boolean(isCombatActive && token.id === activeTurnTokenId);
+            const isBeingDragged = activeDrag && activeDrag.index === idx;
+
+            const faction = token.faction || (token.entityType ? 'enemy' : 'player');
+            const isPlayer = faction === 'player';
+            const isEnemy = faction === 'enemy';
+            const isAlly = faction === 'ally';
+
+            // Colores temáticos de distinción táctica según facción
+            const factionBorderColor = isEnemy
+              ? '#ef4444'
+              : isAlly
+              ? '#3b82f6'
+              : '#10b981'; // Jugador: Esmeralda
+
+            const factionBgGradient = isEnemy
+              ? 'linear-gradient(90deg, rgba(239, 68, 68, 0.14) 0%, rgba(20, 13, 15, 0.96) 65%)'
+              : isAlly
+              ? 'linear-gradient(90deg, rgba(59, 130, 246, 0.14) 0%, rgba(13, 17, 24, 0.96) 65%)'
+              : 'linear-gradient(90deg, rgba(16, 185, 129, 0.18) 0%, rgba(12, 22, 17, 0.96) 65%)'; // Jugador
+
+            const factionBorderBox = isEnemy
+              ? '1px solid rgba(239, 68, 68, 0.35)'
+              : isAlly
+              ? '1px solid rgba(59, 130, 246, 0.35)'
+              : '1px solid rgba(16, 185, 129, 0.45)';
+
+            const badgeBg = isCurrentTurn
+              ? '#3a2808'
+              : isEnemy
+              ? 'rgba(239, 68, 68, 0.2)'
+              : isAlly
+              ? 'rgba(59, 130, 246, 0.2)'
+              : 'rgba(16, 185, 129, 0.22)';
+
+            const badgeBorder = isCurrentTurn
+              ? '1px solid #d4af37'
+              : isEnemy
+              ? '1px solid #ef4444'
+              : isAlly
+              ? '1px solid #3b82f6'
+              : '1px solid #10b981';
+
+            const badgeColor = isCurrentTurn
+              ? '#fef08a'
+              : isEnemy
+              ? '#fca5a5'
+              : isAlly
+              ? '#93c5fd'
+              : '#a7f3d0';
+
+            const nameColor = isCurrentTurn
+              ? '#fef08a'
+              : isEnemy
+              ? '#fecdd3'
+              : isAlly
+              ? '#e0f2fe'
+              : '#ecfdf5';
+
+            let translateY = 0;
+            if (activeDrag && !isBeingDragged) {
+              const { index: dragIdx, targetIndex: tgtIdx, draggedHeight } = activeDrag;
+              const shiftAmount = draggedHeight + 6;
+              if (dragIdx < tgtIdx && idx > dragIdx && idx <= tgtIdx) {
+                translateY = -shiftAmount;
+              } else if (dragIdx > tgtIdx && idx >= tgtIdx && idx < dragIdx) {
+                translateY = shiftAmount;
+              }
+            }
 
             const hp = token.hp ?? 20;
             const maxHp = Math.max(1, token.maxHp ?? 20);
@@ -889,73 +1309,69 @@ const TokenSidebar = ({
             return (
               <div 
                 key={token.id}
-                draggable={dragHandleActiveTokenId === token.id}
+                ref={(el) => { cardRefs.current[token.id] = el; }}
+                draggable={!activeDrag}
                 onDragStart={(e) => {
-                  if (dragHandleActiveTokenId !== token.id) {
-                    e.preventDefault();
-                    return;
-                  }
-                  setDraggedTokenIndex(idx);
-                  e.dataTransfer.setData('text/plain', String(idx));
+                  e.dataTransfer.setData('text/plain', token.id);
                   e.dataTransfer.effectAllowed = 'move';
-                }}
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  e.dataTransfer.dropEffect = 'move';
-                  if (dragOverTokenIndex !== idx) setDragOverTokenIndex(idx);
-                }}
-                onDragLeave={() => {
-                  if (dragOverTokenIndex === idx) setDragOverTokenIndex(null);
-                }}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  if (draggedTokenIndex !== null && draggedTokenIndex !== idx && onReorderTokens) {
-                    onReorderTokens(draggedTokenIndex, idx);
-                  }
-                  setDraggedTokenIndex(null);
-                  setDragOverTokenIndex(null);
-                  setDragHandleActiveTokenId(null);
-                }}
-                onDragEnd={() => {
-                  setDraggedTokenIndex(null);
-                  setDragOverTokenIndex(null);
-                  setDragHandleActiveTokenId(null);
                 }}
                 style={{
                   display: 'flex',
                   flexDirection: 'column',
                   flexShrink: 0,
-                  background: isCurrentTurn
-                    ? 'linear-gradient(90deg, rgba(245, 158, 11, 0.22) 0%, #161a24 100%)'
-                    : isExpanded
-                    ? '#161b26'
-                    : isDragOver
-                    ? '#1f2533'
-                    : '#131720',
-                  borderRadius: '8px',
-                  border: isCurrentTurn
-                    ? '1px solid #fbbf24'
-                    : isExpanded
-                    ? '1px solid #f59e0b'
-                    : isDragOver
-                    ? '2px dashed #f59e0b'
+                  position: 'relative',
+                  zIndex: isBeingDragged ? 50 : 1,
+                  transform: isBeingDragged
+                    ? `translate3d(0, ${activeDrag.deltaY}px, 0) scale(${activeDrag.isDropping ? 1 : activeDrag.isOverTrash ? 0.93 : 1.025})`
+                    : `translate3d(0, ${translateY}px, 0)`,
+                  transition: isBeingDragged
+                    ? activeDrag.isDropping
+                      ? 'transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.18s ease, border 0.18s ease, opacity 0.18s ease'
+                      : 'box-shadow 0.15s, border 0.15s, opacity 0.15s'
+                    : activeDrag
+                    ? 'transform 0.22s cubic-bezier(0.2, 0, 0, 1), background 0.15s, border 0.15s'
+                    : 'background 0.15s, border 0.15s',
+                  pointerEvents: activeDrag ? 'none' : 'auto',
+                  background: isBeingDragged
+                    ? activeDrag.isOverTrash
+                      ? '#2a0e13'
+                      : '#161d2b'
+                    : isCurrentTurn
+                    ? 'linear-gradient(90deg, rgba(212, 175, 55, 0.16) 0%, #131722 100%)'
+                    : factionBgGradient,
+                  borderRadius: '6px',
+                  border: isBeingDragged
+                    ? activeDrag.isOverTrash
+                      ? '1.5px solid #ef4444'
+                      : activeDrag.isDropping
+                      ? isCurrentTurn ? '1px solid #d4af37' : factionBorderBox
+                      : '1.5px solid #d4af37'
+                    : isCurrentTurn
+                    ? '1px solid #d4af37'
                     : token.isGraveWound
-                    ? '1px solid #ef4444'
-                    : token.isLocked
-                    ? '1px solid #f59e0b'
-                    : '1px solid #252c3c',
-                  borderLeft: isCurrentTurn
+                    ? '1px solid #7f1d1d'
+                    : factionBorderBox,
+                  borderLeft: isBeingDragged
+                    ? activeDrag.isOverTrash
+                      ? '4px solid #ef4444'
+                      : activeDrag.isDropping
+                      ? isCurrentTurn ? '3px solid #d4af37' : `3.5px solid ${factionBorderColor}`
+                      : '4px solid #d4af37'
+                    : isCurrentTurn
                     ? '4px solid #fbbf24'
+                    : `3.5px solid ${factionBorderColor}`,
+                  boxShadow: isBeingDragged
+                    ? activeDrag.isOverTrash
+                      ? '0 0 24px rgba(239, 68, 68, 0.65)'
+                      : activeDrag.isDropping
+                      ? isCurrentTurn ? '0 0 12px rgba(212, 175, 55, 0.25)' : '0 4px 14px rgba(0,0,0,0.6)'
+                      : '0 14px 30px rgba(0, 0, 0, 0.85), 0 0 16px rgba(212, 175, 55, 0.45)'
+                    : isCurrentTurn
+                    ? '0 0 12px rgba(212, 175, 55, 0.25)'
                     : isExpanded
-                    ? '4px solid #f59e0b'
-                    : '4px solid transparent',
-                  boxShadow: isCurrentTurn
-                    ? '0 0 14px rgba(245, 158, 11, 0.35)'
-                    : isExpanded
-                    ? '0 4px 14px rgba(0,0,0,0.5)'
-                    : '0 2px 5px rgba(0,0,0,0.35)',
-                  opacity: draggedTokenIndex === idx ? 0.45 : 1,
-                  transition: 'background 0.15s, border 0.15s',
+                    ? `0 4px 14px rgba(0,0,0,0.6), 0 0 10px ${isEnemy ? 'rgba(239,68,68,0.25)' : isAlly ? 'rgba(59,130,246,0.25)' : 'rgba(16,185,129,0.25)'}`
+                    : '0 2px 4px rgba(0,0,0,0.35)',
+                  opacity: isBeingDragged && activeDrag.isOverTrash ? 0.75 : 1,
                   overflow: 'hidden'
                 }}
               >
@@ -969,44 +1385,37 @@ const TokenSidebar = ({
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    padding: '8px 10px',
+                    padding: '7px 9px',
                     cursor: 'pointer',
                     userSelect: 'none',
-                    gap: '8px',
-                    background: isExpanded ? 'rgba(20, 25, 36, 0.95)' : 'transparent',
-                    borderBottom: isExpanded ? '1px solid #232b3c' : 'none'
+                    gap: '7px',
+                    background: isExpanded ? 'rgba(17, 21, 31, 0.95)' : 'transparent',
+                    borderBottom: isExpanded ? '1px solid #1f2738' : 'none'
                   }}
                   title={isExpanded ? "Haz clic para plegar controles (Doble clic: centrar en el tablero)" : "Haz clic para ver controles completos (Doble clic: centrar en el tablero)"}
                 >
-                  {/* Izquierda: Asa de arrastre (4 cuadraditos) + Turno */}
+                  {/* Izquierda: Asa de arrastre fluida + Turno + Avatar miniatura */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
                     <span
-                      onMouseDown={(e) => {
-                        e.stopPropagation();
-                        setDragHandleActiveTokenId(token.id);
-                      }}
-                      onMouseUp={() => setDragHandleActiveTokenId(null)}
-                      onTouchStart={(e) => {
-                        e.stopPropagation();
-                        setDragHandleActiveTokenId(token.id);
-                      }}
-                      onTouchEnd={() => setDragHandleActiveTokenId(null)}
+                      onPointerDown={(e) => handleStartDrag(e, idx, token.id)}
                       style={{
-                        color: dragHandleActiveTokenId === token.id ? '#fbbf24' : '#64748b',
+                        color: activeDrag?.index === idx ? '#d4af37' : '#64748b',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        cursor: 'grab',
+                        cursor: activeDrag ? 'grabbing' : 'grab',
                         userSelect: 'none',
-                        padding: '2px',
-                        borderRadius: '3px',
-                        transition: 'color 0.15s, transform 0.15s'
+                        touchAction: 'none',
+                        padding: '3px',
+                        borderRadius: '4px',
+                        backgroundColor: activeDrag?.index === idx ? 'rgba(212, 175, 55, 0.15)' : 'transparent',
+                        transition: 'color 0.15s, background-color 0.15s'
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.color = '#fbbf24'; }}
+                      onMouseEnter={(e) => { e.currentTarget.style.color = '#d4af37'; }}
                       onMouseLeave={(e) => {
-                        if (dragHandleActiveTokenId !== token.id) e.currentTarget.style.color = '#64748b';
+                        if (activeDrag?.index !== idx) e.currentTarget.style.color = '#64748b';
                       }}
-                      title="Arrastra desde estos 4 puntos para cambiar el orden de los turnos"
+                      title="Arrastra para reordenar fluidamente los turnos"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
@@ -1018,13 +1427,14 @@ const TokenSidebar = ({
                     </span>
                     <span
                       style={{
-                        fontSize: '11px',
-                        color: isCurrentTurn ? '#0f172a' : '#94a3b8',
-                        backgroundColor: isCurrentTurn ? '#fbbf24' : '#1e2433',
-                        border: isCurrentTurn ? '1px solid #f59e0b' : '1px solid #2d3748',
-                        fontWeight: 800,
+                        fontFamily: 'monospace',
+                        fontSize: '10px',
+                        color: badgeColor,
+                        backgroundColor: badgeBg,
+                        border: badgeBorder,
+                        fontWeight: 700,
                         padding: '1px 5px',
-                        borderRadius: '4px',
+                        borderRadius: '3px',
                         minWidth: '22px',
                         textAlign: 'center',
                         lineHeight: '14px'
@@ -1033,36 +1443,80 @@ const TokenSidebar = ({
                     >
                       #{idx + 1}
                     </span>
+                    {/* Miniatura / Avatar del Token */}
+                    <div
+                      style={{
+                        width: '22px',
+                        height: '22px',
+                        borderRadius: '50%',
+                        backgroundColor: token.color || (isEnemy ? '#450a0a' : isAlly ? '#0c2340' : '#064e3b'),
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '10px',
+                        fontWeight: 800,
+                        border: `1.5px solid ${isCurrentTurn ? '#fbbf24' : factionBorderColor}`,
+                        boxShadow: '0 1px 3px rgba(0,0,0,0.6)'
+                      }}
+                      title={`${isEnemy ? 'Enemigo' : isAlly ? 'Aliado' : 'Jugador'}: ${token.name}`}
+                    >
+                      {token.avatar ? (
+                        <img src={token.avatar} alt={token.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : (
+                        <span style={{ color: '#ffffff' }}>{(token.name || '?').charAt(0).toUpperCase()}</span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Centro: Nombre Centrado + Micro-Barra de Salud */}
                   <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '3px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px', width: '100%' }}>
                       <span
+                        className="vtt-gothic-title"
+                        onPointerDown={(e) => handleNamePointerDown(e, idx, token.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (Date.now() - lastDragEndTimeRef.current < 250 || activeDrag || dragRef.current) return;
+                          if (onOpenTokenSheet) {
+                            onOpenTokenSheet(token);
+                          } else if (onEditCharacter) {
+                            onEditCharacter(token);
+                          }
+                        }}
                         style={{
                           fontSize: '12px',
                           fontWeight: 700,
-                          color: isCurrentTurn
-                            ? '#fbbf24'
-                            : token.faction === 'enemy'
-                            ? '#f87171'
-                            : token.faction === 'player'
-                            ? '#34d399'
-                            : '#f8fafc',
+                          letterSpacing: '0.03em',
+                          color: nameColor,
                           whiteSpace: 'nowrap',
                           textOverflow: 'ellipsis',
                           overflow: 'hidden',
                           textAlign: 'center',
                           fontStyle: token.isHidden ? 'italic' : 'normal',
                           opacity: token.isHidden ? 0.75 : 1,
-                          lineHeight: '15px'
+                          lineHeight: '15px',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                          textDecorationColor: isPlayer ? 'rgba(16, 185, 129, 0.45)' : isAlly ? 'rgba(59, 130, 246, 0.45)' : 'rgba(239, 68, 68, 0.45)',
+                          textUnderlineOffset: '3px',
+                          transition: 'color 0.15s ease, text-decoration-color 0.15s ease'
                         }}
-                        title={`Combatiente: ${token.name}${token.faction === 'enemy' ? ' (Enemigo)' : ''}${token.isHidden ? ' (Oculto a jugadores)' : ''}`}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.color = '#fef08a';
+                          e.currentTarget.style.textDecorationColor = '#d4af37';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.color = nameColor;
+                          e.currentTarget.style.textDecorationColor = isPlayer ? 'rgba(16, 185, 129, 0.45)' : isAlly ? 'rgba(59, 130, 246, 0.45)' : 'rgba(239, 68, 68, 0.45)';
+                        }}
+                        title={`Abrir ficha de ${token.name}`}
                       >
                         {token.name}
                       </span>
                       {token.hasArmor && (
-                        <span style={{ fontSize: '9px', color: '#94a3b8', background: '#1c2230', padding: '1px 4px', borderRadius: '3px', flexShrink: 0 }} title={`Armadura equipada: ${token.armorType}`}>
+                        <span style={{ fontSize: '9px', color: '#94a3b8', background: '#171c26', border: '1px solid #242c3d', padding: '0 3px', borderRadius: '3px', flexShrink: 0 }} title={`Armadura equipada: ${token.armorType}`}>
                           ARM
                         </span>
                       )}
@@ -1071,11 +1525,11 @@ const TokenSidebar = ({
                           style={{
                             fontSize: '9px',
                             fontWeight: 700,
-                            color: token.isGraveWound ? '#fca5a5' : '#6ee7b7',
-                            background: token.isGraveWound ? 'rgba(239, 68, 68, 0.25)' : 'rgba(16, 185, 129, 0.25)',
-                            border: `1px solid ${token.isGraveWound ? 'rgba(239, 68, 68, 0.45)' : 'rgba(16, 185, 129, 0.45)'}`,
-                            padding: '1px 4px',
-                            borderRadius: '4px',
+                            color: token.isGraveWound ? '#fca5a5' : '#a7f3d0',
+                            background: token.isGraveWound ? 'rgba(127, 29, 29, 0.3)' : 'rgba(22, 60, 40, 0.4)',
+                            border: `1px solid ${token.isGraveWound ? '#7f1d1d' : '#22533b'}`,
+                            padding: '0 4px',
+                            borderRadius: '3px',
                             flexShrink: 0
                           }}
                           title={`Movimiento restante este turno: ${remainingSpeed} de ${maxSpeed} casillas (${remainingSpeed * 5} ft)`}
@@ -1090,7 +1544,7 @@ const TokenSidebar = ({
                       <div style={{
                         flex: 1,
                         height: '4px',
-                        background: '#231215',
+                        background: '#150a0c',
                         borderRadius: '999px',
                         overflow: 'hidden',
                         border: '1px solid rgba(255,255,255,0.05)'
@@ -1098,14 +1552,21 @@ const TokenSidebar = ({
                         <div style={{
                           width: `${hpPct}%`,
                           height: '100%',
-                          background: hp <= 0 ? '#ef4444' : hpPct < 30 ? '#ef4444' : hpPct < 60 ? '#f59e0b' : '#22c55e',
+                          background: hp <= 0
+                            ? '#450a0a'
+                            : isPlayer
+                            ? 'linear-gradient(90deg, #059669 0%, #10b981 100%)'
+                            : isAlly
+                            ? 'linear-gradient(90deg, #2563eb 0%, #3b82f6 100%)'
+                            : 'linear-gradient(90deg, #6b141d 0%, #991b1b 100%)',
                           transition: 'width 0.25s ease'
                         }} />
                       </div>
                       <span style={{
+                        fontFamily: 'monospace',
                         fontSize: '10px',
                         fontWeight: 600,
-                        color: hp <= 0 ? '#ef4444' : hpPct < 30 ? '#fca5a5' : '#94a3b8',
+                        color: hp <= 0 ? '#f87171' : isPlayer ? '#a7f3d0' : '#94a3b8',
                         flexShrink: 0
                       }}>
                         {hp <= 0 ? 'Caído' : `${hp}/${maxHp} PV`}
@@ -1113,66 +1574,147 @@ const TokenSidebar = ({
                     </div>
                   </div>
 
-                  {/* Derecha: Botón Centrar + Botón Colapsar */}
+                  {/* Derecha: Selector de Grupo + Botón Turno + Botón Colapsar */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-                    {isCombatActive && !isCurrentTurn && onSelectActiveTurn && (
+                    {combatGroups.length > 0 && (
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveGroupMenuTokenId(activeGroupMenuTokenId === token.id ? null : token.id);
+                          }}
+                          style={{
+                            fontSize: '9px',
+                            cursor: 'pointer',
+                            padding: '2px 5px',
+                            borderRadius: '3px',
+                            fontWeight: 700,
+                            backgroundColor: myGroup ? myGroup.bgColor : '#181e2b',
+                            border: `1px solid ${myGroup ? myGroup.borderColor : '#334155'}`,
+                            color: myGroup ? myGroup.color : '#94a3b8',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}
+                          title="Asignar a un encuentro o dejar fuera de combate"
+                        >
+                          <span>{myGroup ? myGroup.name : 'Libre'}</span>
+                          <span style={{ fontSize: '7px' }}>▼</span>
+                        </button>
+                        {activeGroupMenuTokenId === token.id && (
+                          <div
+                            onClick={(e) => e.stopPropagation()}
+                            style={{
+                              position: 'absolute',
+                              top: '100%',
+                              right: 0,
+                              marginTop: '3px',
+                              zIndex: 99999,
+                              background: '#0f131c',
+                              border: '1px solid #334155',
+                              borderRadius: '5px',
+                              boxShadow: '0 8px 24px rgba(0,0,0,0.95)',
+                              padding: '3px',
+                              minWidth: '135px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '2px'
+                            }}
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (onAssignTokenToGroup) onAssignTokenToGroup(token.id, null);
+                                setActiveGroupMenuTokenId(null);
+                              }}
+                              style={{
+                                padding: '4px 6px',
+                                fontSize: '9px',
+                                borderRadius: '3px',
+                                border: 'none',
+                                background: !token.combatGroupId ? 'rgba(255,255,255,0.1)' : 'transparent',
+                                color: !token.combatGroupId ? '#fff' : '#94a3b8',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '5px'
+                              }}
+                            >
+                              <span>⭕</span>
+                              <span>Fuera de combate</span>
+                            </button>
+                            {combatGroups.map(cg => (
+                              <button
+                                key={cg.id}
+                                type="button"
+                                onClick={() => {
+                                  if (onAssignTokenToGroup) onAssignTokenToGroup(token.id, cg.id);
+                                  setActiveGroupMenuTokenId(null);
+                                }}
+                                style={{
+                                  padding: '4px 6px',
+                                  fontSize: '9px',
+                                  borderRadius: '3px',
+                                  border: 'none',
+                                  background: token.combatGroupId === cg.id ? cg.bgColor : 'transparent',
+                                  color: token.combatGroupId === cg.id ? cg.color : '#e2e8f0',
+                                  textAlign: 'left',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '5px'
+                                }}
+                              >
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', backgroundColor: cg.color }} />
+                                <span style={{ fontWeight: 600 }}>{cg.name}</span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {((combatGroups.length > 0 ? (myGroup && myGroup.isCombatActive && !isCurrentTurn) : (isCombatActive && !isCurrentTurn))) && (
                       <button
                         type="button"
-                        onClick={() => onSelectActiveTurn(token.id)}
+                        onClick={() => {
+                          if (combatGroups.length > 0) {
+                            if (onSelectGroupActiveTurn && token.combatGroupId) {
+                              onSelectGroupActiveTurn(token.combatGroupId, token.id);
+                            }
+                          } else if (onSelectActiveTurn) {
+                            onSelectActiveTurn(token.id);
+                          }
+                        }}
+                        className="vtt-brass-btn"
                         style={{
-                          background: 'rgba(245, 158, 11, 0.12)',
-                          border: '1px solid rgba(245, 158, 11, 0.35)',
-                          color: '#fbbf24',
-                          fontSize: '10px',
+                          fontSize: '9px',
                           cursor: 'pointer',
-                          padding: '2px 5px',
-                          borderRadius: '4px',
-                          fontWeight: 600
+                          padding: '2px 6px',
+                          borderRadius: '3px'
                         }}
                         title="Asignar el turno activo a este combatiente"
                       >
                         Turno
                       </button>
                     )}
-                    {onCenterOnToken && (
-                      <button
-                        type="button"
-                        onClick={() => onCenterOnToken(token)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#94a3b8',
-                          fontSize: '13px',
-                          cursor: 'pointer',
-                          padding: '2px 4px',
-                          borderRadius: '4px',
-                          transition: 'color 0.15s, transform 0.15s'
-                        }}
-                        onMouseEnter={(e) => { e.currentTarget.style.color = '#fbbf24'; e.currentTarget.style.transform = 'scale(1.15)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.color = '#94a3b8'; e.currentTarget.style.transform = 'scale(1)'; }}
-                        title="Centrar mapa en este combatiente (o doble clic en la tarjeta)"
-                      >
-                        ⊙
-                      </button>
-                    )}
                     <button
                       type="button"
                       onClick={() => toggleTokenExpand(token.id)}
+                      className="vtt-brass-btn"
                       style={{
-                        background: isExpanded ? 'rgba(245, 158, 11, 0.2)' : '#191f2c',
-                        border: isExpanded ? '1px solid #f59e0b' : '1px solid #2a3449',
-                        color: isExpanded ? '#fbbf24' : '#94a3b8',
-                        fontSize: '10px',
-                        fontWeight: 800,
+                        fontSize: '9px',
                         cursor: 'pointer',
                         padding: '2px 0',
-                        width: '24px',
-                        height: '22px',
-                        borderRadius: '4px',
+                        width: '22px',
+                        height: '20px',
+                        borderRadius: '3px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        transition: 'all 0.15s ease'
+                        color: isExpanded ? factionBorderColor : '#94a3b8',
+                        borderColor: isExpanded ? factionBorderColor : '#2b3345'
                       }}
                       title={isExpanded ? "Plegar tarjeta" : "Desplegar controles detallados"}
                     >
@@ -1183,189 +1725,122 @@ const TokenSidebar = ({
 
                 {/* Contenido Completo Desplegado Bien Organizado */}
                 {isExpanded && (
-                  <div style={{ padding: '10px', display: 'flex', flexDirection: 'column', gap: '9px', background: 'rgba(14, 18, 26, 0.8)' }}>
-                    {/* A. Barra de Acciones Equilibrada de Extremo a Extremo */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '5px', paddingBottom: '8px', borderBottom: '1px solid #1f2738' }}>
-                      {isCombatActive && !isCurrentTurn && onSelectActiveTurn && (
-                        <button
-                          type="button"
-                          onClick={() => onSelectActiveTurn(token.id)}
-                          className="vtt-brass-btn"
-                          style={{
-                            flex: 1,
-                            padding: '4px 0',
-                            borderRadius: '4px',
-                            fontSize: '10px',
-                            cursor: 'pointer',
-                            borderColor: '#f59e0b',
-                            color: '#fbbf24',
-                            textAlign: 'center'
-                          }}
-                          title="Asignar el turno activo a este combatiente"
-                        >
-                          Turno
-                        </button>
-                      )}
-                      {onOpenTokenSheet && (
-                        <button
-                          type="button"
-                          onClick={() => onOpenTokenSheet(token.id, 'stats')}
-                          className="vtt-brass-btn"
-                          style={{
-                            flex: 1,
-                            padding: '4px 0',
-                            borderRadius: '4px',
-                            fontSize: '10px',
-                            cursor: 'pointer',
-                            borderColor: '#3b82f6',
-                            color: '#60a5fa',
-                            textAlign: 'center'
-                          }}
-                          title="Abrir hoja de personaje completa (atributos, equipo, notas)"
-                        >
-                          Ficha
-                        </button>
-                      )}
-                      {onCenterOnToken && (
-                        <button
-                          type="button"
-                          onClick={() => onCenterOnToken(token)}
-                          className="vtt-brass-btn"
-                          style={{
-                            flex: 1,
-                            padding: '4px 0',
-                            borderRadius: '4px',
-                            fontSize: '10px',
-                            cursor: 'pointer',
-                            textAlign: 'center'
-                          }}
-                          title="Centrar la cámara del tablero sobre este personaje"
-                        >
-                          Centrar
-                        </button>
-                      )}
-                      {onMoveTokenOrder && (
-                        <div style={{ display: 'flex', flexShrink: 0 }}>
+                  <div style={{ padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: '8px', background: '#0a0d13' }}>
+                    {/* A. Barra de Acciones y Orden de Iniciativa */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '6px',
+                      paddingBottom: '6px',
+                      borderBottom: '1px solid #191f2c'
+                    }}>
+                      {/* Lado izquierdo: Asignar Turno e Iniciativa */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {isCombatActive && !isCurrentTurn && onSelectActiveTurn && (
                           <button
                             type="button"
-                            disabled={idx === 0}
-                            onClick={() => onMoveTokenOrder(idx, 'up')}
+                            onClick={() => onSelectActiveTurn(token.id)}
                             className="vtt-brass-btn"
                             style={{
-                              padding: '4px 6px',
-                              fontSize: '9px',
-                              borderRadius: '4px 0 0 4px',
-                              cursor: idx === 0 ? 'default' : 'pointer',
-                              opacity: idx === 0 ? 0.3 : 1
+                              padding: '3px 8px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              cursor: 'pointer'
                             }}
-                            title="Subir un puesto en la iniciativa de turnos"
+                            title="Asignar el turno activo a este combatiente"
                           >
-                            ▲
+                            ★ Turno
                           </button>
+                        )}
+
+                      </div>
+
+                      {/* Lado derecho: Abatir y Retirar de la mesa */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        {onSendToGraveyard && (
                           <button
                             type="button"
-                            disabled={idx === tokens.length - 1}
-                            onClick={() => onMoveTokenOrder(idx, 'down')}
-                            className="vtt-brass-btn"
+                            onClick={() => onSendToGraveyard(token)}
                             style={{
-                              padding: '4px 6px',
-                              fontSize: '9px',
-                              borderRadius: '0 4px 4px 0',
-                              cursor: idx === tokens.length - 1 ? 'default' : 'pointer',
-                              opacity: idx === tokens.length - 1 ? 0.3 : 1
+                              padding: '3px 9px',
+                              borderRadius: '4px',
+                              fontSize: '10px',
+                              fontWeight: 700,
+                              letterSpacing: '0.04em',
+                              cursor: 'pointer',
+                              backgroundColor: 'rgba(90, 18, 22, 0.4)',
+                              border: '1px solid #6b141d',
+                              color: '#fca5a5',
+                              transition: 'all 0.15s ease'
                             }}
-                            title="Bajar un puesto en la iniciativa de turnos"
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(120, 24, 30, 0.6)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(90, 18, 22, 0.4)'; }}
+                            title="Abatir combatiente (enviar a la Cripta de Caídos)"
                           >
-                            ▼
+                            Abatir
                           </button>
-                        </div>
-                      )}
-                      {onSendToGraveyard && (
-                        <button 
+                        )}
+                        <button
                           type="button"
-                          onClick={() => onSendToGraveyard(token)}
+                          onClick={() => onRemoveToken(token.id)}
                           style={{
-                            width: '28px',
-                            backgroundColor: 'rgba(71, 85, 105, 0.35)',
-                            border: '1px solid rgba(148, 163, 184, 0.45)',
+                            padding: '3px 7px',
                             borderRadius: '4px',
-                            color: '#cbd5e1', 
-                            cursor: 'pointer',
-                            fontSize: '12px',
-                            padding: '4px 0',
+                            fontSize: '10px',
                             fontWeight: 700,
-                            textAlign: 'center',
-                            flexShrink: 0,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            backgroundColor: '#141822',
+                            border: '1px solid #242c3d',
+                            color: '#94a3b8',
                             transition: 'all 0.15s ease'
                           }}
                           onMouseEnter={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
-                            e.currentTarget.style.borderColor = '#ef4444';
                             e.currentTarget.style.color = '#fca5a5';
+                            e.currentTarget.style.borderColor = '#6b141d';
                           }}
                           onMouseLeave={(e) => {
-                            e.currentTarget.style.backgroundColor = 'rgba(71, 85, 105, 0.35)';
-                            e.currentTarget.style.borderColor = 'rgba(148, 163, 184, 0.45)';
-                            e.currentTarget.style.color = '#cbd5e1';
+                            e.currentTarget.style.color = '#94a3b8';
+                            e.currentTarget.style.borderColor = '#242c3d';
                           }}
-                          title="Abatir personaje (enviar a la Cripta de caídos)"
+                          title="Retirar del mapa sin enviar a la cripta"
                         >
-                          💀
+                          ✕
                         </button>
-                      )}
-                      <button 
-                        type="button"
-                        onClick={() => onRemoveToken(token.id)}
-                        style={{
-                          width: '28px',
-                          backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                          border: '1px solid rgba(239, 68, 68, 0.35)',
-                          borderRadius: '4px',
-                          color: '#fca5a5', 
-                          cursor: 'pointer',
-                          fontSize: '10px',
-                          padding: '4px 0',
-                          fontWeight: 700,
-                          textAlign: 'center',
-                          flexShrink: 0
-                        }}
-                        title="Eliminar de la partida (borrar del mapa sin enviar a la cripta)"
-                      >
-                        ✕
-                      </button>
+                      </div>
                     </div>
 
-                    {/* B. Bloque de Estadísticas Vitales con Textos Centrados Dentro de las Barras */}
+
+
+                    {/* B. Bloque de Estadísticas Vitales (Tonos Ocultistas y Sobrios, Sin Colores Estridentes) */}
                     <div style={{
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '6px',
-                      background: '#10141d',
-                      padding: '8px 10px',
-                      borderRadius: '8px',
-                      border: '1px solid #1f2738'
+                      gap: '5px',
+                      background: '#0d1017',
+                      padding: '7px 9px',
+                      borderRadius: '6px',
+                      border: '1px solid #1a202c'
                     }}>
                       {/* Barra de PV */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '30px', fontSize: '10px', fontWeight: 800, color: '#f87171', textAlign: 'center', flexShrink: 0 }}>
+                        <span style={{ width: '28px', fontSize: '10px', fontWeight: 800, color: '#fca5a5', textAlign: 'center', flexShrink: 0, letterSpacing: '0.04em' }}>
                           PV
                         </span>
                         <div style={{
                           position: 'relative',
                           flex: 1,
                           height: '16px',
-                          background: '#221113',
-                          borderRadius: '4px',
+                          background: '#150a0c',
+                          borderRadius: '3px',
                           overflow: 'hidden',
-                          border: '1px solid rgba(239, 68, 68, 0.25)'
+                          border: '1px solid #331015'
                         }} title={`Puntos de Vida: ${hp}/${maxHp} (${Math.round(hpPct)}%)`}>
                           <div style={{
                             width: `${hpPct}%`,
                             height: '100%',
-                            background: '#ef4444',
+                            background: hp <= 0 ? '#450a0a' : 'linear-gradient(90deg, #58151c 0%, #8b1823 100%)',
                             transition: 'width 0.2s ease'
                           }} />
                           <span style={{
@@ -1377,6 +1852,7 @@ const TokenSidebar = ({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            fontFamily: 'monospace',
                             fontSize: '10px',
                             fontWeight: 700,
                             color: '#ffffff',
@@ -1392,7 +1868,8 @@ const TokenSidebar = ({
                             <button
                               type="button"
                               onClick={() => onUpdateTokenStats(token.id, { hp: Math.max(0, hp - 1) })}
-                              style={{ width: '20px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#161b26', border: '1px solid #2b3548', color: '#cbd5e1', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                              className="vtt-brass-btn"
+                              style={{ width: '20px', height: '17px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}
                               title="Restar 1 Punto de Vida (PV)"
                             >
                               -
@@ -1400,7 +1877,8 @@ const TokenSidebar = ({
                             <button
                               type="button"
                               onClick={() => onUpdateTokenStats(token.id, { hp: Math.min(maxHp, hp + 1) })}
-                              style={{ width: '20px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#161b26', border: '1px solid #2b3548', color: '#cbd5e1', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                              className="vtt-brass-btn"
+                              style={{ width: '20px', height: '17px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}
                               title="Sumar 1 Punto de Vida (PV)"
                             >
                               +
@@ -1411,22 +1889,22 @@ const TokenSidebar = ({
 
                       {/* Barra de MP */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '30px', fontSize: '10px', fontWeight: 800, color: '#60a5fa', textAlign: 'center', flexShrink: 0 }}>
+                        <span style={{ width: '28px', fontSize: '10px', fontWeight: 800, color: '#93c5fd', textAlign: 'center', flexShrink: 0, letterSpacing: '0.04em' }}>
                           MP
                         </span>
                         <div style={{
                           position: 'relative',
                           flex: 1,
                           height: '16px',
-                          background: '#0d1629',
-                          borderRadius: '4px',
+                          background: '#0a101d',
+                          borderRadius: '3px',
                           overflow: 'hidden',
-                          border: '1px solid rgba(59, 130, 246, 0.25)'
-                        }} title={`Puntos de Magia: ${mp}/${maxMp} (${Math.round(mpPct)}%)`}>
+                          border: '1px solid #12243d'
+                        }} title={`Puntos de Magia / Éter: ${mp}/${maxMp} (${Math.round(mpPct)}%)`}>
                           <div style={{
                             width: `${mpPct}%`,
                             height: '100%',
-                            background: '#3b82f6',
+                            background: 'linear-gradient(90deg, #102a48 0%, #1d4b7d 100%)',
                             transition: 'width 0.2s ease'
                           }} />
                           <span style={{
@@ -1438,6 +1916,7 @@ const TokenSidebar = ({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            fontFamily: 'monospace',
                             fontSize: '10px',
                             fontWeight: 700,
                             color: '#ffffff',
@@ -1453,7 +1932,8 @@ const TokenSidebar = ({
                             <button
                               type="button"
                               onClick={() => onUpdateTokenStats(token.id, { mp: Math.max(0, mp - 1) })}
-                              style={{ width: '20px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#161b26', border: '1px solid #2b3548', color: '#cbd5e1', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                              className="vtt-brass-btn"
+                              style={{ width: '20px', height: '17px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}
                               title="Restar 1 Punto de Magia (MP)"
                             >
                               -
@@ -1461,7 +1941,8 @@ const TokenSidebar = ({
                             <button
                               type="button"
                               onClick={() => onUpdateTokenStats(token.id, { mp: Math.min(maxMp, mp + 1) })}
-                              style={{ width: '20px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#161b26', border: '1px solid #2b3548', color: '#cbd5e1', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                              className="vtt-brass-btn"
+                              style={{ width: '20px', height: '17px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}
                               title="Sumar 1 Punto de Magia (MP)"
                             >
                               +
@@ -1472,22 +1953,22 @@ const TokenSidebar = ({
 
                       {/* Barra de SAN */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ width: '30px', fontSize: '10px', fontWeight: 800, color: '#facc15', textAlign: 'center', flexShrink: 0 }}>
+                        <span style={{ width: '28px', fontSize: '10px', fontWeight: 800, color: '#fef08a', textAlign: 'center', flexShrink: 0, letterSpacing: '0.04em' }}>
                           SAN
                         </span>
                         <div style={{
                           position: 'relative',
                           flex: 1,
                           height: '16px',
-                          background: '#241f0b',
-                          borderRadius: '4px',
+                          background: '#191408',
+                          borderRadius: '3px',
                           overflow: 'hidden',
-                          border: '1px solid rgba(234, 179, 8, 0.25)'
+                          border: '1px solid #3b2e0e'
                         }} title={`Cordura: ${san}/${maxSan} (${Math.round(sanPct)}%)`}>
                           <div style={{
                             width: `${sanPct}%`,
                             height: '100%',
-                            background: '#eab308',
+                            background: 'linear-gradient(90deg, #5a4208 0%, #8c670f 100%)',
                             transition: 'width 0.2s ease'
                           }} />
                           <span style={{
@@ -1499,6 +1980,7 @@ const TokenSidebar = ({
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
+                            fontFamily: 'monospace',
                             fontSize: '10px',
                             fontWeight: 700,
                             color: '#ffffff',
@@ -1514,7 +1996,8 @@ const TokenSidebar = ({
                             <button
                               type="button"
                               onClick={() => onUpdateTokenStats(token.id, { san: Math.max(0, san - 1) })}
-                              style={{ width: '20px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#161b26', border: '1px solid #2b3548', color: '#cbd5e1', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                              className="vtt-brass-btn"
+                              style={{ width: '20px', height: '17px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}
                               title="Restar 1 Punto de Cordura (SAN)"
                             >
                               -
@@ -1522,7 +2005,8 @@ const TokenSidebar = ({
                             <button
                               type="button"
                               onClick={() => onUpdateTokenStats(token.id, { san: Math.min(maxSan, san + 1) })}
-                              style={{ width: '20px', height: '18px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#161b26', border: '1px solid #2b3548', color: '#cbd5e1', borderRadius: '3px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}
+                              className="vtt-brass-btn"
+                              style={{ width: '20px', height: '17px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 700 }}
                               title="Sumar 1 Punto de Cordura (SAN)"
                             >
                               +
@@ -1532,189 +2016,364 @@ const TokenSidebar = ({
                       </div>
                     </div>
 
-                    {/* C. Presupuesto de Movimiento */}
+                    {/* C. Movimiento */}
                     <div style={{
-                      backgroundColor: '#10141d',
-                      borderRadius: '8px',
-                      padding: '8px 10px',
-                      border: isCurrentTurn ? '1px solid rgba(245, 158, 11, 0.45)' : '1px solid #1f2738',
+                      backgroundColor: '#0d1017',
+                      borderRadius: '6px',
+                      padding: '7px 9px',
+                      border: isCurrentTurn ? '1px solid #d4af37' : '1px solid #1a202c',
                       display: 'flex',
                       flexDirection: 'column',
-                      gap: '6px'
-                    }} title="Presupuesto de movimiento táctico por turno (5 ft por casilla)">
+                      gap: '5px'
+                    }} title={`Movimiento: ${remainingSpeed} / ${maxSpeed} casillas (${remainingSpeed * 5} ft)`}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: token.isGraveWound ? '#f87171' : '#34d399' }}>
-                          {token.isGraveWound ? 'Movimiento (Herida Grave)' : 'Movimiento por Turno'}
+                        <span style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          letterSpacing: '0.04em',
+                          color: token.isGraveWound ? '#fca5a5' : '#a7f3d0'
+                        }}>
+                          Movimiento
                         </span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '10px', fontWeight: 700, color: remainingSpeed === 0 ? '#ef4444' : '#e2e8f0' }} title="Casillas restantes en este turno y distancia en pies">
-                            {remainingSpeed} / {maxSpeed} c. ({remainingSpeed * 5} ft)
-                          </span>
-                          {onResetTokenMovement && (
-                            <button
-                              type="button"
-                              onClick={() => onResetTokenMovement(token.id)}
-                              style={{
-                                background: 'rgba(148, 163, 184, 0.15)',
-                                border: '1px solid rgba(148, 163, 184, 0.3)',
-                                color: '#cbd5e1',
-                                borderRadius: '4px',
-                                padding: '1px 6px',
-                                cursor: 'pointer',
-                                fontSize: '10px',
-                                fontWeight: 600
-                              }}
-                              title="Restablecer el movimiento completo del personaje a su máximo en este turno"
-                            >
-                              ↺ Reset
-                            </button>
-                          )}
-                        </div>
+                        {onResetTokenMovement && (
+                          <button
+                            type="button"
+                            onClick={() => onResetTokenMovement(token.id)}
+                            className="vtt-brass-btn"
+                            style={{
+                              padding: '1px 6px',
+                              cursor: 'pointer',
+                              fontSize: '9px',
+                              borderRadius: '3px'
+                            }}
+                            title="Restablecer el movimiento completo del personaje a su máximo en este turno"
+                          >
+                            ↺ Reset
+                          </button>
+                        )}
                       </div>
-                      <div style={{ width: '100%', height: '5px', background: '#1c2230', borderRadius: '999px', overflow: 'hidden' }} title={`Movimiento restante: ${Math.round(speedPct)}%`}>
+                      <div style={{ width: '100%', height: '4px', background: '#0b1611', borderRadius: '999px', overflow: 'hidden', border: '1px solid #162c21' }}>
                         <div style={{
                           width: `${speedPct}%`,
                           height: '100%',
-                          background: token.isGraveWound ? '#ef4444' : speedPct < 30 ? '#ef4444' : speedPct < 60 ? '#f59e0b' : '#10b981',
+                          background: token.isGraveWound || speedPct < 30 ? '#7f1d1d' : 'linear-gradient(90deg, #163626 0%, #22533b 100%)',
                           transition: 'width 0.2s ease'
                         }} />
                       </div>
-                      {token.isGraveWound && (
-                        <span style={{ fontSize: '9px', color: '#fca5a5', fontStyle: 'italic', textAlign: 'center' }}>
-                          Reducido a la mitad por Herida Grave (velocidad base: {baseSpeed} c.)
-                        </span>
-                      )}
                     </div>
 
-                    {/* D. Acceso Directo al Inventario (sin listar ítems) */}
-                    <div
-                      onClick={() => onOpenTokenSheet && onOpenTokenSheet(token.id, 'inventory')}
-                      style={{
-                        backgroundColor: '#10141d',
-                        borderRadius: '8px',
-                        padding: '7px 10px',
-                        border: '1px solid #1f2738',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        cursor: onOpenTokenSheet ? 'pointer' : 'default',
-                        transition: 'border-color 0.15s, background-color 0.15s'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (onOpenTokenSheet) {
-                          e.currentTarget.style.borderColor = 'rgba(245, 158, 11, 0.45)';
-                          e.currentTarget.style.backgroundColor = '#141824';
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = '#1f2738';
-                        e.currentTarget.style.backgroundColor = '#10141d';
-                      }}
-                      title="Abrir la ficha del personaje en la pestaña de inventario"
-                    >
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: '#fbbf24' }}>
-                        Inventario ({token.inventory?.length || 0})
-                      </span>
-                      {onOpenTokenSheet && (
-                        <span style={{ color: '#60a5fa', fontSize: '10px', fontWeight: 600 }}>
-                          Ver en Ficha →
+
+
+                    {/* E. Tamaño de la Ficha en el Mapa (Con el Mismo Estilo Brass Slider de la Cuadrícula) */}
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '5px',
+                      background: '#0d1017',
+                      padding: '7px 10px',
+                      borderRadius: '6px',
+                      border: '1px solid #1a202c'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="vtt-gothic-title" style={{ fontSize: '10px', color: '#d4af37', letterSpacing: '0.05em', fontWeight: 700 }}>
+                          TAMAÑO DE FICHA
                         </span>
-                      )}
-                    </div>
-
-                    {/* E. Configuración de Visión y Tamaño del Token */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#10131a', padding: '8px 10px', borderRadius: '8px', border: '1px solid #1e2433' }}>
-                      {/* Tipo de Visión */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>
-                            Tipo de Visión
-                          </span>
-                          <span style={{ fontSize: '10px', color: '#f59e0b', fontWeight: 600 }}>
-                            {token.visionMode === 'cone' ? 'Cono 90º' : '360º'}
-                          </span>
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-                          <button
-                            type="button"
-                            onClick={() => onUpdateTokenVisionMode && onUpdateTokenVisionMode(token.id, 'cone')}
-                            style={{
-                              backgroundColor: token.visionMode === 'cone' ? '#2a1a08' : '#141824',
-                              background: token.visionMode === 'cone'
-                                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                                : '#141824',
-                              border: token.visionMode === 'cone' ? '1.5px solid #f59e0b' : '1px solid #232836',
-                              borderRadius: '6px',
-                              color: token.visionMode === 'cone' ? '#fbbf24' : '#94a3b8',
-                              cursor: 'pointer',
-                              fontSize: '11px',
-                              padding: '5px 4px',
-                              fontWeight: 700,
-                              textAlign: 'center',
-                              boxShadow: token.visionMode === 'cone' ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            Cono 90º
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onUpdateTokenVisionMode && onUpdateTokenVisionMode(token.id, 'circle')}
-                            style={{
-                              backgroundColor: token.visionMode !== 'cone' ? '#2a1a08' : '#141824',
-                              background: token.visionMode !== 'cone'
-                                ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
-                                : '#141824',
-                              border: token.visionMode !== 'cone' ? '1.5px solid #f59e0b' : '1px solid #232836',
-                              borderRadius: '6px',
-                              color: token.visionMode !== 'cone' ? '#fbbf24' : '#94a3b8',
-                              cursor: 'pointer',
-                              fontSize: '11px',
-                              padding: '5px 4px',
-                              fontWeight: 700,
-                              textAlign: 'center',
-                              boxShadow: token.visionMode !== 'cone' ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            Visión 360º
-                          </button>
-                        </div>
+                        <span style={{ fontFamily: 'monospace', fontSize: '10px', color: '#cbd5e1', fontWeight: 700 }}>
+                          {token.size || 50}px
+                        </span>
                       </div>
-
-                      {/* Escala / Tamaño del Token */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px solid #1a202c', paddingTop: '6px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontSize: '10px', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>
-                            Tamaño de Ficha
-                          </span>
-                          <span style={{ fontSize: '10px', color: '#38bdf8', fontWeight: 700 }}>
-                            {token.size || 50}px
-                          </span>
-                        </div>
-                        <input
-                          type="range"
-                          min="20"
-                          max="250"
-                          value={token.size || 50}
-                          draggable={false}
-                          onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onPointerDown={(e) => e.stopPropagation()}
-                          onTouchStart={(e) => e.stopPropagation()}
-                          onChange={(e) => {
-                            if (onUpdateTokenSize) onUpdateTokenSize(token.id, Number(e.target.value));
-                          }}
-                          style={{ width: '100%', accentColor: '#f59e0b', cursor: 'pointer' }}
-                        />
-                      </div>
+                      <input
+                        type="range"
+                        min="20"
+                        max="250"
+                        value={token.size || 50}
+                        draggable={false}
+                        onDragStart={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onTouchStart={(e) => e.stopPropagation()}
+                        onChange={(e) => {
+                          if (onUpdateTokenSize) onUpdateTokenSize(token.id, Number(e.target.value));
+                        }}
+                        className="vtt-brass-slider"
+                        style={{ width: '100%', marginTop: '3px' }}
+                      />
                     </div>
                   </div>
                 )}
               </div>
             );
-          })}
-        </div>
+          };
+
+          return combatGroups.length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              {combatGroups.map(group => {
+                const groupTokens = tokens.filter(t => t.combatGroupId === group.id);
+                const isEditingName = editingGroupId === group.id;
+                const isDragTarget = (activeDrag && activeDrag.overGroupId === group.id) || dragOverGroupId === group.id;
+
+                return (
+                  <div
+                    key={group.id}
+                    data-combat-group-id={group.id}
+                    ref={el => { groupRefs.current[group.id] = el; }}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                      setDragOverGroupId(group.id);
+                    }}
+                    onDragLeave={(e) => {
+                      if (!e.currentTarget.contains(e.relatedTarget)) {
+                        setDragOverGroupId(null);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOverGroupId(null);
+                      const droppedTokenId = e.dataTransfer.getData('text/plain');
+                      if (droppedTokenId && onAssignTokenToGroup) {
+                        onAssignTokenToGroup(droppedTokenId, group.id);
+                      }
+                    }}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '6px',
+                      padding: '8px',
+                      borderRadius: '8px',
+                      backgroundColor: isDragTarget
+                        ? 'rgba(25, 33, 48, 0.95)'
+                        : 'rgba(15, 19, 28, 0.75)',
+                      border: isDragTarget
+                        ? `2px solid ${group.color}`
+                        : `1.5px solid ${group.borderColor || group.color}`,
+                      boxShadow: isDragTarget
+                        ? `0 0 20px ${group.color}, inset 0 0 15px ${group.color}`
+                        : `0 4px 12px rgba(0,0,0,0.5), inset 0 0 10px ${group.bgColor || 'rgba(0,0,0,0.2)'}`,
+                      transform: isDragTarget ? 'scale(1.015)' : 'scale(1)',
+                      transition: 'all 0.16s ease'
+                    }}
+                  >
+                    {/* Cabecera del Grupo */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: group.color, flexShrink: 0 }} />
+                        {isEditingName ? (
+                          <input
+                            type="text"
+                            value={editingGroupName}
+                            autoFocus
+                            onChange={(e) => setEditingGroupName(e.target.value)}
+                            onBlur={() => {
+                              if (editingGroupName.trim() && onUpdateCombatGroup) {
+                                onUpdateCombatGroup(group.id, { name: editingGroupName.trim() });
+                              }
+                              setEditingGroupId(null);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                if (editingGroupName.trim() && onUpdateCombatGroup) {
+                                  onUpdateCombatGroup(group.id, { name: editingGroupName.trim() });
+                                }
+                                setEditingGroupId(null);
+                              } else if (e.key === 'Escape') {
+                                setEditingGroupId(null);
+                              }
+                            }}
+                            style={{
+                              background: '#0d1117',
+                              border: `1px solid ${group.color}`,
+                              color: '#f8fafc',
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              width: '120px'
+                            }}
+                          />
+                        ) : (
+                          <span
+                            onClick={() => {
+                              setEditingGroupId(group.id);
+                              setEditingGroupName(group.name);
+                            }}
+                            style={{
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              color: group.color,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis'
+                            }}
+                            title="Clic para renombrar este encuentro"
+                          >
+                            {group.name} ✏️
+                          </span>
+                        )}
+                        <span style={{ fontSize: '10px', color: '#64748b' }}>({groupTokens.length})</span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        {!group.isCombatActive ? (
+                          onStartGroupCombat && (
+                            <button
+                              type="button"
+                              onClick={() => onStartGroupCombat(group.id)}
+                              className="vtt-primary-cta"
+                              style={{ padding: '2px 7px', fontSize: '9px', borderRadius: '4px', cursor: 'pointer' }}
+                              title="Iniciar combate en este grupo"
+                            >
+                              ▶ Iniciar
+                            </button>
+                          )
+                        ) : (
+                          <>
+                            <span style={{ fontSize: '9px', fontWeight: 700, color: group.color, padding: '1px 4px', background: 'rgba(0,0,0,0.4)', borderRadius: '3px' }}>
+                              R{group.combatRound || 1}
+                            </span>
+                            {onNextGroupTurn && (
+                              <button
+                                type="button"
+                                onClick={() => onNextGroupTurn(group.id)}
+                                className="vtt-primary-cta"
+                                style={{ padding: '2px 6px', fontSize: '9px', borderRadius: '4px', cursor: 'pointer' }}
+                                title="Siguiente turno en este encuentro"
+                              >
+                                ▶ Sig.
+                              </button>
+                            )}
+                            {onEndGroupCombat && (
+                              <button
+                                type="button"
+                                onClick={() => onEndGroupCombat(group.id)}
+                                style={{
+                                  padding: '2px 5px',
+                                  fontSize: '9px',
+                                  borderRadius: '3px',
+                                  background: 'rgba(239, 68, 68, 0.2)',
+                                  border: '1px solid rgba(239, 68, 68, 0.4)',
+                                  color: '#fca5a5',
+                                  cursor: 'pointer',
+                                  fontWeight: 700
+                                }}
+                                title="Finalizar combate de este encuentro"
+                              >
+                                ⏹
+                              </button>
+                            )}
+                          </>
+                        )}
+                        {onRemoveCombatGroup && (
+                          <button
+                            type="button"
+                            onClick={() => onRemoveCombatGroup(group.id)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#64748b',
+                              fontSize: '11px',
+                              cursor: 'pointer',
+                              padding: '0 2px'
+                            }}
+                            title="Eliminar este grupo (las fichas quedan libres)"
+                          >
+                            🗑️
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Fichas asignadas a este grupo */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                      {groupTokens.length === 0 ? (
+                        <div style={{
+                          padding: '8px',
+                          textAlign: 'center',
+                          fontSize: '10px',
+                          color: '#64748b',
+                          fontStyle: 'italic',
+                          border: '1px dashed rgba(255,255,255,0.1)',
+                          borderRadius: '5px'
+                        }}>
+                          Sin personajes en este encuentro. Usa el selector en la ficha para añadirlos.
+                        </div>
+                      ) : (
+                        tokens.map((token, idx) => token.combatGroupId === group.id ? renderTokenCard(token, idx) : null)
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Sección Fuera de Combate / Libres si hay fichas no asignadas o si se está arrastrando una ficha */}
+              {(tokens.some(t => !t.combatGroupId) || activeDrag) && (
+                <div
+                  ref={freeGroupRef}
+                  data-combat-group-id="free"
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    e.dataTransfer.dropEffect = 'move';
+                    setDragOverGroupId('free');
+                  }}
+                  onDragLeave={(e) => {
+                    if (!e.currentTarget.contains(e.relatedTarget)) {
+                      setDragOverGroupId(null);
+                    }
+                  }}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragOverGroupId(null);
+                    const droppedTokenId = e.dataTransfer.getData('text/plain');
+                    if (droppedTokenId && onAssignTokenToGroup) {
+                      onAssignTokenToGroup(droppedTokenId, null);
+                    }
+                  }}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '6px',
+                    padding: '8px',
+                    borderRadius: '8px',
+                    backgroundColor: (activeDrag?.overGroupId === 'free' || dragOverGroupId === 'free')
+                      ? 'rgba(30, 41, 59, 0.95)'
+                      : '#11141b',
+                    border: (activeDrag?.overGroupId === 'free' || dragOverGroupId === 'free')
+                      ? '2px solid #94a3b8'
+                      : '1px dashed #2d3748',
+                    boxShadow: (activeDrag?.overGroupId === 'free' || dragOverGroupId === 'free')
+                      ? '0 0 16px rgba(148, 163, 184, 0.45)'
+                      : 'none',
+                    transform: (activeDrag?.overGroupId === 'free' || dragOverGroupId === 'free') ? 'scale(1.015)' : 'scale(1)',
+                    transition: 'all 0.16s ease'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.04em' }}>
+                      ⭕ FUERA DE COMBATE / LIBRES ({tokens.filter(t => !t.combatGroupId).length})
+                    </span>
+                    <span style={{ fontSize: '9px', color: '#64748b', fontStyle: 'italic' }}>
+                      {(activeDrag?.overGroupId === 'free' || dragOverGroupId === 'free') ? 'Soltar aquí para liberar del combate' : 'Movimiento libre'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    {tokens.filter(t => !t.combatGroupId).length === 0 ? (
+                      <div style={{ fontSize: '10px', color: '#475569', fontStyle: 'italic', textAlign: 'center', padding: '6px' }}>
+                        Arrastra una ficha aquí para dejarla fuera de combate.
+                      </div>
+                    ) : (
+                      tokens.map((token, idx) => !token.combatGroupId ? renderTokenCard(token, idx) : null)
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {tokens.map((token, idx) => renderTokenCard(token, idx))}
+            </div>
+          );
+        })()}
         
         {tokens.length === 0 && (
           <div style={{
@@ -1737,6 +2396,67 @@ const TokenSidebar = ({
           </div>
         )}
       </div>
+      )}
+
+      {/* Papelera de descarte y retirada del tablero (anclada abajo del todo) */}
+      {activeMainTab === 'scene' && tokens.length > 0 && (
+        <div
+          ref={trashRef}
+          style={{
+            flexShrink: 0,
+            padding: activeDrag ? '12px 14px' : '0 14px',
+            height: activeDrag ? '52px' : '0px',
+            boxSizing: 'border-box',
+            borderTop: activeDrag
+              ? activeDrag.isOverTrash
+                ? '2px solid #ef4444'
+                : '1.5px dashed rgba(239, 68, 68, 0.45)'
+              : 'none',
+            background: activeDrag?.isOverTrash
+              ? 'linear-gradient(180deg, rgba(239, 68, 68, 0.35) 0%, rgba(127, 29, 29, 0.8) 100%)'
+              : 'linear-gradient(180deg, rgba(35, 12, 16, 0.95) 0%, #10080a 100%)',
+            boxShadow: activeDrag?.isOverTrash
+              ? '0 -4px 20px rgba(239, 68, 68, 0.6), inset 0 0 15px rgba(239, 68, 68, 0.4)'
+              : activeDrag
+              ? '0 -4px 14px rgba(0, 0, 0, 0.7)'
+              : 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            color: activeDrag?.isOverTrash ? '#ffffff' : '#fca5a5',
+            opacity: activeDrag ? 1 : 0,
+            overflow: 'hidden',
+            transform: activeDrag ? 'translateY(0)' : 'translateY(100%)',
+            transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            pointerEvents: activeDrag ? 'auto' : 'none',
+            zIndex: 40
+          }}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              transform: activeDrag?.isOverTrash ? 'scale(1.25) rotate(-6deg)' : 'scale(1)',
+              transition: 'transform 0.15s ease',
+              color: activeDrag?.isOverTrash ? '#ffffff' : '#ef4444'
+            }}
+          >
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+          </svg>
+          <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.03em' }}>
+            {activeDrag?.isOverTrash ? 'Soltar para retirar del tablero' : 'Arrastra aquí abajo para retirar'}
+          </span>
+        </div>
       )}
     </div>
   );

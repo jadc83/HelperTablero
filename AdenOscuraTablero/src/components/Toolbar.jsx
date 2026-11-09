@@ -278,23 +278,6 @@ const Toolbar = ({
       {/* Bloque Derecho: Acciones Globales */}
       <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center' }}>
         <button
-          onClick={onOpenMasterNotes}
-          className="vtt-brass-btn"
-          style={{
-            padding: '6px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            borderColor: '#f59e0b',
-            color: '#fbbf24'
-          }}
-          title="Abrir Diario y Notas del Máster (Atajo: Tecla N)"
-        >
-          Notas
-        </button>
-
-        <button
           onClick={onOpenPlayerView}
           className="vtt-brass-btn"
           style={{

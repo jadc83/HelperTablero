@@ -15,12 +15,12 @@ const GameToken = ({
   onToggleFaction,
   onUpdateSize,
   onUpdateRotation,
-  onUpdateVisionMode,
   onToggleStatus,
   onUpdateStats,
   onOpenSheet,
   customStatuses,
-  isActiveTurn = false
+  isActiveTurn = false,
+  combatGroup = null
 }) => {
   const [menuState, setMenuState] = useState({ visible: false, x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
@@ -29,7 +29,6 @@ const GameToken = ({
   const tokenRef = useRef(null);
   const currentSize = token.size || 50;
   const rotation = token.rotation || 0;
-  const visionMode = token.visionMode || 'cone';
   const faction = token.faction || 'ally';
   const isHidden = Boolean(token.isHidden);
   const activeStatuses = token.statuses || [];
@@ -116,13 +115,16 @@ const GameToken = ({
     }
   };
 
+  const handlePointerEnter = () => setIsHovered(true);
+  const handlePointerLeave = () => setIsHovered(false);
+
   return (
     <div
       ref={tokenRef}
       onContextMenu={handleContextMenu}
       onPointerDown={handlePointerDown}
-      onPointerEnter={() => setIsHovered(true)}
-      onPointerLeave={() => setIsHovered(false)}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
       onDragStart={(e) => e.preventDefault()}
       style={{
         position: 'absolute',
@@ -130,16 +132,27 @@ const GameToken = ({
         top: `${token.y}px`,
         width: `${currentSize}px`,
         height: `${currentSize}px`,
-        backgroundColor: token.color,
+        backgroundColor: token.color || '#2b2118',
         borderRadius: '50%',
         cursor: token.isLocked ? 'not-allowed' : (isDragging || isRotating ? 'grabbing' : 'grab'),
+        transform: isDragging
+          ? 'translateY(-7px) scale(1.08)'
+          : isHovered
+          ? 'translateY(-3px) scale(1.03)'
+          : 'translateY(0) scale(1)',
+        transformOrigin: 'center center',
+        transition: isDragging ? 'none' : 'transform 0.16s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.2s ease',
         boxShadow: isActiveTurn
-          ? '0 0 25px rgba(251, 191, 36, 0.9), 0 0 10px rgba(245, 158, 11, 0.7), 0 6px 14px rgba(0,0,0,0.9)'
+          ? '0 16px 28px rgba(0,0,0,0.95), 0 0 25px rgba(251, 191, 36, 0.95), 0 0 10px rgba(245, 158, 11, 0.8)'
+          : isDragging
+          ? '0 20px 32px rgba(0,0,0,0.96), 0 4px 8px rgba(0,0,0,0.85), 0 0 16px rgba(212, 175, 55, 0.45)'
+          : isHovered
+          ? '0 12px 22px rgba(0,0,0,0.92), 0 3px 6px rgba(0,0,0,0.8), 0 0 10px rgba(212, 175, 55, 0.35)'
           : faction === 'enemy'
-          ? '0 6px 14px rgba(0,0,0,0.9), 0 0 10px rgba(220, 38, 38, 0.45)'
+          ? '0 8px 16px rgba(0,0,0,0.92), 0 2px 4px rgba(0,0,0,0.95), 0 0 8px rgba(220, 38, 38, 0.45)'
           : faction === 'player'
-          ? '0 6px 14px rgba(0,0,0,0.85), 0 0 10px rgba(16, 185, 129, 0.35)'
-          : '0 6px 14px rgba(0,0,0,0.85), inset 0 0 8px rgba(0,0,0,0.6)',
+          ? '0 8px 16px rgba(0,0,0,0.92), 0 2px 4px rgba(0,0,0,0.95), 0 0 8px rgba(16, 185, 129, 0.35)'
+          : '0 8px 16px rgba(0,0,0,0.92), 0 2px 4px rgba(0,0,0,0.95), inset 0 2px 4px rgba(255,255,255,0.22)',
         border: isActiveTurn
           ? '3px solid #fbbf24'
           : token.isLocked
@@ -147,13 +160,15 @@ const GameToken = ({
           : isHidden
           ? '3px dashed #a855f7'
           : faction === 'enemy'
-          ? '3px solid #ef4444'
-          : `3px solid ${token.color || '#d4af37'}`,
+          ? '3.5px solid #ef4444'
+          : faction === 'player'
+          ? '3.5px solid #10b981'
+          : `3.5px solid ${token.color || '#d4af37'}`,
         outline: isActiveTurn
           ? '2px solid rgba(251, 191, 36, 0.7)'
           : isRotating
           ? '2px solid #fbbf24'
-          : '1px solid #d4af37',
+          : '1px solid rgba(0, 0, 0, 0.75)',
         opacity: !isPlayerView && isHidden ? 0.52 : 1,
         zIndex: isDragging || isRotating ? 100 : 10,
         display: 'flex',
@@ -205,7 +220,7 @@ const GameToken = ({
           zIndex: 2
         }}
       >
-        {visionMode === 'cone' && (isHovered || isDragging || isRotating || menuState.visible) && (
+        {(isHovered || isDragging || isRotating || menuState.visible) && (
           <svg
             viewBox="0 0 100 100"
             style={{ width: '100%', height: '100%', overflow: 'visible', pointerEvents: 'none' }}
@@ -278,6 +293,19 @@ const GameToken = ({
         />
       )}
 
+      {/* Peana de Ajedrez: Reborde torneado escalonado, collarín de cuello y camafeo interior */}
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: '50%',
+          pointerEvents: 'none',
+          boxShadow: 'inset 0 0 0 2px rgba(255, 255, 255, 0.25), inset 0 0 0 4px rgba(0, 0, 0, 0.65), inset 0 3px 6px rgba(0, 0, 0, 0.8), inset 0 -3px 5px rgba(255, 255, 255, 0.12)',
+          background: 'radial-gradient(circle at 38% 30%, rgba(255, 255, 255, 0.15) 0%, rgba(0, 0, 0, 0.4) 85%)',
+          zIndex: 3
+        }}
+      />
+
       {token.showName !== false && (
         <div
           className="vtt-gothic-title"
@@ -288,17 +316,36 @@ const GameToken = ({
               ? 'linear-gradient(180deg, rgba(153, 27, 27, 0.96) 0%, rgba(69, 10, 10, 0.96) 100%)'
               : 'linear-gradient(180deg, rgba(24, 28, 38, 0.95) 0%, rgba(14, 16, 22, 0.95) 100%)',
             color: '#f8fafc',
-            border: isGraveWound ? '1px solid #f87171' : '1px solid #475569',
+            border: isGraveWound
+              ? '1px solid #f87171'
+              : combatGroup
+              ? `1.5px solid ${combatGroup.borderColor || combatGroup.color}`
+              : '1px solid #475569',
             padding: '2px 8px',
             borderRadius: '4px',
             fontSize: '11px',
             fontWeight: 'bold',
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
-            boxShadow: '0 3px 6px rgba(0,0,0,0.85)'
+            boxShadow: '0 3px 6px rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px'
           }}
         >
-          {isGraveWound ? '🩸 ' : ''}{token.name}
+          {combatGroup && (
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: combatGroup.color,
+                flexShrink: 0
+              }}
+              title={`Encuentro: ${combatGroup.name}`}
+            />
+          )}
+          <span>{isGraveWound ? '🩸 ' : ''}{token.name}</span>
         </div>
       )}
 

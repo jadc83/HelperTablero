@@ -67,9 +67,9 @@ export const isPointVisibleToPlayers = (tx, ty, viewerTokens = [], maps = [], vi
     if (dist > visionRadius) continue;
 
     const personalRadius = Math.max(size * 0.85, 36);
-    const fov = viewer.visionMode === 'circle' ? 360 : 90;
+    const fov = 90;
 
-    if (fov < 360 && dist > personalRadius) {
+    if (dist > personalRadius) {
       const targetAngle = (Math.atan2(dy, dx) * 180) / Math.PI;
       const diff = Math.abs(angleDiff(targetAngle, viewer.rotation || 0));
       if (diff > fov / 2) continue;
@@ -290,7 +290,7 @@ const FogLayer = ({
           const size = token.size || 50;
           const ox = token.x + size / 2;
           const oy = token.y + size / 2;
-          const fov = token.visionMode === 'circle' ? 360 : 90;
+          const fov = 90;
           drawVisionMask(maskCtx, ox, oy, fowVisionRadius, token.rotation || 0, fov, size, cachedBlockers, true);
         });
 
@@ -344,7 +344,7 @@ const FogLayer = ({
         const size = token.size || 50;
         const ox = token.x + size / 2;
         const oy = token.y + size / 2;
-        const fov = token.visionMode === 'circle' ? 360 : 90;
+        const fov = 90;
         drawVisionMask(ctx, ox, oy, fowVisionRadius, token.rotation || 0, fov, size, cachedBlockers, false);
       });
 

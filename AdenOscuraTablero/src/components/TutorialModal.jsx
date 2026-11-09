@@ -14,7 +14,7 @@ const TUTORIAL_STEPS = [
         <path d="M6 21h12" />
       </svg>
     ),
-    text: 'Prepara y organiza múltiples escenarios para tu crónica. Desde la barra lateral izquierda puedes abrir el editor de mapas para trazar muros infranqueables, puertas que se abren o cierran con clic derecho, ventanas que permiten la visión pero bloquean el paso, y mobiliario interactivo como cofres, antorchas y barricadas.'
+    text: 'Prepara y organiza múltiples escenarios para tu crónica. Desde el Centro de Mando (pestaña Escenas) puedes pulsar "Editar Escena" para trazar muros infranqueables, puertas que se abren o cierran con clic derecho, ventanas que permiten la visión pero bloquean el paso, y mobiliario interactivo como cofres, antorchas y barricadas.'
   },
   {
     title: 'Niebla de Guerra y Visión Dinámica',

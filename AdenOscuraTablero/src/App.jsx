@@ -16,7 +16,6 @@ import CharacterSheetModal from './components/CharacterSheetModal';
 import HomeScreen from './components/HomeScreen';
 import EncyclopediaView, { getClassificationMeta } from './components/EncyclopediaView';
 import ObjectNotesModal from './components/ObjectNotesModal';
-import MasterNotesDrawer from './components/MasterNotesDrawer';
 import { WEATHER_TYPES, AMBIENT_TINTS } from './components/WeatherOverlay';
 import { DEFAULT_COMMON_ITEMS } from './constants/commonItems';
 import useLocalStorage from './hooks/useLocalStorage';
@@ -137,6 +136,40 @@ const GLOBAL_VTT_STYLES = `
     background: #dc2626;
     border-color: #ef4444;
     color: #ffffff;
+  }
+  .vtt-brass-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: #1a1e28;
+    border: 1px solid #2d3546;
+    border-radius: 999px;
+    outline: none;
+    cursor: pointer;
+  }
+  .vtt-brass-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fef08a 0%, #d4af37 60%, #854d0e 100%);
+    border: 1.5px solid #2a1b06;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.8), 0 0 6px rgba(212, 175, 55, 0.45);
+    cursor: pointer;
+    transition: transform 0.1s ease;
+  }
+  .vtt-brass-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.15);
+  }
+  .vtt-brass-slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, #fef08a 0%, #d4af37 60%, #854d0e 100%);
+    border: 1.5px solid #2a1b06;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.8), 0 0 6px rgba(212, 175, 55, 0.45);
+    cursor: pointer;
   }
   select, input[type="text"], input[type="number"], textarea {
     font-family: inherit;
@@ -358,7 +391,9 @@ function App() {
   const [isPaintingFow, setIsPaintingFow] = useState(false);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState(null);
   const [isMapCreatorOpen, setIsMapCreatorOpen] = useState(false);
+  const [mapCreatorSceneId, setMapCreatorSceneId] = useState(null);
   const [isHomeOpen, setIsHomeOpen] = useState(false);
   const [encyclopediaState, setEncyclopediaState] = useState({ isOpen: false, category: 'character' });
   const [confirmResetBoard, setConfirmResetBoard] = useState(false);
@@ -375,6 +410,8 @@ function App() {
 
   // Estado para Invocación Interactiva de Personajes y Objetos en el Mapa
   const [pendingTokenSpawn, setPendingTokenSpawn] = useState(null);
+  const [isDraggingCharacter, setIsDraggingCharacter] = useState(false);
+  const draggedCharacterRef = useRef(null);
   const [pendingMapSpawn, setPendingMapSpawn] = useState(null);
   const [draggedMapElement, setDraggedMapElement] = useState(null);
   const [objectNotesModalState, setObjectNotesModalState] = useState({ isOpen: false, objectItem: null });
@@ -391,6 +428,7 @@ function App() {
 
   // Estados de paneles y Dados 3D
   const [isDiceOpen, setIsDiceOpen] = useState(false);
+  const [livingFogEnabled, setLivingFogEnabled] = useState(true);
   const [isSoundboardOpen, setIsSoundboardOpen] = useState(false);
   const [isFogDockOpen, setIsFogDockOpen] = useState(false);
   const dragStartYRef = useRef(null);
@@ -431,6 +469,7 @@ function App() {
   const [isCombatActive, setIsCombatActive] = useState(false);
   const [combatRound, setCombatRound] = useState(1);
   const [activeTurnTokenId, setActiveTurnTokenId] = useState(null);
+  const [combatGroups, setCombatGroups] = useState([]); // Grupos de encuentro independientes
   const [movementLimitsEnabled, setMovementLimitsEnabled] = useLocalStorage('vtt_movement_limits_enabled', true);
   const tokenDragOriginRef = useRef(null);
   const [tokenDragMeasurement, setTokenDragMeasurement] = useState(null);
@@ -450,13 +489,13 @@ function App() {
     latestStateRef.current = {
       tokens, maps, fowEnabled, fowVisionRadius, fowMemoryEnabled, fowAutoHideEnemies,
       fowActions, snapToGrid, gridSize, customStatuses, weatherEffect, ambientTint,
-      activeHandout, isCombatActive, combatRound, activeTurnTokenId, movementLimitsEnabled,
+      activeHandout, isCombatActive, combatRound, activeTurnTokenId, combatGroups, movementLimitsEnabled,
       camera: syncCameraToPlayers ? { pan, scale } : null
     };
   }, [
     tokens, maps, fowEnabled, fowVisionRadius, fowMemoryEnabled, fowAutoHideEnemies,
     fowActions, snapToGrid, gridSize, customStatuses, weatherEffect, ambientTint,
-    activeHandout, isCombatActive, combatRound, activeTurnTokenId, movementLimitsEnabled, syncCameraToPlayers, pan, scale
+    activeHandout, isCombatActive, combatRound, activeTurnTokenId, combatGroups, movementLimitsEnabled, syncCameraToPlayers, pan, scale
   ]);
 
   // Función auxiliar para emitir eventos tanto por BroadcastChannel (Web) como por Tauri Events (Desktop)
@@ -739,19 +778,26 @@ function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [pendingTokenSpawn, pendingMapSpawn]);
 
-  // Atajo de teclado: Tecla 'N' para alternar el Diario & Notas del Máster
+  // Atajo de teclado: Tecla 'N' para alternar Notas dentro del Centro de Mando
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
       if (e.key === 'n' || e.key === 'N') {
         if (!isPlayerView) {
-          setIsMasterNotesOpen(prev => !prev);
+          setIsSettingsOpen(prev => {
+            if (prev && settingsInitialTab === 'notas') {
+              setSettingsInitialTab(null);
+              return false;
+            }
+            setSettingsInitialTab('notas');
+            return true;
+          });
         }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [isPlayerView]);
+  }, [isPlayerView, settingsInitialTab]);
 
   const showMasterFeedback = (label, icon = '⚜️') => {
     setMasterToast({ label, icon });
@@ -870,6 +916,15 @@ function App() {
       isSwitchingSceneRef.current = false;
     }, 120);
     showMasterFeedback(`Escena activa: ${target.name}`, '🗺️');
+  };
+
+  const handleOpenMapCreator = (targetSceneId) => {
+    const sceneToEdit = targetSceneId || activeSceneId;
+    if (targetSceneId && targetSceneId !== activeSceneId) {
+      handleSelectScene(targetSceneId);
+    }
+    setMapCreatorSceneId(sceneToEdit);
+    setIsMapCreatorOpen(true);
   };
 
   const handleCreateNewScene = (sceneName) => {
@@ -1197,6 +1252,82 @@ function App() {
     };
   };
 
+  const spawnTokenFromCharacter = (char, spawnX, spawnY) => {
+    const newToken = {
+      id: Date.now() + Math.random(),
+      characterId: char.id,
+      firstName: char.firstName || '',
+      lastName: char.lastName || '',
+      birthYear: char.birthYear || '1890',
+      name: char.name,
+      entityType: char.entityType || (char.faction === 'enemy' ? 'mythos_creature' : 'human'),
+      color: char.color,
+      avatar: char.avatar || null,
+      faction: char.faction || 'ally',
+      x: spawnX,
+      y: spawnY,
+      size: gridSize,
+      rotation: 0,
+      visionMode: 'cone',
+      isLocked: false,
+      isHidden: char.faction === 'enemy',
+      showName: true,
+      showBars: false,
+      statuses: char.statuses || [],
+      hp: char.hp ?? 20,
+      maxHp: char.maxHp ?? 20,
+      mp: char.mp ?? 10,
+      maxMp: char.maxMp ?? 10,
+      san: char.san ?? 60,
+      maxSan: char.maxSan ?? 60,
+      hasArmor: Boolean(char.hasArmor),
+      armorType: char.armorType || 'Ninguna',
+      isGraveWound: Boolean(char.isGraveWound),
+      speed: char.speed || 6,
+      turnMovementUsed: 0,
+      history: char.history || '',
+      notes: char.notes || '',
+      inventory: char.inventory || [],
+      spells: char.spells || []
+    };
+    if (char.fromGraveyardId) {
+      setGraveyard(prev => prev.filter(g => (g.graveyardId || g.id) !== char.fromGraveyardId));
+      showMasterFeedback(`¡"${char.name}" ha resucitado y regresa al tablero!`, '✨');
+    } else {
+      showMasterFeedback(`${char.name} desplegado en escena`, '⚔️');
+    }
+    setTokens(prev => [...prev, newToken]);
+  };
+
+  const handleStartDragCharacter = (char) => {
+    draggedCharacterRef.current = char;
+    setIsDraggingCharacter(true);
+    setPendingTokenSpawn(char);
+  };
+
+  const handleEndDragCharacter = () => {
+    draggedCharacterRef.current = null;
+    setIsDraggingCharacter(false);
+    setPendingTokenSpawn(null);
+  };
+
+  const handleDropOnBoard = (e) => {
+    const char = draggedCharacterRef.current || pendingTokenSpawn;
+    if (!char || isPlayerView) return;
+    const coords = getLogicalCoords(e);
+    const spawnX = snapToGrid
+      ? Math.floor(coords.x / gridSize) * gridSize
+      : coords.x - gridSize / 2;
+    const spawnY = snapToGrid
+      ? Math.floor(coords.y / gridSize) * gridSize
+      : coords.y - gridSize / 2;
+
+    spawnTokenFromCharacter(char, spawnX, spawnY);
+    draggedCharacterRef.current = null;
+    setIsDraggingCharacter(false);
+    setPendingTokenSpawn(null);
+  };
+
   const handlePointerDown = (e) => {
     if (radialMenu) {
       setRadialMenu(null);
@@ -1251,50 +1382,7 @@ function App() {
           ? Math.floor(coords.y / gridSize) * gridSize
           : coords.y - gridSize / 2;
 
-        const newToken = {
-          id: Date.now() + Math.random(),
-          characterId: pendingTokenSpawn.id,
-          firstName: pendingTokenSpawn.firstName || '',
-          lastName: pendingTokenSpawn.lastName || '',
-          birthYear: pendingTokenSpawn.birthYear || '1890',
-          name: pendingTokenSpawn.name,
-          entityType: pendingTokenSpawn.entityType || (pendingTokenSpawn.faction === 'enemy' ? 'mythos_creature' : 'human'),
-          color: pendingTokenSpawn.color,
-          avatar: pendingTokenSpawn.avatar || null,
-          faction: pendingTokenSpawn.faction || 'ally',
-          x: spawnX,
-          y: spawnY,
-          size: gridSize,
-          rotation: 0,
-          visionMode: 'cone',
-          isLocked: false,
-          isHidden: pendingTokenSpawn.faction === 'enemy',
-          showName: true,
-          showBars: false,
-          statuses: pendingTokenSpawn.statuses || [],
-          hp: pendingTokenSpawn.hp ?? 20,
-          maxHp: pendingTokenSpawn.maxHp ?? 20,
-          mp: pendingTokenSpawn.mp ?? 10,
-          maxMp: pendingTokenSpawn.maxMp ?? 10,
-          san: pendingTokenSpawn.san ?? 60,
-          maxSan: pendingTokenSpawn.maxSan ?? 60,
-          hasArmor: Boolean(pendingTokenSpawn.hasArmor),
-          armorType: pendingTokenSpawn.armorType || 'Ninguna',
-          isGraveWound: Boolean(pendingTokenSpawn.isGraveWound),
-          speed: pendingTokenSpawn.speed || 6,
-          turnMovementUsed: 0,
-          history: pendingTokenSpawn.history || '',
-          notes: pendingTokenSpawn.notes || '',
-          inventory: pendingTokenSpawn.inventory || [],
-          spells: pendingTokenSpawn.spells || []
-        };
-        if (pendingTokenSpawn.fromGraveyardId) {
-          setGraveyard(prev => prev.filter(g => (g.graveyardId || g.id) !== pendingTokenSpawn.fromGraveyardId));
-          showMasterFeedback(`¡"${pendingTokenSpawn.name}" ha resucitado y regresa al tablero!`, '✨');
-        } else {
-          showMasterFeedback(`${pendingTokenSpawn.name} desplegado en escena`, '⚔️');
-        }
-        setTokens(prev => [...prev, newToken]);
+        spawnTokenFromCharacter(pendingTokenSpawn, spawnX, spawnY);
         setPendingTokenSpawn(null);
         return;
       }
@@ -1340,6 +1428,43 @@ function App() {
     }
   };
 
+  // Contexto de combate para un token específico (según pertenezca a un grupo o al combate global)
+  const getTokenCombatContext = (token) => {
+    if (!token) return { isCombatActive: false, combatRound: 1, activeTurnTokenId: null, group: null };
+    if (!combatGroups || combatGroups.length === 0) {
+      return {
+        isCombatActive,
+        combatRound,
+        activeTurnTokenId,
+        group: null
+      };
+    }
+    if (!token.combatGroupId) {
+      // Fuera de combate / libre
+      return {
+        isCombatActive: false,
+        combatRound: 1,
+        activeTurnTokenId: null,
+        group: null
+      };
+    }
+    const group = combatGroups.find(g => g.id === token.combatGroupId);
+    if (!group) {
+      return {
+        isCombatActive: false,
+        combatRound: 1,
+        activeTurnTokenId: null,
+        group: null
+      };
+    }
+    return {
+      isCombatActive: Boolean(group.isCombatActive),
+      combatRound: group.combatRound || 1,
+      activeTurnTokenId: group.activeTurnTokenId || null,
+      group
+    };
+  };
+
   const handleTokenPointerDown = (e, token) => {
     cancelHoldTimer();
     if (e.altKey || pingActive) {
@@ -1357,11 +1482,14 @@ function App() {
     if (rulerActive) return;
 
     // Comprobación de límites de movimiento en combate si no se mantiene Ctrl
-    if (isCombatActive && movementLimitsEnabled && !e.ctrlKey && !token.isLocked) {
-      if (activeTurnTokenId && token.id !== activeTurnTokenId) {
-        const activeTok = tokens.find(t => t.id === activeTurnTokenId);
+    const tokenCombat = getTokenCombatContext(token);
+    if (tokenCombat.isCombatActive && movementLimitsEnabled && !e.ctrlKey && !token.isLocked) {
+      if (tokenCombat.activeTurnTokenId && token.id !== tokenCombat.activeTurnTokenId) {
+        const activeTok = tokens.find(t => t.id === tokenCombat.activeTurnTokenId);
         showMasterFeedback(
-          activeTok ? `Turno de "${activeTok.name}". Mantén Ctrl para mover a otros.` : 'No es el turno de este combatiente.',
+          activeTok
+            ? `Turno de "${activeTok.name}"${tokenCombat.group ? ` [${tokenCombat.group.name}]` : ''}. Mantén Ctrl para mover a otros.`
+            : 'No es el turno de este combatiente.',
           '⚠️'
         );
         return;
@@ -1384,9 +1512,11 @@ function App() {
 
     if (isImmobilized) return;
 
+    // Capturamos el pointer en el BOARD (donde están los listeners de move/up),
+    // no en el token (cuyo stopPropagation impide que los eventos lleguen al board).
     try {
-      if (e.currentTarget && e.pointerId !== undefined) {
-        e.currentTarget.setPointerCapture(e.pointerId);
+      if (boardRef.current && e.pointerId !== undefined) {
+        boardRef.current.setPointerCapture(e.pointerId);
       }
     } catch (err) {}
 
@@ -1456,7 +1586,8 @@ function App() {
       let targetY = coords.y - size / 2;
 
       // Limitación elástica de movimiento en combate
-      if (isCombatActive && movementLimitsEnabled && !e.ctrlKey && tokenDragOriginRef.current && currentToken) {
+      const tokenCombat = getTokenCombatContext(currentToken);
+      if (tokenCombat.isCombatActive && movementLimitsEnabled && !e.ctrlKey && tokenDragOriginRef.current && currentToken) {
         const originX = tokenDragOriginRef.current.x;
         const originY = tokenDragOriginRef.current.y;
         const baseSpeed = currentToken.speed || 6;
@@ -1539,9 +1670,25 @@ function App() {
 
   const handlePointerUp = (e) => {
     cancelHoldTimer();
+    // Liberar pointer capture del board si lo teníamos
+    try {
+      if (boardRef.current && e?.pointerId !== undefined && boardRef.current.hasPointerCapture(e.pointerId)) {
+        boardRef.current.releasePointerCapture(e.pointerId);
+      }
+    } catch (err) {}
     if (rulerMeasure) setRulerMeasure(null);
 
     if (draggedToken !== null) {
+      // Si el usuario soltó el token sobre un grupo de combate en el sidebar lateral
+      if (combatGroups && combatGroups.length > 0 && e?.clientX !== undefined && e?.clientY !== undefined) {
+        const elemUnder = document.elementFromPoint(e.clientX, e.clientY);
+        const groupEl = elemUnder?.closest('[data-combat-group-id]');
+        if (groupEl) {
+          const targetGid = groupEl.getAttribute('data-combat-group-id');
+          handleAssignTokenToGroup(draggedToken, targetGid === 'free' ? null : targetGid);
+        }
+      }
+
       const origin = tokenDragOriginRef.current;
       const isCtrlOverride = Boolean(e?.ctrlKey || origin?.isCtrl);
 
@@ -1560,7 +1707,8 @@ function App() {
               }
             }
 
-            if (isCombatActive && movementLimitsEnabled && origin && !isCtrlOverride) {
+            const tokenCombat = getTokenCombatContext(t);
+            if (tokenCombat.isCombatActive && movementLimitsEnabled && origin && !isCtrlOverride) {
               const pixelDist = Math.hypot(finalX - origin.x, finalY - origin.y);
               const squaresMoved = Math.round(pixelDist / gridSize);
               if (squaresMoved > 0) {
@@ -2044,6 +2192,161 @@ function App() {
     showMasterFeedback('Presupuesto de movimiento restablecido', '↺');
   };
 
+  const COMBAT_GROUP_COLORS = [
+    { hex: '#f59e0b', border: '#fbbf24', bg: 'rgba(245, 158, 11, 0.16)' },
+    { hex: '#a855f7', border: '#c084fc', bg: 'rgba(168, 85, 247, 0.16)' },
+    { hex: '#06b6d4', border: '#22d3ee', bg: 'rgba(6, 182, 212, 0.16)' },
+    { hex: '#ef4444', border: '#f87171', bg: 'rgba(239, 68, 68, 0.16)' },
+    { hex: '#10b981', border: '#34d399', bg: 'rgba(16, 185, 129, 0.16)' },
+    { hex: '#f97316', border: '#fb923c', bg: 'rgba(249, 115, 22, 0.16)' }
+  ];
+
+  const handleCreateCombatGroup = (customName) => {
+    const nextIdx = combatGroups.length;
+    const colorTheme = COMBAT_GROUP_COLORS[nextIdx % COMBAT_GROUP_COLORS.length];
+    const newGroup = {
+      id: `cg_${Date.now()}_${Math.random().toString(36).substr(2, 4)}`,
+      name: customName || `Encuentro ${nextIdx + 1}`,
+      color: colorTheme.hex,
+      borderColor: colorTheme.border,
+      bgColor: colorTheme.bg,
+      isCombatActive: false,
+      combatRound: 1,
+      activeTurnTokenId: null
+    };
+
+    setCombatGroups(prev => [...prev, newGroup]);
+    showMasterFeedback(`Creado grupo de combate: "${newGroup.name}"`, '⚔️');
+    return newGroup.id;
+  };
+
+  const handleRemoveCombatGroup = (groupId) => {
+    setCombatGroups(prev => prev.filter(g => g.id !== groupId));
+    setTokens(prev => prev.map(t => t.combatGroupId === groupId ? { ...t, combatGroupId: null } : t));
+    showMasterFeedback('Grupo de combate disuelto', '🗑️');
+  };
+
+  const handleUpdateCombatGroup = (groupId, updates) => {
+    setCombatGroups(prev => prev.map(g => g.id === groupId ? { ...g, ...updates } : g));
+  };
+
+  const handleAssignTokenToGroup = (tokenId, groupId) => {
+    setTokens(prev => prev.map(t => {
+      if (t.id !== tokenId) return t;
+      return { ...t, combatGroupId: groupId || null };
+    }));
+    const targetGroup = combatGroups.find(g => g.id === groupId);
+    const targetToken = tokens.find(t => t.id === tokenId);
+    if (targetToken) {
+      showMasterFeedback(
+        targetGroup ? `"${targetToken.name}" asignado a "${targetGroup.name}"` : `"${targetToken.name}" ahora está libre`,
+        '📋'
+      );
+    }
+  };
+
+  const handleStartGroupCombat = (groupId) => {
+    const group = combatGroups.find(g => g.id === groupId);
+    if (!group) return;
+    const groupTokens = tokens.filter(t => t.combatGroupId === groupId);
+    if (groupTokens.length === 0) {
+      showMasterFeedback(`"${group.name}" no tiene personajes asignados. Arrastra fichas al grupo primero.`, '⚠️');
+      return;
+    }
+
+    const firstToken = groupTokens[0];
+    setCombatGroups(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      return {
+        ...g,
+        isCombatActive: true,
+        combatRound: 1,
+        activeTurnTokenId: firstToken.id
+      };
+    }));
+
+    setTokens(prev => prev.map(t => t.combatGroupId === groupId ? { ...t, turnMovementUsed: 0 } : t));
+    tokenDragOriginRef.current = null;
+    setTokenDragMeasurement(null);
+
+    const baseSpeed = firstToken.speed || 6;
+    const speed = firstToken.isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
+    showMasterFeedback(`¡Combate iniciado en [${group.name}]! Turno de ${firstToken.name} (${speed} casillas)`, '⚔️');
+  };
+
+  const handleNextGroupTurn = (groupId) => {
+    const group = combatGroups.find(g => g.id === groupId);
+    if (!group) return;
+    const groupTokens = tokens.filter(t => t.combatGroupId === groupId);
+    if (groupTokens.length === 0) return;
+
+    const currentIndex = groupTokens.findIndex(t => t.id === group.activeTurnTokenId);
+    let nextIndex = currentIndex + 1;
+    let nextRound = group.combatRound || 1;
+
+    if (nextIndex >= groupTokens.length) {
+      nextIndex = 0;
+      nextRound += 1;
+      showMasterFeedback(`[${group.name}] ¡Nueva ronda: Ronda ${nextRound}!`, '🔔');
+    }
+
+    const nextToken = groupTokens[nextIndex];
+    if (nextToken) {
+      setCombatGroups(prev => prev.map(g => {
+        if (g.id !== groupId) return g;
+        return {
+          ...g,
+          combatRound: nextRound,
+          activeTurnTokenId: nextToken.id
+        };
+      }));
+
+      setTokens(prev => prev.map(t => t.id === nextToken.id ? { ...t, turnMovementUsed: 0 } : t));
+      tokenDragOriginRef.current = null;
+      setTokenDragMeasurement(null);
+
+      const baseSpeed = nextToken.speed || 6;
+      const speed = nextToken.isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
+      showMasterFeedback(`[${group.name}] Turno de: ${nextToken.name} (${speed} casillas)`, '⚔️');
+    }
+  };
+
+  const handleSelectGroupActiveTurn = (groupId, tokenId) => {
+    const targetToken = tokens.find(t => t.id === tokenId);
+    if (!targetToken) return;
+    setCombatGroups(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      return { ...g, activeTurnTokenId: tokenId };
+    }));
+    setTokens(prev => prev.map(t => t.id === tokenId ? { ...t, turnMovementUsed: 0 } : t));
+    tokenDragOriginRef.current = null;
+    setTokenDragMeasurement(null);
+    showMasterFeedback(`Turno asignado a: ${targetToken.name}`, '⚔️');
+  };
+
+  const handleEndGroupCombat = (groupId) => {
+    const group = combatGroups.find(g => g.id === groupId);
+    setCombatGroups(prev => prev.map(g => {
+      if (g.id !== groupId) return g;
+      return {
+        ...g,
+        isCombatActive: false,
+        activeTurnTokenId: null,
+        combatRound: 1
+      };
+    }));
+    setTokens(prev => prev.map(t => t.combatGroupId === groupId ? { ...t, turnMovementUsed: 0 } : t));
+    tokenDragOriginRef.current = null;
+    setTokenDragMeasurement(null);
+    showMasterFeedback(`Combate finalizado en [${group?.name || 'Encuentro'}]`, '🛡️');
+  };
+
+  const handleDisbandAllGroups = () => {
+    setCombatGroups([]);
+    setTokens(prev => prev.map(t => ({ ...t, combatGroupId: null })));
+    showMasterFeedback('Todos los grupos de combate han sido disueltos. Modo estándar restaurado.', 'ℹ️');
+  };
+
   const handleCenterOnToken = (token) => {
     if (!token) return;
     setPan({
@@ -2458,11 +2761,13 @@ function App() {
           fowVisionRadius={fowVisionRadius}
           fowMemoryEnabled={fowMemoryEnabled}
           fowAutoHideEnemies={fowAutoHideEnemies}
+          livingFogEnabled={livingFogEnabled}
           weatherEffect={weatherEffect}
           ambientTint={ambientTint}
           handlePointerDown={handlePointerDown}
           handlePointerMove={handlePointerMove}
           handlePointerUp={handlePointerUp}
+          handleDropOnBoard={handleDropOnBoard}
           handleWheel={handleWheel}
           snapToGrid={snapToGrid}
           gridSize={gridSize}
@@ -2560,7 +2865,10 @@ function App() {
           onOpenHandouts={() => setIsHandoutModalOpen(true)}
           handoutsCount={handouts.length}
           hasActiveHandout={Boolean(activeHandout)}
-          onOpenMasterNotes={() => setIsMasterNotesOpen(!isMasterNotesOpen)}
+          onOpenMasterNotes={() => {
+            setSettingsInitialTab('notas');
+            setIsSettingsOpen(true);
+          }}
           onOpenGraveyard={() => setEncyclopediaState({ isOpen: true, category: 'graveyard' })}
           graveyardCount={(graveyard || []).length}
           isCombatActive={isCombatActive}
@@ -2598,7 +2906,7 @@ function App() {
             }
           });
         }}
-        onOpenMapCreator={() => setIsMapCreatorOpen(true)}
+        onOpenMapCreator={() => handleOpenMapCreator(activeSceneId)}
         onImportCampaign={handleImportCampaign}
         onExportCampaign={handleExportCampaign}
         onLoadRecentCampaign={(data) => {
@@ -2678,18 +2986,38 @@ function App() {
           display: 'flex',
           flexDirection: 'column'
         }}>
-          <MapCreator
-            initialElements={maps}
-            onLoadMapToBoard={(newElements) => {
-              setMaps(newElements);
-              showMasterFeedback('Escenario actualizado en la mesa', '🗺️');
-            }}
-            onClose={() => setIsMapCreatorOpen(false)}
-            onReturnToSettings={() => {
-              setIsMapCreatorOpen(false);
-              setIsSettingsOpen(true);
-            }}
-          />
+          {(() => {
+            const targetScene = scenes.find(sc => sc.id === (mapCreatorSceneId || activeSceneId))
+              || scenes.find(sc => sc.id === activeSceneId)
+              || scenes[0];
+            const currentMapSceneName = targetScene ? targetScene.name : 'Escena Principal';
+            const currentMapInitialElements = (targetScene && targetScene.maps) ? targetScene.maps : maps;
+            const currentMapSceneId = targetScene ? targetScene.id : activeSceneId;
+
+            return (
+              <MapCreator
+                initialElements={currentMapInitialElements}
+                sceneName={currentMapSceneName}
+                sceneId={currentMapSceneId}
+                onLoadMapToBoard={(newElements) => {
+                  setMaps(newElements);
+                  setScenes((prev) => prev.map((sc) =>
+                    sc.id === currentMapSceneId ? { ...sc, maps: newElements } : sc
+                  ));
+                  showMasterFeedback(`Plano de "${currentMapSceneName}" guardado en la mesa`, '🗺️');
+                }}
+                onClose={() => {
+                  setIsMapCreatorOpen(false);
+                  setMapCreatorSceneId(null);
+                }}
+                onReturnToSettings={() => {
+                  setIsMapCreatorOpen(false);
+                  setMapCreatorSceneId(null);
+                  setIsSettingsOpen(true);
+                }}
+              />
+            );
+          })()}
         </div>
       )}
 
@@ -2815,8 +3143,10 @@ function App() {
           onOpenGraveyard={() => setEncyclopediaState({ isOpen: true, category: 'graveyard' })}
           onSendToGraveyard={handleSendToGraveyard}
           onAddToken={handleAddToken}
+          onStartDragCharacter={handleStartDragCharacter}
+          onEndDragCharacter={handleEndDragCharacter}
           onAddMapElement={handleStartPlaceMapElement}
-          onOpenMapCreator={() => setIsMapCreatorOpen(true)}
+          onOpenMapCreator={() => handleOpenMapCreator(activeSceneId)}
           onOpenEncyclopedia={(category) => setEncyclopediaState({ isOpen: true, category: category || 'character' })}
           onRemoveToken={(id) => setTokens(prev => prev.filter(t => t.id !== id))}
           onRemoveCharacter={(id) => setCharacters(prev => prev.filter(c => c.id !== id))}
@@ -2859,10 +3189,20 @@ function App() {
           onToggleMovementLimits={handleToggleMovementLimits}
           onResetTokenMovement={handleResetTokenMovement}
           onSelectActiveTurn={handleSelectActiveTurn}
+          combatGroups={combatGroups}
+          onCreateCombatGroup={handleCreateCombatGroup}
+          onRemoveCombatGroup={handleRemoveCombatGroup}
+          onUpdateCombatGroup={handleUpdateCombatGroup}
+          onAssignTokenToGroup={handleAssignTokenToGroup}
+          onStartGroupCombat={handleStartGroupCombat}
+          onNextGroupTurn={handleNextGroupTurn}
+          onEndGroupCombat={handleEndGroupCombat}
+          onSelectGroupActiveTurn={handleSelectGroupActiveTurn}
+          onDisbandAllGroups={handleDisbandAllGroups}
         />
 
         {/* Aviso Superior de Modo Invocación Activo */}
-        {pendingTokenSpawn && (
+        {pendingTokenSpawn && !isDraggingCharacter && (
           <div
             onPointerDown={(e) => e.stopPropagation()}
             style={{
@@ -2954,6 +3294,7 @@ function App() {
           fowVisionRadius={fowVisionRadius}
           fowMemoryEnabled={fowMemoryEnabled}
           fowAutoHideEnemies={fowAutoHideEnemies}
+          livingFogEnabled={livingFogEnabled}
           weatherEffect={weatherEffect}
           ambientTint={ambientTint}
           rulerActive={rulerActive}
@@ -2969,6 +3310,7 @@ function App() {
           handlePointerDown={handlePointerDown}
           handlePointerMove={handlePointerMove}
           handlePointerUp={handlePointerUp}
+          handleDropOnBoard={handleDropOnBoard}
           handleWheel={handleWheel}
           snapToGrid={snapToGrid}
           gridSize={gridSize}
@@ -3008,6 +3350,7 @@ function App() {
           onPickUpItem={handlePickUpItem}
           isCombatActive={isCombatActive}
           movementLimitsEnabled={movementLimitsEnabled}
+          combatGroups={combatGroups}
           tokenDragOriginRef={tokenDragOriginRef}
           tokenDragMeasurement={tokenDragMeasurement}
         />
@@ -3396,6 +3739,41 @@ function App() {
                 Memoria: {fowMemoryEnabled ? 'ON' : 'OFF'}
               </button>
 
+              {/* Conmutador Bruma Viva WebGL */}
+              <button
+                onClick={() => {
+                  const nextState = !livingFogEnabled;
+                  setLivingFogEnabled(nextState);
+                  showMasterFeedback(nextState ? 'Bruma Viva WebGL activada (niebla volumétrica)' : 'Bruma Viva desactivada');
+                }}
+                className={`vtt-brass-btn ${livingFogEnabled ? 'vtt-btn-active' : ''}`}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  color: livingFogEnabled ? '#38bdf8' : '#94a3b8',
+                  borderColor: livingFogEnabled ? '#0284c7' : '#334155',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  height: '30px',
+                  boxSizing: 'border-box'
+                }}
+                title="Bruma Viva WebGL: Shaders Three.js de niebla volumétrica y parpadeo de llama"
+              >
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: livingFogEnabled ? '#38bdf8' : '#64748b',
+                  boxShadow: livingFogEnabled ? '0 0 6px #38bdf8' : 'none',
+                  display: 'inline-block'
+                }} />
+                <span>Bruma Viva: {livingFogEnabled ? 'ON' : 'OFF'}</span>
+              </button>
+
               {/* Auto-ocultar Enemigos fuera de vista */}
               <button
                 onClick={() => setFowAutoHideEnemies(!fowAutoHideEnemies)}
@@ -3578,7 +3956,15 @@ function App() {
 
       <SettingsDrawer
         isOpen={isSettingsOpen}
-        onClose={() => setIsSettingsOpen(false)}
+        onClose={() => {
+          setIsSettingsOpen(false);
+          setSettingsInitialTab(null);
+        }}
+        initialTab={settingsInitialTab}
+        sceneNotes={sceneNotes}
+        onUpdateSceneNotes={handleUpdateSceneNotes}
+        campaignNotes={campaignNotes}
+        onUpdateCampaignNotes={setCampaignNotes}
         characters={characters}
         onSaveCharacter={(newChar) => setCharacters(prev => [...prev, newChar])}
         onImportCharacters={(importedList) => setCharacters(prev => [...prev, ...importedList])}
@@ -3600,7 +3986,7 @@ function App() {
         fowMode={fowMode} setFowMode={setFowMode}
         snapToGrid={snapToGrid} setSnapToGrid={setSnapToGrid}
         gridSize={gridSize} setGridSize={setGridSize}
-        openMapCreator={() => setIsMapCreatorOpen(true)}
+        openMapCreator={handleOpenMapCreator}
         maps={maps}
         onAddMapElement={handleStartPlaceMapElement}
         onToggleMapElementState={handleToggleMapElementState}
@@ -3634,6 +4020,7 @@ function App() {
         onSaveCommonItem={handleSaveCommonItem}
         onDeleteCommonItem={handleDeleteCommonItem}
         onPlaceGroundItem={handleStartPlaceGroundItem}
+        onTransferItem={handleTransferItemBetweenCharacters}
         onSaveAdventure={handleSaveAdventure}
         onConcludeAdventure={handleConcludeAdventure}
       />
@@ -3732,19 +4119,6 @@ function App() {
           if (activeHandout && activeHandout.id === id) setActiveHandout(null);
         }}
         onProjectHandout={handleProjectHandout}
-      />
-
-      {/* Diario & Notas del Máster (Punto 1) */}
-      <MasterNotesDrawer
-        isOpen={isMasterNotesOpen}
-        onClose={() => setIsMasterNotesOpen(false)}
-        activeSceneId={activeSceneId}
-        scenes={scenes}
-        sceneNotes={sceneNotes}
-        onUpdateSceneNotes={handleUpdateSceneNotes}
-        campaignNotes={campaignNotes}
-        onUpdateCampaignNotes={setCampaignNotes}
-        onSaveCharacter={(newChar) => setCharacters(prev => [...prev, newChar])}
       />
     </div>
   );

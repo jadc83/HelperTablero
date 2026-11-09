@@ -69,7 +69,28 @@ const CharacterSheetModal = ({
   });
   const [avatar, setAvatar] = useState(initialData?.avatar || '');
 
-  // Datos Biográficos Adicionales
+  // Determinar si es una criatura o monstruo de los Mitos / Bestiario
+  const isMonster = getClassificationMeta(entityType, faction).group === 'monster';
+
+  // Datos específicos de Criaturas y Bestiario (sin apellidos, sin año, con hábitat, horror, tamaño y ataques)
+  const [sanityLoss, setSanityLoss] = useState(initialData?.sanityLoss || '1/1D6');
+  const [habitat, setHabitat] = useState(initialData?.habitat || '');
+  const [creatureNature, setCreatureNature] = useState(initialData?.creatureNature || '');
+  const [creatureSize, setCreatureSize] = useState(initialData?.creatureSize || 'Medio');
+  const [attacks, setAttacks] = useState(() => {
+    if (Array.isArray(initialData?.attacks) && initialData.attacks.length > 0) {
+      return initialData.attacks;
+    }
+    return [
+      { id: 'att-1', name: 'Zarpazo / Ataque Primario', damage: '1D6+BD', range: 'Cuerpo a cuerpo', desc: 'Ataque físico principal contra el investigador' }
+    ];
+  });
+  const [newAttackName, setNewAttackName] = useState('');
+  const [newAttackDamage, setNewAttackDamage] = useState('1D6');
+  const [newAttackRange, setNewAttackRange] = useState('Cuerpo a cuerpo');
+  const [newAttackDesc, setNewAttackDesc] = useState('');
+
+  // Datos Biográficos Adicionales (Personajes humanos)
   const [profession, setProfession] = useState(initialData?.profession || '');
   const [education, setEducation] = useState(initialData?.education || '');
   const [birthplace, setBirthplace] = useState(initialData?.birthplace || '');
@@ -154,7 +175,7 @@ const CharacterSheetModal = ({
   }, []);
   const importCharInputRef = useRef(null);
 
-  const fullName = `${firstName.trim()} ${lastName.trim()}`.trim();
+  const fullName = isMonster ? firstName.trim() : `${firstName.trim()} ${lastName.trim()}`.trim();
 
   const handleAvatarUpload = (e) => {
     const file = e.target.files[0];
@@ -180,13 +201,19 @@ const CharacterSheetModal = ({
   const buildCharacterObject = () => ({
     id: initialData?.id || Date.now(),
     firstName: firstName.trim(),
-    lastName: lastName.trim(),
-    name: fullName || 'Sin Nombre',
-    birthYear: birthYear.trim(),
-    profession: profession.trim(),
-    education: education.trim(),
-    birthplace: birthplace.trim(),
-    residence: residence.trim(),
+    lastName: isMonster ? '' : lastName.trim(),
+    name: isMonster ? (firstName.trim() || 'Criatura sin nombre') : (fullName || 'Sin Nombre'),
+    birthYear: isMonster ? '' : birthYear.trim(),
+    profession: isMonster ? '' : profession.trim(),
+    education: isMonster ? '' : education.trim(),
+    birthplace: isMonster ? '' : birthplace.trim(),
+    residence: isMonster ? '' : residence.trim(),
+    // Propiedades exclusivas de Criatura / Bestiario
+    sanityLoss: isMonster ? sanityLoss.trim() : (initialData?.sanityLoss || ''),
+    habitat: isMonster ? habitat.trim() : (initialData?.habitat || ''),
+    creatureNature: isMonster ? creatureNature.trim() : (initialData?.creatureNature || ''),
+    creatureSize: isMonster ? creatureSize : (initialData?.creatureSize || 'Medio'),
+    attacks: isMonster ? attacks : (initialData?.attacks || []),
     color,
     faction,
     entityType,
@@ -195,10 +222,10 @@ const CharacterSheetModal = ({
     maxHp: Math.max(1, Number(maxHp) || 1),
     mp: Math.max(0, Math.min(Number(mp) || 0, Number(maxMp) || 0)),
     maxMp: Math.max(0, Number(maxMp) || 0),
-    san: Math.max(0, Math.min(Number(san) || 0, Number(maxSan) || 0)),
-    maxSan: Math.max(0, Number(maxSan) || 0),
+    san: isMonster ? 0 : Math.max(0, Math.min(Number(san) || 0, Number(maxSan) || 0)),
+    maxSan: isMonster ? 0 : Math.max(0, Number(maxSan) || 0),
     hasArmor: Boolean(hasArmor),
-    armorType: hasArmor ? (armorType.trim() || 'Armadura Ligera') : 'Ninguna',
+    armorType: hasArmor ? (armorType.trim() || (isMonster ? 'Piel blindada' : 'Armadura Ligera')) : 'Ninguna',
     isGraveWound: Boolean(isGraveWound),
     speed: Math.max(1, Number(speed) || 6),
     history,
@@ -214,13 +241,18 @@ const CharacterSheetModal = ({
     else if (data.name) setFirstName(data.name.split(' ')[0] || '');
 
     if (data.lastName !== undefined) setLastName(data.lastName);
-    else if (data.name) setLastName(data.name.split(' ').slice(1).join(' ') || '');
+    else if (data.name && !isMonster) setLastName(data.name.split(' ').slice(1).join(' ') || '');
 
     if (data.birthYear !== undefined) setBirthYear(String(data.birthYear));
     if (data.profession !== undefined) setProfession(data.profession || '');
     if (data.education !== undefined) setEducation(data.education || '');
     if (data.birthplace !== undefined) setBirthplace(data.birthplace || '');
     if (data.residence !== undefined) setResidence(data.residence || '');
+    if (data.sanityLoss !== undefined) setSanityLoss(data.sanityLoss);
+    if (data.habitat !== undefined) setHabitat(data.habitat);
+    if (data.creatureNature !== undefined) setCreatureNature(data.creatureNature);
+    if (data.creatureSize !== undefined) setCreatureSize(data.creatureSize);
+    if (Array.isArray(data.attacks)) setAttacks(data.attacks);
     if (data.color) setColor(data.color);
     if (data.faction) setFaction(data.faction);
     if (data.entityType) setEntityType(data.entityType);
@@ -243,17 +275,17 @@ const CharacterSheetModal = ({
     if (Array.isArray(data.inventory)) setInventory(data.inventory);
     if (Array.isArray(data.spells)) setSpells(data.spells);
 
-    setImportNotice('¡Datos de personaje importados en el formulario!');
+    setImportNotice(isMonster ? '¡Datos de la criatura importados!' : '¡Datos de personaje importados en el formulario!');
     setTimeout(() => setImportNotice(null), 3000);
   };
 
   const handleExportSingleCharacter = async () => {
     try {
       const charObj = buildCharacterObject();
-      const safeFile = (charObj.name || 'personaje').toLowerCase().replace(/[^a-z0-9_-]/g, '_');
-      await exportJSON(`ficha_${safeFile}.json`, charObj);
+      const safeFile = (charObj.name || (isMonster ? 'criatura' : 'personaje')).toLowerCase().replace(/[^a-z0-9_-]/g, '_');
+      await exportJSON(isMonster ? `criatura_${safeFile}.json` : `ficha_${safeFile}.json`, charObj);
     } catch (err) {
-      console.error('Error al exportar ficha de personaje:', err);
+      console.error('Error al exportar ficha:', err);
     }
   };
 
@@ -275,27 +307,33 @@ const CharacterSheetModal = ({
     }
 
     try {
-      const res = await importJSON({ accept: '.json', description: 'Ficha de Personaje (*.json)' });
+      const res = await importJSON({ accept: '.json', description: isMonster ? 'Criatura VTT (*.json)' : 'Ficha de Personaje (*.json)' });
       if (res?.success && res.text) {
         const raw = JSON.parse(res.text);
         const data = Array.isArray(raw) ? raw[0] : raw;
         applyCharacterData(data);
       }
     } catch (err) {
-      console.error('Error al importar ficha de personaje:', err);
+      console.error('Error al importar ficha:', err);
     }
   };
 
   const handleToggleEditHeader = () => {
     if (isEditingHeader) {
-      if (!firstName.trim() && !lastName.trim()) {
-        setFirstName(initialData?.firstName || initialData?.name || 'Personaje');
+      if (isMonster) {
+        if (!firstName.trim()) {
+          setFirstName(initialData?.firstName || initialData?.name || 'Criatura');
+        }
+      } else {
+        if (!firstName.trim() && !lastName.trim()) {
+          setFirstName(initialData?.firstName || initialData?.name || 'Personaje');
+        }
       }
       const charObj = buildCharacterObject();
       if (onUpdate) {
         onUpdate(charObj);
       }
-      setImportNotice('✓ Datos de identidad guardados correctamente');
+      setImportNotice(isMonster ? '✓ Datos de la criatura guardados' : '✓ Datos de identidad guardados correctamente');
       setTimeout(() => setImportNotice(null), 2500);
       setIsEditingHeader(false);
     } else {
@@ -305,7 +343,11 @@ const CharacterSheetModal = ({
 
   const handleSave = (e) => {
     e.preventDefault();
-    if (!firstName.trim() && !lastName.trim()) return;
+    if (isMonster) {
+      if (!firstName.trim()) return;
+    } else {
+      if (!firstName.trim() && !lastName.trim()) return;
+    }
     onSave(buildCharacterObject());
   };
 
@@ -363,8 +405,10 @@ const CharacterSheetModal = ({
           gap: '12px'
         }}>
           <div>
-            <div className="vtt-gothic-title" style={{ fontSize: '18px', color: '#f8fafc', fontWeight: 800 }}>
-              {mode === 'create' ? 'Nuevo Personaje' : (fullName || 'Ficha de Personaje')}
+            <div className="vtt-gothic-title" style={{ fontSize: '18px', color: isMonster ? '#fca5a5' : '#f8fafc', fontWeight: 800 }}>
+              {mode === 'create'
+                ? (isMonster ? 'Registrar Nueva Criatura o Entidad' : 'Nuevo Personaje')
+                : (fullName || (isMonster ? 'Ficha de Criatura' : 'Ficha de Personaje'))}
             </div>
           </div>
 
@@ -391,7 +435,7 @@ const CharacterSheetModal = ({
                 boxShadow: isEditingHeader ? '0 0 10px rgba(245, 158, 11, 0.45)' : 'none',
                 transition: 'all 0.15s ease'
               }}
-              title={isEditingHeader ? "Cerrar modo edición (autoguardar cambios)" : "Activar modo edición de identidad"}
+              title={isEditingHeader ? "Cerrar modo edición (autoguardar cambios)" : "Activar modo edición"}
             >
               {isEditingHeader ? '💾' : '✏️'}
             </button>
@@ -401,18 +445,18 @@ const CharacterSheetModal = ({
               onClick={() => handleImportSingleCharacter()}
               className="vtt-brass-btn"
               style={{ padding: '7px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-              title="Cargar datos desde un archivo JSON de personaje"
+              title={isMonster ? "Cargar datos desde un archivo JSON de criatura" : "Cargar datos desde un archivo JSON de personaje"}
             >
-              📥 Importar Ficha
+              {isMonster ? '📥 Importar Criatura' : '📥 Importar Ficha'}
             </button>
             <button
               type="button"
               onClick={handleExportSingleCharacter}
               className="vtt-brass-btn"
               style={{ padding: '7px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
-              title="Descargar este personaje en un archivo JSON"
+              title={isMonster ? "Descargar esta criatura en un archivo JSON" : "Descargar este personaje en un archivo JSON"}
             >
-              📤 Exportar Ficha
+              {isMonster ? '📤 Exportar Criatura' : '📤 Exportar Ficha'}
             </button>
             <button
               type="button"
@@ -441,7 +485,7 @@ const CharacterSheetModal = ({
           position: 'relative'
         }}>
           {!isEditingHeader ? (
-            /* VISTA DOSSIER / PERFIL FIJO (Diseño limpio y sobrio sin pastillas ni iconos) */
+            /* VISTA DOSSIER / PERFIL FIJO */
             <div style={{ display: 'flex', alignItems: 'center', gap: '22px', width: '100%' }}>
               {/* Avatar con borde de color */}
               <div
@@ -450,7 +494,7 @@ const CharacterSheetModal = ({
                   height: '74px',
                   borderRadius: '50%',
                   backgroundColor: color,
-                  border: isGraveWound ? '3px solid #ef4444' : `3px solid ${color || '#f59e0b'}`,
+                  border: isGraveWound ? '3px solid #ef4444' : `3px solid ${color || (isMonster ? '#ef4444' : '#f59e0b')}`,
                   boxShadow: isGraveWound ? '0 0 18px rgba(239, 68, 68, 0.7)' : `0 4px 16px ${color}44`,
                   display: 'flex',
                   alignItems: 'center',
@@ -463,79 +507,151 @@ const CharacterSheetModal = ({
                 {avatar ? (
                   <img src={avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <span style={{ fontSize: '26px', fontWeight: 800, color: '#f8fafc', opacity: 0.75 }}>
-                    {(firstName || fullName || 'P').charAt(0).toUpperCase()}
+                  <span style={{ fontSize: '26px', fontWeight: 800, color: isMonster ? '#fca5a5' : '#f8fafc', opacity: 0.85 }}>
+                    {(firstName || fullName || (isMonster ? 'C' : 'P')).charAt(0).toUpperCase()}
                   </span>
                 )}
               </div>
 
-              {/* Datos del personaje en formato editorial limpio */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
-                {/* Línea 1: Nombre y subtítulo de identidad */}
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
-                  <h2 style={{
-                    margin: 0,
-                    fontSize: '22px',
-                    fontWeight: 800,
-                    color: '#f8fafc',
-                    letterSpacing: '0.02em',
-                    fontFamily: "'Cinzel', 'Georgia', serif, system-ui",
-                    lineHeight: 1.1
-                  }}>
-                    {fullName || 'Sin Nombre'}
-                  </h2>
+              {isMonster ? (
+                /* Datos de la Criatura (Sin apellidos, sin año, con horror y hábitat) */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
+                    <h2 style={{
+                      margin: 0,
+                      fontSize: '22px',
+                      fontWeight: 800,
+                      color: '#fca5a5',
+                      letterSpacing: '0.02em',
+                      fontFamily: "'Cinzel', 'Georgia', serif, system-ui",
+                      lineHeight: 1.1
+                    }}>
+                      {fullName || 'Criatura sin nombre'}
+                    </h2>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
-                    {profession && (
-                      <span style={{ color: '#fbbf24', fontWeight: 700 }}>
-                        {profession}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        backgroundColor: 'rgba(239, 68, 68, 0.2)',
+                        color: '#f87171',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        fontWeight: 700,
+                        fontSize: '11px'
+                      }}>
+                        {getClassificationMeta(entityType).label}
                       </span>
+                      <span style={{ color: '#475569' }}>•</span>
+                      <span style={{ color: faction === 'enemy' ? '#f87171' : faction === 'player' ? '#34d399' : '#60a5fa', fontWeight: 600, fontSize: '12px' }}>
+                        {faction === 'enemy' ? 'Hostil / Enemigo' : faction === 'player' ? 'Jugador' : 'Aliado'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '12px' }}>
+                    <div>
+                      <span style={{ color: '#f59e0b', marginRight: '5px', fontWeight: 700 }}>👁️ P. Cordura:</span>
+                      <span style={{ color: '#fef08a', fontWeight: 800 }}>{sanityLoss.trim() || '1/1D6'}</span>
+                    </div>
+
+                    {habitat && (
+                      <>
+                        <span style={{ color: '#334155' }}>•</span>
+                        <div>
+                          <span style={{ color: '#64748b', marginRight: '5px' }}>Hábitat:</span>
+                          <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{habitat}</span>
+                        </div>
+                      </>
                     )}
-                    {profession && <span style={{ color: '#475569' }}>•</span>}
-                    <span style={{ color: '#cbd5e1', fontWeight: 600 }}>
-                      {getClassificationMeta(entityType).label}
-                    </span>
+
+                    {creatureSize && (
+                      <>
+                        <span style={{ color: '#334155' }}>•</span>
+                        <div>
+                          <span style={{ color: '#64748b', marginRight: '5px' }}>Tamaño:</span>
+                          <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{creatureSize}</span>
+                        </div>
+                      </>
+                    )}
+
+                    {creatureNature && (
+                      <>
+                        <span style={{ color: '#334155' }}>•</span>
+                        <div>
+                          <span style={{ color: '#64748b', marginRight: '5px' }}>Naturaleza:</span>
+                          <span style={{ color: '#cbd5e1', fontWeight: 600 }}>{creatureNature}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
+              ) : (
+                /* Datos de Personaje Humano */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'baseline', gap: '14px', flexWrap: 'wrap' }}>
+                    <h2 style={{
+                      margin: 0,
+                      fontSize: '22px',
+                      fontWeight: 800,
+                      color: '#f8fafc',
+                      letterSpacing: '0.02em',
+                      fontFamily: "'Cinzel', 'Georgia', serif, system-ui",
+                      lineHeight: 1.1
+                    }}>
+                      {fullName || 'Sin Nombre'}
+                    </h2>
 
-                {/* Línea 2: Metadatos biográficos sobrios */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '12px' }}>
-                  <div>
-                    <span style={{ color: '#64748b', marginRight: '5px' }}>Año:</span>
-                    <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{birthYear.trim() || '—'}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px' }}>
+                      {profession && (
+                        <span style={{ color: '#fbbf24', fontWeight: 700 }}>
+                          {profession}
+                        </span>
+                      )}
+                      {profession && <span style={{ color: '#475569' }}>•</span>}
+                      <span style={{ color: '#cbd5e1', fontWeight: 600 }}>
+                        {getClassificationMeta(entityType).label}
+                      </span>
+                    </div>
                   </div>
 
-                  {birthplace && (
-                    <>
-                      <span style={{ color: '#334155' }}>•</span>
-                      <div>
-                        <span style={{ color: '#64748b', marginRight: '5px' }}>Nacimiento:</span>
-                        <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{birthplace}</span>
-                      </div>
-                    </>
-                  )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '12px' }}>
+                    <div>
+                      <span style={{ color: '#64748b', marginRight: '5px' }}>Año:</span>
+                      <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{birthYear.trim() || '—'}</span>
+                    </div>
 
-                  {residence && (
-                    <>
-                      <span style={{ color: '#334155' }}>•</span>
-                      <div>
-                        <span style={{ color: '#64748b', marginRight: '5px' }}>Residencia:</span>
-                        <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{residence}</span>
-                      </div>
-                    </>
-                  )}
+                    {birthplace && (
+                      <>
+                        <span style={{ color: '#334155' }}>•</span>
+                        <div>
+                          <span style={{ color: '#64748b', marginRight: '5px' }}>Nacimiento:</span>
+                          <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{birthplace}</span>
+                        </div>
+                      </>
+                    )}
 
-                  {education && (
-                    <>
-                      <span style={{ color: '#334155' }}>•</span>
-                      <div>
-                        <span style={{ color: '#64748b', marginRight: '5px' }}>Estudios:</span>
-                        <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{education}</span>
-                      </div>
-                    </>
-                  )}
+                    {residence && (
+                      <>
+                        <span style={{ color: '#334155' }}>•</span>
+                        <div>
+                          <span style={{ color: '#64748b', marginRight: '5px' }}>Residencia:</span>
+                          <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{residence}</span>
+                        </div>
+                      </>
+                    )}
+
+                    {education && (
+                      <>
+                        <span style={{ color: '#334155' }}>•</span>
+                        <div>
+                          <span style={{ color: '#64748b', marginRight: '5px' }}>Estudios:</span>
+                          <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{education}</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           ) : (
             /* VISTA FORMULARIO ACTIVO DE EDICIÓN */
@@ -549,8 +665,8 @@ const CharacterSheetModal = ({
                     height: '74px',
                     borderRadius: '50%',
                     backgroundColor: color,
-                    border: '3px solid #f59e0b',
-                    boxShadow: '0 0 14px rgba(245, 158, 11, 0.4)',
+                    border: isMonster ? '3px solid #ef4444' : '3px solid #f59e0b',
+                    boxShadow: isMonster ? '0 0 14px rgba(239, 68, 68, 0.45)' : '0 0 14px rgba(245, 158, 11, 0.4)',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -559,13 +675,13 @@ const CharacterSheetModal = ({
                     position: 'relative',
                     flexShrink: 0
                   }}
-                  title="Haz clic para cambiar el retrato"
+                  title="Haz clic para cambiar el retrato o miniatura"
                 >
                   {avatar ? (
                     <img src={avatar} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <span style={{ fontSize: '26px', fontWeight: 800, color: '#f8fafc', opacity: 0.75 }}>
-                      {(firstName || fullName || 'P').charAt(0).toUpperCase()}
+                    <span style={{ fontSize: '26px', fontWeight: 800, color: isMonster ? '#fca5a5' : '#f8fafc', opacity: 0.85 }}>
+                      {(firstName || fullName || (isMonster ? 'C' : 'P')).charAt(0).toUpperCase()}
                     </span>
                   )}
                   <div style={{
@@ -575,7 +691,7 @@ const CharacterSheetModal = ({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#fbbf24',
+                    color: isMonster ? '#fca5a5' : '#fbbf24',
                     fontSize: '11px',
                     fontWeight: 700
                   }}>
@@ -594,129 +710,276 @@ const CharacterSheetModal = ({
                 )}
               </div>
 
-              {/* Formulario editable de 2 filas */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 }}>
-                {/* Fila 1: Datos principales */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 85px 190px 115px 45px', gap: '8px', alignItems: 'end' }}>
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#93c5fd', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Nombre *</label>
-                    <input
-                      type="text"
-                      value={firstName}
-                      onChange={(e) => setFirstName(e.target.value)}
-                      placeholder="Ej: Arthur / Cthulhu"
-                      style={{ width: '100%', padding: '7px 9px', background: '#181c26', color: '#f8fafc', border: '1px solid #3b82f6', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, outline: 'none', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#93c5fd', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Apellidos</label>
-                    <input
-                      type="text"
-                      value={lastName}
-                      onChange={(e) => setLastName(e.target.value)}
-                      placeholder="Ej: Pendelton"
-                      style={{ width: '100%', padding: '7px 9px', background: '#181c26', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, outline: 'none', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Año</label>
-                    <input
-                      type="text"
-                      value={birthYear}
-                      onChange={(e) => setBirthYear(e.target.value)}
-                      placeholder="1890"
-                      style={{ width: '100%', padding: '7px 9px', background: '#181c26', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '7px', fontSize: '12.5px', outline: 'none', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Tipo</label>
-                    <select
-                      value={entityType}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setEntityType(val);
-                        const meta = getClassificationMeta(val);
-                        if (meta.group === 'monster') setFaction('enemy');
-                      }}
-                      style={{ width: '100%', padding: '7px 8px', background: '#181c26', color: '#f8fafc', border: '1px solid #f59e0b', borderRadius: '7px', fontSize: '12px', fontWeight: 600, boxSizing: 'border-box' }}
-                    >
-                      <optgroup label="📖 Archivo de Personajes">
-                        {ENTITY_CLASSIFICATIONS.filter(c => c.group === 'character').map(c => (
-                          <option key={c.id} value={c.id}>{c.label}</option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="Bestiario y Mitos">
-                        {ENTITY_CLASSIFICATIONS.filter(c => c.group === 'monster').map(c => (
-                          <option key={c.id} value={c.id}>{c.label}</option>
-                        ))}
-                      </optgroup>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Bando</label>
-                    <select
-                      value={faction}
-                      onChange={(e) => setFaction(e.target.value)}
-                      style={{
-                        width: '100%',
-                        padding: '7px 8px',
-                        background: '#181c26',
-                        color: faction === 'player' ? '#34d399' : faction === 'enemy' ? '#f87171' : '#60a5fa',
-                        border: '1px solid #333a4d',
-                        borderRadius: '7px',
-                        fontSize: '12px',
-                        fontWeight: 700,
-                        boxSizing: 'border-box'
-                      }}
-                    >
-                      <option value="player">Jugador</option>
-                      <option value="ally">Aliado</option>
-                      <option value="enemy">Enemigo</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Color</label>
-                    <input
-                      type="color"
-                      value={color}
-                      onChange={(e) => setColor(e.target.value)}
-                      style={{ width: '100%', height: '33px', background: 'transparent', border: '1px solid #333a4d', borderRadius: '7px', cursor: 'pointer', boxSizing: 'border-box' }}
-                    />
-                  </div>
-                </div>
+              {isMonster ? (
+                /* FORMULARIO EDITABLE PARA CRIATURAS (Sin apellidos, sin año, con horror, hábitat y tamaño) */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 }}>
+                  {/* Fila 1: Datos principales de la Criatura */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.8fr 190px 125px 120px 45px', gap: '8px', alignItems: 'end' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#fca5a5', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                        Nombre de la Criatura o Entidad *
+                      </label>
+                      <input
+                        type="text"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Ej: Shoggoth, Profundo, Byakhee, Cthulhu..."
+                        style={{ width: '100%', padding: '7px 9px', background: '#1a1315', color: '#f8fafc', border: '1px solid #ef4444', borderRadius: '7px', fontSize: '12.5px', fontWeight: 700, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
 
-                {/* Fila 2: Biografía y Origen (Profesión, Estudios, Lugar de Nacimiento, Residencia) */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', alignItems: 'end' }}>
-                  <SearchableCombobox
-                    label="Profesión"
-                    value={profession}
-                    onChange={setProfession}
-                    options={PROFESSIONS_CATALOG}
-                    placeholder="Buscar o escribir profesión..."
-                  />
-                  <SearchableCombobox
-                    label="Estudios / Título"
-                    value={education}
-                    onChange={setEducation}
-                    options={EDUCATION_CATALOG}
-                    placeholder="Buscar o escribir estudios..."
-                  />
-                  <SearchableCombobox
-                    label="Lugar de Nacimiento"
-                    value={birthplace}
-                    onChange={setBirthplace}
-                    options={CITIES_CATALOG}
-                    placeholder="Ciudad o país de nacimiento..."
-                  />
-                  <SearchableCombobox
-                    label="Lugar de Residencia"
-                    value={residence}
-                    onChange={setResidence}
-                    options={CITIES_CATALOG}
-                    placeholder="Ciudad de residencia actual..."
-                  />
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Clasificación</label>
+                      <select
+                        value={entityType}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEntityType(val);
+                          const meta = getClassificationMeta(val);
+                          if (meta.group === 'monster') setFaction('enemy');
+                        }}
+                        style={{ width: '100%', padding: '7px 8px', background: '#181c26', color: '#f8fafc', border: '1px solid #f59e0b', borderRadius: '7px', fontSize: '12px', fontWeight: 600, boxSizing: 'border-box' }}
+                      >
+                        <optgroup label="Bestiario y Mitos">
+                          {ENTITY_CLASSIFICATIONS.filter(c => c.group === 'monster').map(c => (
+                            <option key={c.id} value={c.id}>{c.label}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="📖 Archivo de Personajes">
+                          {ENTITY_CLASSIFICATIONS.filter(c => c.group === 'character').map(c => (
+                            <option key={c.id} value={c.id}>{c.label}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 700, display: 'block', marginBottom: '4px' }}>
+                        👁️ P. Cordura
+                      </label>
+                      <input
+                        type="text"
+                        value={sanityLoss}
+                        onChange={(e) => setSanityLoss(e.target.value)}
+                        placeholder="Ej: 1/1D6, 0/1D4"
+                        title="Pérdida de Cordura al ver a la criatura (éxito/fallo)"
+                        style={{ width: '100%', padding: '7px 8px', background: '#1c1812', color: '#fef08a', border: '1px solid #d97706', borderRadius: '7px', fontSize: '12px', fontWeight: 700, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Bando</label>
+                      <select
+                        value={faction}
+                        onChange={(e) => setFaction(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '7px 8px',
+                          background: '#181c26',
+                          color: faction === 'player' ? '#34d399' : faction === 'enemy' ? '#f87171' : '#60a5fa',
+                          border: '1px solid #333a4d',
+                          borderRadius: '7px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          boxSizing: 'border-box'
+                        }}
+                      >
+                        <option value="enemy">Enemigo / Hostil</option>
+                        <option value="ally">Aliado / Neutral</option>
+                        <option value="player">Jugador</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Color</label>
+                      <input
+                        type="color"
+                        value={color}
+                        onChange={(e) => setColor(e.target.value)}
+                        style={{ width: '100%', height: '33px', background: 'transparent', border: '1px solid #333a4d', borderRadius: '7px', cursor: 'pointer', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fila 2: Hábitat, Fisiología y Envergadura */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1.4fr 1fr 1fr', gap: '8px', alignItems: 'end' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Hábitat / Localización</label>
+                      <input
+                        type="text"
+                        value={habitat}
+                        onChange={(e) => setHabitat(e.target.value)}
+                        placeholder="Ej: Fondos marinos, Tumbas, Leng..."
+                        style={{ width: '100%', padding: '7px 9px', background: '#181c26', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '7px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Fisiología / Naturaleza</label>
+                      <input
+                        type="text"
+                        value={creatureNature}
+                        onChange={(e) => setCreatureNature(e.target.value)}
+                        placeholder="Ej: Masa amorfa protoplasmática, Quitinosa..."
+                        style={{ width: '100%', padding: '7px 9px', background: '#181c26', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '7px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Envergadura / Tamaño</label>
+                      <select
+                        value={creatureSize}
+                        onChange={(e) => setCreatureSize(e.target.value)}
+                        style={{ width: '100%', padding: '7px 8px', background: '#181c26', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '7px', fontSize: '12px', boxSizing: 'border-box' }}
+                      >
+                        <option value="Pequeño">Pequeño (Diminuto)</option>
+                        <option value="Medio">Medio (Humanoide)</option>
+                        <option value="Grande">Grande (Byakhee / Caballo)</option>
+                        <option value="Enorme">Enorme (Shoggoth)</option>
+                        <option value="Colosal">Colosal / Primigenio</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Armadura Natural</label>
+                      <input
+                        type="text"
+                        value={armorType}
+                        onChange={(e) => {
+                          setArmorType(e.target.value);
+                          setHasArmor(Boolean(e.target.value && e.target.value !== 'Ninguna'));
+                        }}
+                        placeholder="Ej: Piel quitinosa (2 ptos)"
+                        style={{ width: '100%', padding: '7px 9px', background: '#181c26', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '7px', fontSize: '12px', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                /* FORMULARIO EDITABLE PARA PERSONAJES HUMANOS (Con Apellidos, Año, Profesión, etc.) */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '10px', minWidth: 0 }}>
+                  {/* Fila 1: Datos principales */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 85px 190px 115px 45px', gap: '8px', alignItems: 'end' }}>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#93c5fd', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Nombre *</label>
+                      <input
+                        type="text"
+                        value={firstName}
+                        onChange={(e) => setFirstName(e.target.value)}
+                        placeholder="Ej: Arthur"
+                        style={{ width: '100%', padding: '7px 9px', background: '#181c26', color: '#f8fafc', border: '1px solid #3b82f6', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#93c5fd', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Apellidos</label>
+                      <input
+                        type="text"
+                        value={lastName}
+                        onChange={(e) => setLastName(e.target.value)}
+                        placeholder="Ej: Pendelton"
+                        style={{ width: '100%', padding: '7px 9px', background: '#181c26', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '7px', fontSize: '12.5px', fontWeight: 600, outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Año</label>
+                      <input
+                        type="text"
+                        value={birthYear}
+                        onChange={(e) => setBirthYear(e.target.value)}
+                        placeholder="1890"
+                        style={{ width: '100%', padding: '7px 9px', background: '#181c26', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '7px', fontSize: '12.5px', outline: 'none', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 700, display: 'block', marginBottom: '4px' }}>Tipo</label>
+                      <select
+                        value={entityType}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setEntityType(val);
+                          const meta = getClassificationMeta(val);
+                          if (meta.group === 'monster') setFaction('enemy');
+                        }}
+                        style={{ width: '100%', padding: '7px 8px', background: '#181c26', color: '#f8fafc', border: '1px solid #f59e0b', borderRadius: '7px', fontSize: '12px', fontWeight: 600, boxSizing: 'border-box' }}
+                      >
+                        <optgroup label="📖 Archivo de Personajes">
+                          {ENTITY_CLASSIFICATIONS.filter(c => c.group === 'character').map(c => (
+                            <option key={c.id} value={c.id}>{c.label}</option>
+                          ))}
+                        </optgroup>
+                        <optgroup label="Bestiario y Mitos">
+                          {ENTITY_CLASSIFICATIONS.filter(c => c.group === 'monster').map(c => (
+                            <option key={c.id} value={c.id}>{c.label}</option>
+                          ))}
+                        </optgroup>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Bando</label>
+                      <select
+                        value={faction}
+                        onChange={(e) => setFaction(e.target.value)}
+                        style={{
+                          width: '100%',
+                          padding: '7px 8px',
+                          background: '#181c26',
+                          color: faction === 'player' ? '#34d399' : faction === 'enemy' ? '#f87171' : '#60a5fa',
+                          border: '1px solid #333a4d',
+                          borderRadius: '7px',
+                          fontSize: '12px',
+                          fontWeight: 700,
+                          boxSizing: 'border-box'
+                        }}
+                      >
+                        <option value="player">Jugador</option>
+                        <option value="ally">Aliado</option>
+                        <option value="enemy">Enemigo</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600, display: 'block', marginBottom: '4px' }}>Color</label>
+                      <input
+                        type="color"
+                        value={color}
+                        onChange={(e) => setColor(e.target.value)}
+                        style={{ width: '100%', height: '33px', background: 'transparent', border: '1px solid #333a4d', borderRadius: '7px', cursor: 'pointer', boxSizing: 'border-box' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fila 2: Biografía y Origen (Profesión, Estudios, Lugar de Nacimiento, Residencia) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px', alignItems: 'end' }}>
+                    <SearchableCombobox
+                      label="Profesión"
+                      value={profession}
+                      onChange={setProfession}
+                      options={PROFESSIONS_CATALOG}
+                      placeholder="Buscar o escribir profesión..."
+                    />
+                    <SearchableCombobox
+                      label="Estudios / Título"
+                      value={education}
+                      onChange={setEducation}
+                      options={EDUCATION_CATALOG}
+                      placeholder="Buscar o escribir estudios..."
+                    />
+                    <SearchableCombobox
+                      label="Lugar de Nacimiento"
+                      value={birthplace}
+                      onChange={setBirthplace}
+                      options={CITIES_CATALOG}
+                      placeholder="Ciudad o país de nacimiento..."
+                    />
+                    <SearchableCombobox
+                      label="Lugar de Residencia"
+                      value={residence}
+                      onChange={setResidence}
+                      options={CITIES_CATALOG}
+                      placeholder="Ciudad de residencia actual..."
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -724,10 +987,10 @@ const CharacterSheetModal = ({
         {/* Navegación por Pestañas */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', background: '#0e1017', borderBottom: '1px solid #262b3a' }}>
           {[
-            { id: 'stats', label: 'Vitalidad, Cordura y Armadura' },
-            { id: 'inventory', label: `Inventario (${inventory.length})` },
-            { id: 'grimoire', label: `Grimorio (${spells.length})` },
-            { id: 'lore', label: 'Historia Personal y Notas' }
+            { id: 'stats', label: isMonster ? 'Atributos y Combate' : 'Vitalidad, Cordura y Armadura' },
+            { id: 'inventory', label: isMonster ? `Ataques y Habilidades (${attacks.length})` : `Inventario (${inventory.length})` },
+            { id: 'grimoire', label: isMonster ? `Poderes y Conjuros (${spells.length})` : `Grimorio (${spells.length})` },
+            { id: 'lore', label: isMonster ? 'Fisiología y Tácticas' : 'Historia Personal y Notas' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -758,7 +1021,7 @@ const CharacterSheetModal = ({
             </div>
           )}
 
-          {/* PESTAÑA 1: SALUD (ROJA), MAGIA (AZUL), CORDURA (AMARILLA), ARMADURA Y HERIDA GRAVE */}
+          {/* PESTAÑA 1: SALUD (ROJA), MAGIA (AZUL), CORDURA / HORROR, ARMADURA Y MOVIMIENTO */}
           {activeTab === 'stats' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
@@ -811,29 +1074,69 @@ const CharacterSheetModal = ({
                   </div>
                 </div>
 
-                {/* TARJETA CORDURA (AMARILLA) */}
-                <div style={{ background: '#141822', border: '1px solid rgba(250, 204, 21, 0.35)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#facc15' }}>Cordura (SAN)</span>
-                    <span className="vtt-retro-badge" style={{ fontSize: '14px', fontWeight: 800, color: '#fef08a' }}>{san} / {maxSan}</span>
-                  </div>
-                  {/* Barra de Cordura Amarilla */}
-                  <div style={{ width: '100%', height: '14px', backgroundColor: '#2e260d', borderRadius: '999px', overflow: 'hidden', border: '1px solid rgba(250, 204, 21, 0.4)' }}>
-                    <div style={{ width: `${sanPct}%`, height: '100%', background: 'linear-gradient(90deg, #eab308 0%, #facc15 100%)', transition: 'width 0.2s ease' }} />
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <button type="button" onClick={() => setSan(Math.max(0, san - 5))} className="vtt-brass-btn" style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '11px' }}>-5</button>
-                      <button type="button" onClick={() => setSan(Math.max(0, san - 1))} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>-</button>
-                      <button type="button" onClick={() => setSan(Math.min(maxSan, san + 1))} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>+</button>
-                      <button type="button" onClick={() => setSan(Math.min(maxSan, san + 5))} className="vtt-brass-btn" style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '11px' }}>+5</button>
+                {/* TARJETA 3: HORROR PROVOCADO (CRIATURA) O CORDURA (PERSONAJE) */}
+                {isMonster ? (
+                  <div style={{ background: '#181420', border: '1px solid rgba(245, 158, 11, 0.45)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#facc15', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>👁️</span> Pérdida de Cordura (Horror)
+                      </span>
+                      <span className="vtt-retro-badge" style={{ fontSize: '14px', fontWeight: 800, color: '#fef08a' }}>{sanityLoss || '1/1D6'}</span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#94a3b8' }}>
-                      <span>Máx:</span>
-                      <input type="number" min="0" max="999" value={maxSan} onChange={(e) => { const m = Math.max(0, Number(e.target.value)); setMaxSan(m); if (san > m) setSan(m); }} style={{ width: '54px', padding: '4px 6px', background: '#0e1017', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '5px', textAlign: 'center' }} />
+
+                    <div style={{ fontSize: '11px', color: '#cbd5e1', lineHeight: '1.4' }}>
+                      Tirada de Cordura provocada a los investigadores al avistar esta entidad (Éxito / Fallo).
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: 'auto' }}>
+                      <div style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600 }}>Tirada al avistamiento:</div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '4px' }}>
+                        {['0/1D4', '1/1D6', '1/1D10', '1D10/1D100'].map(preset => (
+                          <button
+                            key={preset}
+                            type="button"
+                            onClick={() => setSanityLoss(preset)}
+                            className="vtt-brass-btn"
+                            style={{
+                              padding: '5px 2px',
+                              borderRadius: '5px',
+                              fontSize: '10px',
+                              fontWeight: sanityLoss === preset ? 800 : 600,
+                              color: sanityLoss === preset ? '#fef08a' : '#cbd5e1',
+                              borderColor: sanityLoss === preset ? '#f59e0b' : '#333a4d',
+                              backgroundColor: sanityLoss === preset ? 'rgba(245, 158, 11, 0.25)' : 'transparent'
+                            }}
+                          >
+                            {preset}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
-                </div>
+                ) : (
+                  <div style={{ background: '#141822', border: '1px solid rgba(250, 204, 21, 0.35)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '13px', fontWeight: 700, color: '#facc15' }}>Cordura (SAN)</span>
+                      <span className="vtt-retro-badge" style={{ fontSize: '14px', fontWeight: 800, color: '#fef08a' }}>{san} / {maxSan}</span>
+                    </div>
+                    {/* Barra de Cordura Amarilla */}
+                    <div style={{ width: '100%', height: '14px', backgroundColor: '#2e260d', borderRadius: '999px', overflow: 'hidden', border: '1px solid rgba(250, 204, 21, 0.4)' }}>
+                      <div style={{ width: `${sanPct}%`, height: '100%', background: 'linear-gradient(90deg, #eab308 0%, #facc15 100%)', transition: 'width 0.2s ease' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '4px' }}>
+                        <button type="button" onClick={() => setSan(Math.max(0, san - 5))} className="vtt-brass-btn" style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '11px' }}>-5</button>
+                        <button type="button" onClick={() => setSan(Math.max(0, san - 1))} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>-</button>
+                        <button type="button" onClick={() => setSan(Math.min(maxSan, san + 1))} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: 700 }}>+</button>
+                        <button type="button" onClick={() => setSan(Math.min(maxSan, san + 5))} className="vtt-brass-btn" style={{ padding: '4px 8px', borderRadius: '6px', fontSize: '11px' }}>+5</button>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: '#94a3b8' }}>
+                        <span>Máx:</span>
+                        <input type="number" min="0" max="999" value={maxSan} onChange={(e) => { const m = Math.max(0, Number(e.target.value)); setMaxSan(m); if (san > m) setSan(m); }} style={{ width: '54px', padding: '4px 6px', background: '#0e1017', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '5px', textAlign: 'center' }} />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
               </div>
 
@@ -843,7 +1146,9 @@ const CharacterSheetModal = ({
                 {/* Configuración de Armadura */}
                 <div style={{ background: '#141822', border: '1px solid #2c3344', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0' }}>Protección y Armadura</span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0' }}>
+                      {isMonster ? '🛡️ Armadura Natural y Resistencia' : 'Protección y Armadura'}
+                    </span>
                     <button
                       type="button"
                       onClick={() => setHasArmor(!hasArmor)}
@@ -858,7 +1163,7 @@ const CharacterSheetModal = ({
                         border: hasArmor ? '1px solid #3b82f6' : '1px solid #333a4d'
                       }}
                     >
-                      {hasArmor ? 'Lleva Armadura: SÍ' : 'Sin Armadura'}
+                      {hasArmor ? 'Lleva Protección: SÍ' : 'Sin Protección'}
                     </button>
                   </div>
 
@@ -868,7 +1173,7 @@ const CharacterSheetModal = ({
                         type="text"
                         value={armorType}
                         onChange={(e) => setArmorType(e.target.value)}
-                        placeholder="Tipo de armadura (ej. Cota de malla, Placas, Cuero...)"
+                        placeholder={isMonster ? "Ej: Piel quitinosa (2 ptos), Masa amorfa..." : "Tipo de armadura (ej. Cota de malla, Placas, Cuero...)"}
                         style={{ flex: 1, padding: '8px 10px', background: '#0e1017', color: '#f8fafc', border: '1px solid #3b82f6', borderRadius: '7px', fontSize: '13px' }}
                       />
                       <select
@@ -877,16 +1182,28 @@ const CharacterSheetModal = ({
                         style={{ padding: '8px', background: '#181c26', color: '#cbd5e1', border: '1px solid #333a4d', borderRadius: '7px', fontSize: '12px' }}
                       >
                         <option value="">Preajustes...</option>
-                        <option value="Ropajes Acolchados (Ligera)">Ligera: Acolchada</option>
-                        <option value="Cuero Reforzado (Ligera)">Ligera: Cuero</option>
-                        <option value="Cota de Malla (Media)">Media: Cota de Malla</option>
-                        <option value="Coraza de Acero (Pesada)">Pesada: Coraza</option>
-                        <option value="Armadura Completa de Placas (Pesada)">Pesada: Placas</option>
+                        {isMonster ? (
+                          <>
+                            <option value="Piel quitinosa dura (2 ptos)">Quitina: 2 ptos</option>
+                            <option value="Masa protoplasmática (reduce mitad daño)">Masa amorfa: Reduce 50%</option>
+                            <option value="Caparazón espeso (4 ptos)">Caparazón: 4 ptos</option>
+                            <option value="Inmune a daño no mágico">Inmunidad armas no mágicas</option>
+                            <option value="Incorpóreo / Espectral (inmune físico)">Incorpóreo</option>
+                          </>
+                        ) : (
+                          <>
+                            <option value="Ropajes Acolchados (Ligera)">Ligera: Acolchada</option>
+                            <option value="Cuero Reforzado (Ligera)">Ligera: Cuero</option>
+                            <option value="Cota de Malla (Media)">Media: Cota de Malla</option>
+                            <option value="Coraza de Acero (Pesada)">Pesada: Coraza</option>
+                            <option value="Armadura Completa de Placas (Pesada)">Pesada: Placas</option>
+                          </>
+                        )}
                       </select>
                     </div>
                   ) : (
                     <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic' }}>
-                      El personaje no porta ninguna armadura actualmente.
+                      {isMonster ? 'La criatura no cuenta con armadura natural o exoesqueleto.' : 'El personaje no lleva ningún tipo de protección corporal.'}
                     </div>
                   )}
                 </div>
@@ -976,8 +1293,192 @@ const CharacterSheetModal = ({
             </div>
           )}
 
-          {/* PESTAÑA 2: INVENTARIO POR HUECOS */}
-          {activeTab === 'inventory' && (() => {
+          {/* PESTAÑA 2: ATAQUES Y HABILIDADES (CRIATURA) O INVENTARIO POR HUECOS (PERSONAJE) */}
+          {activeTab === 'inventory' && (isMonster ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{
+                background: '#141822',
+                border: '1px solid #2a3346',
+                borderRadius: '10px',
+                padding: '12px 16px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
+                <div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span>⚔️</span> Acciones Ofensivas y Habilidades de Combate
+                  </div>
+                  <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                    Ataques naturales, zarpazos, mordiscos, presas y rasgos especiales en mesa
+                  </div>
+                </div>
+
+                {/* Preajustes rápidos */}
+                <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>Añadir rápido:</span>
+                  <button
+                    type="button"
+                    onClick={() => setAttacks(prev => [...prev, { id: Date.now() + Math.random(), name: 'Zarpazo', damage: '1D6+BD', range: 'Cuerpo a cuerpo', desc: 'Ataque con garras afiladas' }])}
+                    className="vtt-brass-btn"
+                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '5px' }}
+                  >
+                    + Garra (1D6)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAttacks(prev => [...prev, { id: Date.now() + Math.random(), name: 'Mordisco Desgarrador', damage: '1D8', range: 'Cuerpo a cuerpo', desc: 'Mordedura voraz contra el objetivo' }])}
+                    className="vtt-brass-btn"
+                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '5px' }}
+                  >
+                    + Mordisco (1D8)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAttacks(prev => [...prev, { id: Date.now() + Math.random(), name: 'Tentáculo Envolvente', damage: '1D6 + Presa', range: '2 casillas', desc: 'Atrapa e inmoviliza a la víctima' }])}
+                    className="vtt-brass-btn"
+                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '5px' }}
+                  >
+                    + Tentáculo
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAttacks(prev => [...prev, { id: Date.now() + Math.random(), name: 'Escupitajo Cáustico / Ácido', damage: '2D6', range: '4 casillas', desc: 'Rociada corrosiva a distancia' }])}
+                    className="vtt-brass-btn"
+                    style={{ padding: '4px 8px', fontSize: '11px', borderRadius: '5px' }}
+                  >
+                    + Ácido (2D6)
+                  </button>
+                </div>
+              </div>
+
+              {/* Formulario para registrar nuevo ataque */}
+              <div style={{
+                background: '#161b26',
+                border: '1px solid #283348',
+                borderRadius: '10px',
+                padding: '14px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#fbbf24' }}>+ Inscribir Nuevo Ataque o Rasgo</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr auto', gap: '8px', alignItems: 'center' }}>
+                  <input
+                    type="text"
+                    value={newAttackName}
+                    onChange={(e) => setNewAttackName(e.target.value)}
+                    placeholder="Nombre del ataque (ej. Espolón venenoso)"
+                    style={{ padding: '7px 9px', background: '#0e1017', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '6px', fontSize: '12px' }}
+                  />
+                  <input
+                    type="text"
+                    value={newAttackDamage}
+                    onChange={(e) => setNewAttackDamage(e.target.value)}
+                    placeholder="Daño (ej. 1D8+2, 2D6)"
+                    style={{ padding: '7px 9px', background: '#0e1017', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '6px', fontSize: '12px' }}
+                  />
+                  <input
+                    type="text"
+                    value={newAttackRange}
+                    onChange={(e) => setNewAttackRange(e.target.value)}
+                    placeholder="Alcance (ej. Cuerpo a cuerpo, 3 cas.)"
+                    style={{ padding: '7px 9px', background: '#0e1017', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '6px', fontSize: '12px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!newAttackName.trim()) return;
+                      setAttacks(prev => [
+                        ...prev,
+                        {
+                          id: Date.now() + Math.random(),
+                          name: newAttackName.trim(),
+                          damage: newAttackDamage.trim() || '1D6',
+                          range: newAttackRange.trim() || 'Cuerpo a cuerpo',
+                          desc: newAttackDesc.trim()
+                        }
+                      ]);
+                      setNewAttackName('');
+                      setNewAttackDamage('1D6');
+                      setNewAttackRange('Cuerpo a cuerpo');
+                      setNewAttackDesc('');
+                    }}
+                    className="vtt-primary-cta"
+                    style={{ padding: '7px 16px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
+                  >
+                    Añadir Ataque
+                  </button>
+                </div>
+                <input
+                  type="text"
+                  value={newAttackDesc}
+                  onChange={(e) => setNewAttackDesc(e.target.value)}
+                  placeholder="Efecto adicional o descripción (ej. Si acierta, paraliza al objetivo durante 1 ronda)..."
+                  style={{ padding: '6px 9px', background: '#0e1017', color: '#cbd5e1', border: '1px solid #232b3b', borderRadius: '6px', fontSize: '11px' }}
+                />
+              </div>
+
+              {/* Lista de ataques registrados */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {attacks.map((att, idx) => (
+                  <div
+                    key={att.id || idx}
+                    style={{
+                      background: '#141822',
+                      border: '1px solid #2a3346',
+                      borderLeft: '4px solid #ef4444',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '12px'
+                    }}
+                  >
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <span style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>{att.name}</span>
+                        <span style={{ fontSize: '11px', fontWeight: 800, color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: '2px 7px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                          💥 {att.damage || '1D6'}
+                        </span>
+                        <span style={{ fontSize: '11px', color: '#94a3b8' }}>
+                          📍 {att.range || 'Cuerpo a cuerpo'}
+                        </span>
+                      </div>
+                      {att.desc && (
+                        <div style={{ fontSize: '11px', color: '#cbd5e1', marginTop: '4px', fontStyle: 'italic' }}>
+                          {att.desc}
+                        </div>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttacks(prev => prev.filter((_, i) => i !== idx))}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: '#f87171',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        padding: '4px 6px'
+                      }}
+                      title="Eliminar este ataque"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {attacks.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: '24px', color: '#64748b', fontSize: '12px', border: '1px dashed #262b38', borderRadius: '8px' }}>
+                    Esta criatura no tiene ataques registrados. Usa el formulario o los botones superiores para añadir.
+                  </div>
+                )}
+              </div>
+            </div>
+          ) : (() => {
             const NORMAL_SLOTS_COUNT = 10;
             const BACKPACK_SLOTS_COUNT = 10;
 
@@ -2283,9 +2784,9 @@ const CharacterSheetModal = ({
                 })()}
               </div>
             );
-          })()}
+          })())}
 
-          {/* PESTAÑA 3: GRIMORIO DE HECHIZOS */}
+          {/* PESTAÑA 3: GRIMORIO DE HECHIZOS Y PODERES */}
           {activeTab === 'grimoire' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ background: '#141822', padding: '14px', borderRadius: '10px', border: '1px solid #2c3344', display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -2294,7 +2795,7 @@ const CharacterSheetModal = ({
                     type="text"
                     value={newSpellName}
                     onChange={(e) => setNewSpellName(e.target.value)}
-                    placeholder="Nombre del hechizo, cántico o ritual..."
+                    placeholder={isMonster ? "Nombre del poder, don o conjuro de los Mitos..." : "Nombre del hechizo, cántico o ritual..."}
                     style={{ flex: 1, padding: '8px 12px', background: '#0e1017', color: '#f8fafc', border: '1px solid #333a4d', borderRadius: '7px', fontSize: '13px' }}
                   />
                   <input
@@ -2315,7 +2816,7 @@ const CharacterSheetModal = ({
                     className="vtt-primary-cta"
                     style={{ padding: '8px 16px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
                   >
-                    + Inscribir Hechizo
+                    + Inscribir {isMonster ? 'Poder' : 'Hechizo'}
                   </button>
                 </div>
                 <input
@@ -2350,31 +2851,39 @@ const CharacterSheetModal = ({
                 ))}
                 {spells.length === 0 && (
                   <div style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '24px', color: '#64748b', fontSize: '13px', border: '1px dashed #2c3344', borderRadius: '10px' }}>
-                    Este personaje no tiene hechizos inscritos en su grimorio.
+                    {isMonster ? 'Esta criatura no tiene poderes o conjuros inscritos.' : 'Este personaje no tiene hechizos inscritos en su grimorio.'}
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          {/* PESTAÑA 4: HISTORIA PERSONAL Y NOTAS */}
+          {/* PESTAÑA 4: HISTORIA PERSONAL Y NOTAS (O FISIOLOGÍA Y TÁCTICAS PARA CRIATURAS) */}
           {activeTab === 'lore' && (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', flex: 1 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#f59e0b' }}>Historia Personal y Biografía</label>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: isMonster ? '#ef4444' : '#f59e0b' }}>
+                  {isMonster ? 'Descripción, Fisiología y Manifestación' : 'Historia Personal y Biografía'}
+                </label>
                 <textarea
                   value={history}
                   onChange={(e) => setHistory(e.target.value)}
-                  placeholder="Origen, familia, traumas, motivaciones y pasado del personaje..."
+                  placeholder={isMonster
+                    ? "Detalles anatómicos blasfemos, olor, secreciones, anatomía alienígena o corrupta, sonidos emitidos y perturbación ambiental..."
+                    : "Origen, familia, traumas, motivaciones y pasado del personaje..."}
                   style={{ flex: 1, minHeight: '220px', padding: '12px', background: '#141822', color: '#f8fafc', border: '1px solid #2c3344', borderRadius: '10px', resize: 'none', fontSize: '13px', lineHeight: 1.5 }}
                 />
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 700, color: '#60a5fa' }}>Notas, Pistas y Apuntes de Partida</label>
+                <label style={{ fontSize: '12px', fontWeight: 700, color: isMonster ? '#fbbf24' : '#60a5fa' }}>
+                  {isMonster ? 'Comportamiento, Tácticas del Guardián y Debilidades' : 'Notas, Pistas y Apuntes de Partida'}
+                </label>
                 <textarea
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  placeholder="Contactos, deudas, cicatrices, secretos o efectos temporales..."
+                  placeholder={isMonster
+                    ? "Patrones de ataque, debilidades elementales, motivaciones primigenias, destierros y pistas clave para el Guardián..."
+                    : "Contactos, deudas, cicatrices, secretos o efectos temporales..."}
                   style={{ flex: 1, minHeight: '220px', padding: '12px', background: '#141822', color: '#f8fafc', border: '1px solid #2c3344', borderRadius: '10px', resize: 'none', fontSize: '13px', lineHeight: 1.5 }}
                 />
               </div>
@@ -2392,7 +2901,7 @@ const CharacterSheetModal = ({
           alignItems: 'center'
         }}>
           <div style={{ fontSize: '12px', color: '#94a3b8' }}>
-            {hasArmor ? `Armadura: ${armorType}` : 'Sin armadura'} • {isGraveWound ? 'CON HERIDA GRAVE' : 'Estado estable'} • Movimiento: {speed} casillas ({speed * 5} ft)
+            {hasArmor ? `Armadura: ${armorType}` : (isMonster ? 'Sin armadura natural' : 'Sin armadura')} • {isGraveWound ? 'CON HERIDA GRAVE' : 'Estado estable'} • Movimiento: {speed} casillas ({speed * 5} ft)
           </div>
           <div style={{ display: 'flex', gap: '10px' }}>
             <button type="button" onClick={onClose} className="vtt-brass-btn" style={{ padding: '9px 18px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px' }}>
@@ -2401,11 +2910,20 @@ const CharacterSheetModal = ({
             <button
               type="button"
               onClick={handleSave}
-              disabled={!firstName.trim() && !lastName.trim()}
+              disabled={isMonster ? !firstName.trim() : (!firstName.trim() && !lastName.trim())}
               className="vtt-primary-cta"
-              style={{ padding: '9px 24px', borderRadius: '8px', cursor: (firstName.trim() || lastName.trim()) ? 'pointer' : 'not-allowed', fontSize: '13px' }}
+              style={{
+                padding: '9px 24px',
+                borderRadius: '8px',
+                cursor: (isMonster ? firstName.trim() : (firstName.trim() || lastName.trim())) ? 'pointer' : 'not-allowed',
+                fontSize: '13px',
+                background: isMonster ? 'linear-gradient(135deg, #b91c1c 0%, #dc2626 100%)' : undefined,
+                borderColor: isMonster ? '#ef4444' : undefined
+              }}
             >
-              {mode === 'create' ? 'Crear y Guardar Personaje' : 'Guardar Cambios del Personaje'}
+              {mode === 'create'
+                ? (isMonster ? 'Registrar Criatura' : 'Crear y Guardar Personaje')
+                : (isMonster ? 'Guardar Cambios de la Criatura' : 'Guardar Cambios del Personaje')}
             </button>
           </div>
         </div>

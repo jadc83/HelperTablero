@@ -1,5 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { exportJSON, importJSON } from '../utils/fileDialog';
+import {
+  MousePointer2,
+  BrickWall,
+  DoorClosed,
+  AppWindow,
+  Package,
+  Flame,
+  Scroll
+} from 'lucide-react';
 
 export const OBJECT_PRESETS = [
   { presetId: 'chest', label: 'Cofre del Tesoro', icon: '📦', openIcon: '🪙', blocksMovement: true, blocksVision: false, interactable: true },
@@ -15,8 +24,14 @@ export const LIGHT_PRESETS = [
   { presetId: 'arcane_lantern', label: 'Farol Espectral', icon: '🔮', radius: 240, color: 'rgba(56, 189, 248, 0.24)' }
 ];
 
-const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSettings }) => {
+const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSettings, sceneName, sceneId }) => {
   const [elements, setElements] = useState(initialElements || []);
+
+  useEffect(() => {
+    if (initialElements) {
+      setElements(initialElements);
+    }
+  }, [initialElements, sceneId]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(0.85);
   
@@ -143,11 +158,11 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
     }
   };
 
-  const handleCreateNote = () => {
-    const center = getViewportCenter();
+  const handleCreateNote = (posX, posY) => {
+    const center = (posX !== undefined && posY !== undefined) ? { x: posX, y: posY } : getViewportCenter();
     const newNote = {
       id: Date.now(), type: 'note', title: 'Pergamino Antiguo', content: 'Escribe aquí la pista o inscripción...',
-      x: center.x, y: center.y,
+      x: Math.round(center.x - 20), y: Math.round(center.y - 20),
       width: 40, height: 40, zIndex: elements.length
     };
     setElements(prev => [...prev, newNote]);
@@ -155,13 +170,13 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
     setEditingNote(newNote);
   };
 
-  const handleCreateDoor = () => {
-    const center = getViewportCenter();
+  const handleCreateDoor = (posX, posY) => {
+    const center = (posX !== undefined && posY !== undefined) ? { x: posX, y: posY } : getViewportCenter();
     const newDoor = {
       id: Date.now(),
       type: 'door',
-      x: center.x,
-      y: center.y,
+      x: Math.round(center.x - 30),
+      y: Math.round(center.y - 8),
       width: 60,
       height: 16,
       isOpen: false,
@@ -171,13 +186,13 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
     setSelectedIds([newDoor.id]);
   };
 
-  const handleCreateWindow = () => {
-    const center = getViewportCenter();
+  const handleCreateWindow = (posX, posY) => {
+    const center = (posX !== undefined && posY !== undefined) ? { x: posX, y: posY } : getViewportCenter();
     const newWindow = {
       id: Date.now(),
       type: 'window',
-      x: center.x,
-      y: center.y,
+      x: Math.round(center.x - 30),
+      y: Math.round(center.y - 7),
       width: 60,
       height: 14,
       isOpen: false,
@@ -188,8 +203,8 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
     setSelectedIds([newWindow.id]);
   };
 
-  const handleCreateInteractiveObject = () => {
-    const center = getViewportCenter();
+  const handleCreateInteractiveObject = (posX, posY) => {
+    const center = (posX !== undefined && posY !== undefined) ? { x: posX, y: posY } : getViewportCenter();
     const preset = OBJECT_PRESETS[0];
     const newObj = {
       id: Date.now(),
@@ -197,8 +212,8 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
       name: preset.label,
       icon: preset.icon,
       openIcon: preset.openIcon,
-      x: center.x,
-      y: center.y,
+      x: Math.round(center.x - 24),
+      y: Math.round(center.y - 24),
       width: 48,
       height: 48,
       isOpen: false,
@@ -212,16 +227,16 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
     setEditingObject(newObj);
   };
 
-  const handleCreateLightSource = () => {
-    const center = getViewportCenter();
+  const handleCreateLightSource = (posX, posY) => {
+    const center = (posX !== undefined && posY !== undefined) ? { x: posX, y: posY } : getViewportCenter();
     const preset = LIGHT_PRESETS[0];
     const newLight = {
       id: Date.now(),
       type: 'light',
       name: preset.label,
       icon: preset.icon,
-      x: center.x,
-      y: center.y,
+      x: Math.round(center.x - 19),
+      y: Math.round(center.y - 19),
       width: 38,
       height: 38,
       radius: preset.radius,
@@ -232,6 +247,41 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
     setElements(prev => [...prev, newLight]);
     setSelectedIds([newLight.id]);
     setEditingLight(newLight);
+  };
+
+  const handleCanvasDrop = (e) => {
+    e.preventDefault();
+    const rawData = e.dataTransfer.getData('text/plain') || e.dataTransfer.getData('application/json');
+    if (!rawData) return;
+    try {
+      const data = JSON.parse(rawData);
+      if (!data || !data.itemType) return;
+      const rect = boardRef.current ? boardRef.current.getBoundingClientRect() : { left: 0, top: 0 };
+      const dropX = (e.clientX - rect.left - pan.x) / scale;
+      const dropY = (e.clientY - rect.top - pan.y) / scale;
+
+      switch (data.itemType) {
+        case 'door':
+          handleCreateDoor(dropX, dropY);
+          break;
+        case 'window':
+          handleCreateWindow(dropX, dropY);
+          break;
+        case 'object':
+          handleCreateInteractiveObject(dropX, dropY);
+          break;
+        case 'light':
+          handleCreateLightSource(dropX, dropY);
+          break;
+        case 'note':
+          handleCreateNote(dropX, dropY);
+          break;
+        default:
+          break;
+      }
+    } catch (err) {
+      console.error('Error procesando arrastre en el lienzo:', err);
+    }
   };
 
   const handlePointerDown = (e) => {
@@ -378,8 +428,8 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
 
       {/* 1. CABECERA SUPERIOR LIMPIA Y ENFOCADA */}
       <div style={{
-        height: '60px',
-        padding: '0 22px',
+        minHeight: '66px',
+        padding: '0 24px',
         backgroundImage: 'linear-gradient(180deg, rgba(24, 28, 36, 0.72) 0%, rgba(17, 20, 27, 0.92) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
@@ -390,28 +440,43 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
         zIndex: 30,
         boxShadow: '0 4px 20px rgba(0,0,0,0.6)'
       }}>
-        {/* Izquierda: Identidad + Acciones de Archivo y Vista */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Izquierda: Identidad + Encabezado H1 de la Escena + Acciones */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{
-              width: '32px', height: '32px', borderRadius: '8px',
-              background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+              width: '38px', height: '38px', borderRadius: '8px',
+              background: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: '1px solid #60a5fa', fontSize: '16px'
+              border: '1.5px solid #fbbf24', fontSize: '20px',
+              boxShadow: '0 2px 10px rgba(245, 158, 11, 0.35)'
             }}>
-              📐
+              🗺️
             </div>
-            <div>
-              <div className="vtt-gothic-title" style={{ fontSize: '15px', fontWeight: 'bold', color: '#f8fafc' }}>
-                ARQUITECTO DE ESCENARIOS
-              </div>
-              <div className="vtt-retro-badge" style={{ fontSize: '10px', color: '#94a3b8' }}>
-                {elements.length} ELEMENTOS • {wallsCount} MUROS • ZOOM {Math.round(scale * 100)}%
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <h1 className="vtt-gothic-title" style={{
+                margin: 0,
+                fontSize: '21px',
+                fontWeight: 900,
+                color: '#fbbf24',
+                letterSpacing: '0.04em',
+                lineHeight: 1.2,
+                textShadow: '0 2px 8px rgba(0,0,0,0.8), 0 0 14px rgba(245, 158, 11, 0.35)'
+              }}>
+                {sceneName || 'Escena Principal'}
+              </h1>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
+                <span style={{ fontSize: '10.5px', fontWeight: 700, color: '#cbd5e1', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+                  Arquitecto de Escenarios
+                </span>
+                <span style={{ color: '#475569' }}>•</span>
+                <span className="vtt-retro-badge" style={{ fontSize: '10px', color: '#94a3b8' }}>
+                  {elements.length} ELEMENTOS • {wallsCount} MUROS • ZOOM {Math.round(scale * 100)}%
+                </span>
               </div>
             </div>
           </div>
 
-          <div style={{ width: '1px', height: '24px', backgroundColor: '#2e3444' }}></div>
+          <div style={{ width: '1px', height: '28px', backgroundColor: '#333c50' }}></div>
 
           <div style={{ display: 'flex', gap: '6px' }}>
             <button onClick={() => handleImportMapConfig()} className="vtt-brass-btn" style={{ padding: '6px 11px', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
@@ -445,40 +510,29 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
             ✕ Cancelar
           </button>
 
-          {onReturnToSettings && (
-            <button
-              onClick={() => {
-                onLoadMapToBoard(elements);
-                onReturnToSettings();
-              }}
-              className="vtt-brass-btn"
-              style={{
-                padding: '8px 15px',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 600,
-                fontSize: '12px',
-                borderColor: '#64748b'
-              }}
-            >
-              Guardar y Volver a Ajustes
-            </button>
-          )}
-
           <button
             onClick={() => {
               onLoadMapToBoard(elements);
-              if (onClose) onClose();
+              if (onReturnToSettings) {
+                onReturnToSettings();
+              } else if (onClose) {
+                onClose();
+              }
             }}
             className="vtt-primary-cta"
             style={{
               padding: '9px 18px',
               borderRadius: '8px',
               cursor: 'pointer',
-              fontSize: '13px'
+              fontSize: '13px',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px'
             }}
+            title="Guardar plano y volver a Ajustes"
           >
-            <span>💾</span> Guardar y Cargar en Mesa
+            <span>💾</span> Guardar y volver
           </button>
         </div>
       </div>
@@ -502,66 +556,10 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
             boxShadow: '6px 0 24px rgba(0,0,0,0.5)'
           }}
         >
-          {/* SECCIÓN 1: MODO DE HERRAMIENTA */}
+          {/* PUNTO 1: SUBIR IMAGEN DE FONDO */}
           <div>
             <div className="vtt-retro-badge" style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, marginBottom: '8px' }}>
-              1. HERRAMIENTA ACTIVA
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              <button
-                onClick={() => { setToolMode('select'); setDrawingWall(null); }}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  fontWeight: 700,
-                  fontSize: '13px',
-                  textAlign: 'left',
-                  background: toolMode === 'select' ? 'linear-gradient(90deg, rgba(245, 158, 11, 0.22) 0%, rgba(245, 158, 11, 0.05) 100%)' : '#191d27',
-                  border: toolMode === 'select' ? '1px solid #f59e0b' : '1px solid #2c3344',
-                  color: toolMode === 'select' ? '#fbbf24' : '#cbd5e1'
-                }}
-              >
-                <span style={{ fontSize: '16px' }}>🖱️</span>
-                <div>
-                  <div>Seleccionar y Mover</div>
-                  <div style={{ fontSize: '10px', fontWeight: 400, color: '#94a3b8' }}>Arrastra mapas, puertas o luces</div>
-                </div>
-              </button>
-
-              <button
-                onClick={() => { setToolMode('wall'); setSelectedIds([]); }}
-                style={{
-                  padding: '10px 12px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  fontWeight: 700,
-                  fontSize: '13px',
-                  textAlign: 'left',
-                  background: toolMode === 'wall' ? 'linear-gradient(90deg, rgba(239, 68, 68, 0.25) 0%, rgba(239, 68, 68, 0.05) 100%)' : '#191d27',
-                  border: toolMode === 'wall' ? '1px solid #ef4444' : '1px solid #2c3344',
-                  color: toolMode === 'wall' ? '#fca5a5' : '#cbd5e1'
-                }}
-              >
-                <span style={{ fontSize: '16px' }}>🧱</span>
-                <div>
-                  <div>Trazar Muros de Colisión</div>
-                  <div style={{ fontSize: '10px', fontWeight: 400, color: '#94a3b8' }}>Bloquean paso y visión</div>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* SECCIÓN 2: PLANO O IMAGEN DE FONDO (Destacado como acción clave) */}
-          <div>
-            <div className="vtt-retro-badge" style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, marginBottom: '8px' }}>
-              2. LIENZO DE FONDO
+              1. SUBIR IMAGEN
             </div>
             <button
               onClick={() => { setToolMode('select'); fileInputRef.current.click(); }}
@@ -577,7 +575,8 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
                 alignItems: 'center',
                 gap: '12px',
                 textAlign: 'left',
-                boxShadow: '0 4px 12px rgba(0,0,0,0.4)'
+                boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+                transition: 'all 0.15s ease'
               }}
             >
               <span style={{ fontSize: '24px' }}>🗺️</span>
@@ -588,59 +587,189 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
             </button>
           </div>
 
-          {/* SECCIÓN 3: ELEMENTOS INTERACTIVOS Y ARQUITECTURA */}
+          {/* PUNTO 2: HERRAMIENTAS DE EDICIÓN (Barra de iconos estilo Paint) */}
           <div>
             <div className="vtt-retro-badge" style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, marginBottom: '8px' }}>
-              3. AÑADIR ELEMENTOS AL PLANO
+              2. HERRAMIENTAS DE EDICIÓN
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: '8px'
+            }}>
+              {/* 1. Puntero / Selección */}
               <button
+                type="button"
+                onClick={() => { setToolMode('select'); setDrawingWall(null); }}
+                style={{
+                  height: '46px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: toolMode === 'select'
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.3) 0%, rgba(245, 158, 11, 0.1) 100%)'
+                    : '#191d27',
+                  border: toolMode === 'select' ? '1.5px solid #f59e0b' : '1px solid #2c3344',
+                  color: toolMode === 'select' ? '#fbbf24' : '#cbd5e1',
+                  boxShadow: toolMode === 'select' ? '0 0 10px rgba(245, 158, 11, 0.3)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Puntero: Seleccionar y Mover (Arrastrar mapas, puertas, objetos o luces)"
+              >
+                <MousePointer2 size={21} strokeWidth={2.2} />
+              </button>
+
+              {/* 2. Muros de Colisión */}
+              <button
+                type="button"
+                onClick={() => { setToolMode('wall'); setSelectedIds([]); }}
+                style={{
+                  height: '46px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: toolMode === 'wall'
+                    ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.3) 0%, rgba(239, 68, 68, 0.1) 100%)'
+                    : '#191d27',
+                  border: toolMode === 'wall' ? '1.5px solid #ef4444' : '1px solid #2c3344',
+                  color: toolMode === 'wall' ? '#fca5a5' : '#cbd5e1',
+                  boxShadow: toolMode === 'wall' ? '0 0 10px rgba(239, 68, 68, 0.3)' : 'none',
+                  transition: 'all 0.15s ease'
+                }}
+                title="Muros: Trazar paredes de colisión (Bloquean paso y visión)"
+              >
+                <BrickWall size={21} strokeWidth={2.2} />
+              </button>
+
+              {/* 3. Puerta (Arrastrar o Clic) */}
+              <button
+                type="button"
+                draggable={true}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ itemType: 'door' }));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
                 onClick={() => { setToolMode('select'); handleCreateDoor(); }}
                 className="vtt-brass-btn"
-                style={{ padding: '12px 8px', borderRadius: '8px', cursor: 'pointer', flexDirection: 'column', gap: '4px', fontSize: '12px', fontWeight: 600 }}
+                style={{
+                  height: '46px',
+                  borderRadius: '8px',
+                  cursor: 'grab',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+                title="Puerta: Arrastra al mapa para situarla exactamente donde sueltes, o haz clic (Abrir/Cerrar/Bloquear)"
               >
-                <span style={{ fontSize: '20px' }}>🚪</span>
-                <span>+ Puerta</span>
+                <DoorClosed size={21} strokeWidth={2.2} />
               </button>
 
+              {/* 4. Ventana (Arrastrar o Clic) */}
               <button
+                type="button"
+                draggable={true}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ itemType: 'window' }));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
                 onClick={() => { setToolMode('select'); handleCreateWindow(); }}
                 className="vtt-brass-btn"
-                style={{ padding: '12px 8px', borderRadius: '8px', cursor: 'pointer', flexDirection: 'column', gap: '4px', fontSize: '12px', fontWeight: 600 }}
+                style={{
+                  height: '46px',
+                  borderRadius: '8px',
+                  cursor: 'grab',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+                title="Ventana: Arrastra al mapa para situarla exactamente donde sueltes, o haz clic (Permite visión pero bloquea paso)"
               >
-                <span style={{ fontSize: '20px' }}>🪟</span>
-                <span>+ Ventana</span>
+                <AppWindow size={21} strokeWidth={2.2} />
               </button>
 
+              {/* 5. Objeto Interactivo (Arrastrar o Clic) */}
               <button
+                type="button"
+                draggable={true}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ itemType: 'object' }));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
                 onClick={() => { setToolMode('select'); handleCreateInteractiveObject(); }}
                 className="vtt-brass-btn"
-                style={{ padding: '12px 8px', borderRadius: '8px', cursor: 'pointer', flexDirection: 'column', gap: '4px', fontSize: '12px', fontWeight: 600 }}
+                style={{
+                  height: '46px',
+                  borderRadius: '8px',
+                  cursor: 'grab',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+                title="Objeto: Arrastra al mapa para situarlo exactamente donde sueltes, o haz clic (Cofre, mecanismo, altar...)"
               >
-                <span style={{ fontSize: '20px' }}>📦</span>
-                <span>+ Objeto</span>
+                <Package size={21} strokeWidth={2.2} />
               </button>
 
+              {/* 6. Luz / Antorcha (Arrastrar o Clic) */}
               <button
+                type="button"
+                draggable={true}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ itemType: 'light' }));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
                 onClick={() => { setToolMode('select'); handleCreateLightSource(); }}
                 className="vtt-brass-btn"
-                style={{ padding: '12px 8px', borderRadius: '8px', cursor: 'pointer', flexDirection: 'column', gap: '4px', fontSize: '12px', fontWeight: 600, borderColor: 'rgba(245, 158, 11, 0.5)' }}
+                style={{
+                  height: '46px',
+                  borderRadius: '8px',
+                  cursor: 'grab',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0,
+                  borderColor: 'rgba(245, 158, 11, 0.45)',
+                  color: '#fbbf24'
+                }}
+                title="Antorcha: Arrastra al mapa para situarla exactamente donde sueltes, o haz clic (Luz ambiental)"
               >
-                <span style={{ fontSize: '20px' }}>🔥</span>
-                <span style={{ color: '#fbbf24' }}>+ Antorcha</span>
+                <Flame size={21} strokeWidth={2.2} />
               </button>
 
+              {/* 7. Nota / Pergamino (Arrastrar o Clic) */}
               <button
+                type="button"
+                draggable={true}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData('text/plain', JSON.stringify({ itemType: 'note' }));
+                  e.dataTransfer.effectAllowed = 'copy';
+                }}
                 onClick={() => { setToolMode('select'); handleCreateNote(); }}
                 className="vtt-brass-btn"
-                style={{ gridColumn: '1 / -1', padding: '10px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}
+                style={{
+                  height: '46px',
+                  borderRadius: '8px',
+                  cursor: 'grab',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: 0
+                }}
+                title="Nota: Arrastra al mapa para situarla exactamente donde sueltes, o haz clic (Pistas y descripciones)"
               >
-                Añadir Nota o Pergamino
+                <Scroll size={21} strokeWidth={2.2} />
               </button>
             </div>
           </div>
 
-          {/* SECCIÓN 4: ATAJOS ÚTILES */}
+          {/* SECCIÓN 3: ATAJOS ÚTILES */}
           <div style={{
             marginTop: 'auto',
             backgroundColor: '#0e1016',
@@ -666,6 +795,11 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
           onPointerUp={handlePointerUp} 
           onPointerLeave={handlePointerUp} 
           onWheel={handleWheel} onContextMenu={(e) => e.preventDefault()}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+          }}
+          onDrop={handleCanvasDrop}
           style={{
             flex: 1,
             position: 'relative',

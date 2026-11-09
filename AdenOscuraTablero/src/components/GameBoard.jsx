@@ -2,6 +2,7 @@ import React from 'react';
 import GridLayer from './GridLayer';
 import MapLayer from './MapLayer';
 import FogLayer, { isPointVisibleToPlayers } from './FogLayer';
+import AtmosphericLivingFog from './AtmosphericLivingFog';
 import GameToken from './GameToken';
 import WeatherOverlay from './WeatherOverlay';
 import { SOUND_CATALOG } from './Soundboard';
@@ -11,6 +12,7 @@ const BASE_QUICK_SOUNDS = SOUND_CATALOG.filter(s => !s.loop).slice(0, 6);
 const GameBoard = ({
   boardRef, scale, pan = { x: 0, y: 0 }, isDraggingPan = false, isPlayerView = false,
   fowEnabled, fowMode = 'none', fowVisionRadius = 180, fowMemoryEnabled = true, fowAutoHideEnemies = true,
+  livingFogEnabled = true,
   weatherEffect = 'none', ambientTint = 'none',
   rulerActive = false, pingActive = false, pendingTokenSpawn = null, pendingMapSpawn = null,
   handlePointerDown, handlePointerMove, handlePointerUp, handleWheel,
@@ -29,8 +31,10 @@ const GameBoard = ({
   onPickUpItem,
   isCombatActive = false,
   movementLimitsEnabled = true,
+  combatGroups = [],
   tokenDragOriginRef = null,
-  tokenDragMeasurement = null
+  tokenDragMeasurement = null,
+  handleDropOnBoard = null
 }) => {
   const [spawnHoverPos, setSpawnHoverPos] = React.useState(null);
   const isToolActive = rulerActive || pingActive || Boolean(pendingTokenSpawn) || Boolean(pendingMapSpawn) || (!isPlayerView && fowEnabled && fowMode !== 'none');
@@ -50,6 +54,36 @@ const GameBoard = ({
       setSpawnHoverPos(null);
     }
     if (handlePointerMove) handlePointerMove(e);
+  };
+
+  const onBoardDragOver = (e) => {
+    if (isPlayerView) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    if ((pendingTokenSpawn || pendingMapSpawn) && boardRef.current) {
+      const rect = boardRef.current.getBoundingClientRect();
+      const rawX = (e.clientX - rect.left - pan.x) / scale;
+      const rawY = (e.clientY - rect.top - pan.y) / scale;
+      const w = pendingMapSpawn ? (pendingMapSpawn.width || gridSize || 48) : (gridSize || 50);
+      const h = pendingMapSpawn ? (pendingMapSpawn.height || gridSize || 48) : (gridSize || 50);
+      const x = snapToGrid ? Math.floor(rawX / (gridSize || 50)) * (gridSize || 50) : rawX - w / 2;
+      const y = snapToGrid ? Math.floor(rawY / (gridSize || 50)) * (gridSize || 50) : rawY - h / 2;
+      setSpawnHoverPos({ x, y, w, h });
+    }
+  };
+
+  const onBoardDragLeave = (e) => {
+    if (boardRef.current && !boardRef.current.contains(e.relatedTarget)) {
+      setSpawnHoverPos(null);
+    }
+  };
+
+  const onBoardDrop = (e) => {
+    e.preventDefault();
+    setSpawnHoverPos(null);
+    if (handleDropOnBoard) {
+      handleDropOnBoard(e);
+    }
   };
 
   const radialSounds = [
@@ -237,6 +271,9 @@ const GameBoard = ({
       onPointerDown={handlePointerDown} onPointerMove={onBoardPointerMove}
       onPointerUp={handlePointerUp} onPointerLeave={handlePointerUp} onPointerCancel={handlePointerUp}
       onDragStart={(e) => e.preventDefault()}
+      onDragOver={onBoardDragOver}
+      onDragLeave={onBoardDragLeave}
+      onDrop={onBoardDrop}
       onWheel={handleWheel}
       onContextMenu={(e) => e.preventDefault()}
       style={{
@@ -304,6 +341,16 @@ const GameBoard = ({
           isPlayerView={isPlayerView}
         />
 
+        <AtmosphericLivingFog
+          fowEnabled={fowEnabled}
+          livingFogEnabled={livingFogEnabled}
+          fowCanvasRef={fowCanvasRef}
+          tokens={tokens}
+          maps={maps}
+          fowVisionRadius={fowVisionRadius}
+          isPlayerView={isPlayerView}
+        />
+
         {renderMovementFloorRing()}
 
         {tokens.map((token) => {
@@ -318,10 +365,16 @@ const GameBoard = ({
             }
           }
 
+          const myGroup = combatGroups.find(g => g.id === token.combatGroupId);
+          const isTokenActiveTurn = combatGroups.length > 0
+            ? Boolean(myGroup && myGroup.isCombatActive && myGroup.activeTurnTokenId === token.id)
+            : Boolean(token.id === activeTurnTokenId);
+
           return (
             <GameToken
               key={token.id} token={token}
-              isActiveTurn={token.id === activeTurnTokenId}
+              combatGroup={myGroup}
+              isActiveTurn={isTokenActiveTurn}
               isDragging={draggedToken === token.id}
               isRotating={rotatingToken === token.id}
               isPlayerView={isPlayerView}
