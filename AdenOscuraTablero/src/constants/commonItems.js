@@ -144,3 +144,15 @@ export const ITEM_CATEGORIES = [
 export const POPULAR_ITEM_ICONS = [
   '🚬', '🪢', '🔦', '🕯️', '🗝️', '🩸', '💊', '🧪', '📜', '🔍', '🧭', '💧', '🔪', '📻', '📦', '🧥', '💼', '⚱️', '📓', '🪙', '🪤', '✝️', '🛡️', '⚡'
 ];
+
+const normalizeSearchText = (str) =>
+  String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+
+export const filterCatalogItems = (items = [], query = '') => {
+  const normQ = normalizeSearchText(query.trim());
+  if (!normQ) return [];
+  return items.filter((item) => normalizeSearchText(item?.name).includes(normQ));
+};

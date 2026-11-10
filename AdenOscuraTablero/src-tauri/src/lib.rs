@@ -121,6 +121,27 @@ fn read_campaign_file(file_path: String) -> Result<String, String> {
   fs::read_to_string(&file_path).map_err(|e| e.to_string())
 }
 
+#[tauri::command]
+fn save_codex_file(app: tauri::AppHandle, content: String) -> Result<String, String> {
+  let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+  if !app_data_dir.exists() {
+    fs::create_dir_all(&app_data_dir).map_err(|e| e.to_string())?;
+  }
+  let file_path = app_data_dir.join("codex_global.json");
+  fs::write(&file_path, content).map_err(|e| e.to_string())?;
+  Ok(file_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+fn load_codex_file(app: tauri::AppHandle) -> Result<String, String> {
+  let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+  let file_path = app_data_dir.join("codex_global.json");
+  if !file_path.exists() {
+    return Ok(String::new());
+  }
+  fs::read_to_string(&file_path).map_err(|e| e.to_string())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
   tauri::Builder::default()
@@ -139,7 +160,9 @@ pub fn run() {
       list_map_files,
       save_campaign_file,
       list_campaign_files,
-      read_campaign_file
+      read_campaign_file,
+      save_codex_file,
+      load_codex_file
     ])
     .run(tauri::generate_context!())
     .expect("error while building tauri application");

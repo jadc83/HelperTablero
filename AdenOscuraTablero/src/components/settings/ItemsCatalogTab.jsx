@@ -11,7 +11,11 @@ import {
   ArrowLeftRight,
   ArrowRight
 } from 'lucide-react';
-import { ITEM_CATEGORIES, POPULAR_ITEM_ICONS } from '../../constants/commonItems';
+import {
+  ITEM_CATEGORIES,
+  POPULAR_ITEM_ICONS,
+  filterCatalogItems
+} from '../../constants/commonItems';
 import { useConfirm } from '../../hooks/useConfirm';
 import SearchInput from '../ui/SearchInput';
 import EmptyState from '../ui/EmptyState';
@@ -90,13 +94,8 @@ const ItemsCatalogTab = ({
     return foundC ? foundC.name : 'Nadie disponible';
   })();
 
-  const q = itemSearchQuery.toLowerCase().trim();
-  const filteredCommonItems = commonItems.filter(item =>
-    !q ||
-    item.name.toLowerCase().includes(q) ||
-    (item.notes && item.notes.toLowerCase().includes(q)) ||
-    (item.category && item.category.toLowerCase().includes(q))
-  );
+  const q = itemSearchQuery.trim();
+  const filteredCommonItems = q ? filterCatalogItems(commonItems, q) : [];
 
   const handleDeleteTemplate = async (item) => {
     if (!onDeleteCommonItem) return;
@@ -116,19 +115,19 @@ const ItemsCatalogTab = ({
         display: 'flex',
         flexDirection: 'column',
         gap: '8px',
-        backgroundColor: '#121622',
-        border: '1px solid #283042',
+        backgroundColor: 'var(--vtt-bg-card)',
+        border: '1px solid var(--vtt-border)',
         borderRadius: '8px',
         padding: '12px'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BookOpen size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
-            <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
+            <BookOpen size={15} strokeWidth={2.2} style={{ color: 'var(--vtt-accent-amber)' }} />
+            <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--vtt-accent-amber)', letterSpacing: '0.04em' }}>
               Catálogo Común de Objetos
             </span>
           </div>
-          <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, backgroundColor: '#0c0f17', padding: '2px 7px', borderRadius: '4px', border: '1px solid #252d3d' }}>
+          <span style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, backgroundColor: 'var(--vtt-bg-inset)', padding: '2px 7px', borderRadius: '4px', border: '1px solid var(--vtt-border)' }}>
             {commonItems.length} plantillas
           </span>
         </div>
@@ -137,10 +136,10 @@ const ItemsCatalogTab = ({
           value={itemSearchQuery}
           onChange={setItemSearchQuery}
           placeholder="Buscar mechero, cuerda, linterna, ganzúa, botiquín..."
-          inputStyle={{ backgroundColor: '#0c0f17', fontSize: '11px' }}
+          inputStyle={{ backgroundColor: 'var(--vtt-input-bg)', fontSize: '11px' }}
         />
 
-        {Boolean(itemSearchQuery.trim()) && (
+        {q.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '220px', overflowY: 'auto', marginTop: '4px' }}>
             {filteredCommonItems.length === 0 ? (
               <EmptyState
@@ -155,8 +154,8 @@ const ItemsCatalogTab = ({
                   <div
                     key={item.id}
                     style={{
-                      backgroundColor: '#0c0f17',
-                      border: '1px solid #232d3f',
+                      backgroundColor: 'var(--vtt-bg-inset)',
+                      border: '1px solid var(--vtt-border)',
                       borderRadius: '7px',
                       padding: '8px 10px',
                       display: 'flex',
@@ -169,25 +168,25 @@ const ItemsCatalogTab = ({
                       <span style={{ fontSize: '17px', flexShrink: 0 }}>{item.icon || '📦'}</span>
                       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span style={{ fontSize: '11.5px', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                          <span style={{ fontSize: '11.5px', fontWeight: 700, color: 'var(--vtt-text-strong)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
                             {item.name}
                           </span>
                           {item.category && (
                             <span style={{
                               fontSize: '9px',
-                              backgroundColor: '#161f30',
-                              color: '#93c5fd',
+                              backgroundColor: 'var(--vtt-accent-sky-bg)',
+                              color: 'var(--vtt-accent-sky)',
                               padding: '1px 5px',
                               borderRadius: '3px',
                               fontWeight: 600,
-                              border: '1px solid rgba(59, 130, 246, 0.3)'
+                              border: '1px solid var(--vtt-accent-sky-border)'
                             }}>
                               {item.category}
                             </span>
                           )}
                         </div>
                         {item.notes && (
-                          <span style={{ fontSize: '9.5px', color: '#94a3b8', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={item.notes}>
+                          <span style={{ fontSize: '9.5px', color: 'var(--vtt-text-muted)', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={item.notes}>
                             {item.notes}
                           </span>
                         )}
@@ -203,7 +202,7 @@ const ItemsCatalogTab = ({
                             onClose();
                           }}
                           className="vtt-brass-btn"
-                          style={{ padding: '3px 7px', borderRadius: '5px', fontSize: '10px', fontWeight: 700, cursor: 'pointer', color: '#38bdf8', borderColor: '#0284c7' }}
+                          style={{ padding: '3px 7px', borderRadius: '5px', fontSize: '10px', fontWeight: 700, cursor: 'pointer', color: 'var(--vtt-accent-sky)', borderColor: 'var(--vtt-accent-sky-border)' }}
                           title="Colocar en el suelo del tablero para que los personajes puedan recogerlo"
                         >
                           <MapPin size={11} strokeWidth={2.2} /> Suelo
@@ -228,8 +227,8 @@ const ItemsCatalogTab = ({
                           fontSize: '10px',
                           fontWeight: 700,
                           cursor: effectiveRecipientId ? 'pointer' : 'default',
-                          color: '#fbbf24',
-                          borderColor: '#f59e0b',
+                          color: 'var(--vtt-accent-amber)',
+                          borderColor: 'var(--vtt-gold)',
                           opacity: effectiveRecipientId ? 1 : 0.4
                         }}
                         title={effectiveRecipientId ? `Entregar a ${effectiveRecipientName}` : 'Selecciona un destinatario abajo'}
@@ -240,7 +239,7 @@ const ItemsCatalogTab = ({
                         <button
                           type="button"
                           onClick={() => handleDeleteTemplate(item)}
-                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px 4px' }}
+                          style={{ background: 'none', border: 'none', color: 'var(--vtt-accent-red)', cursor: 'pointer', padding: '2px 4px' }}
                           title="Eliminar plantilla del catálogo"
                         >
                           <Trash2 size={13} strokeWidth={2.2} />
@@ -257,8 +256,8 @@ const ItemsCatalogTab = ({
 
       {/* 2. Forjar nuevo objeto */}
       <div style={{
-        backgroundColor: '#121622',
-        border: '1px solid #283042',
+        backgroundColor: 'var(--vtt-bg-card)',
+        border: '1px solid var(--vtt-border)',
         borderRadius: '8px',
         padding: '10px 12px',
         display: 'flex',
@@ -280,20 +279,20 @@ const ItemsCatalogTab = ({
           }}
         >
           <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Hammer size={15} strokeWidth={2.2} style={{ color: '#f59e0b' }} />
-            <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: '#f59e0b', letterSpacing: '0.04em' }}>
+            <Hammer size={15} strokeWidth={2.2} style={{ color: 'var(--vtt-accent-amber)' }} />
+            <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--vtt-accent-amber)', letterSpacing: '0.04em' }}>
               Forjar Nuevo Objeto
             </span>
           </span>
-          <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
             {isCreatorExpanded ? <><ChevronUp size={13} strokeWidth={2.2} /> Plegar</> : <><ChevronDown size={13} strokeWidth={2.2} /> Desplegar</>}
           </span>
         </button>
 
         {isCreatorExpanded && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '6px', borderTop: '1px solid #242c3d' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', paddingTop: '6px', borderTop: '1px solid var(--vtt-border-subtle)' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-              <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+              <label style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
                 Nombre del Objeto:
               </label>
               <input
@@ -301,15 +300,15 @@ const ItemsCatalogTab = ({
                 value={commonItemName}
                 onChange={(e) => setCommonItemName(e.target.value)}
                 placeholder="Ej: Mechero de latón con iniciales / Daga ritual"
-                style={{ backgroundColor: '#0c0f17', border: '1px solid #2d3748', borderRadius: '6px', padding: '7px 9px', color: '#f8fafc', fontSize: '11px' }}
+                style={{ backgroundColor: 'var(--vtt-input-bg)', border: '1px solid var(--vtt-input-border)', borderRadius: '6px', padding: '7px 9px', color: 'var(--vtt-input-text)', fontSize: '11px' }}
               />
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-              <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+              <label style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
                 Icono:
               </label>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', backgroundColor: '#0c0f17', padding: '5px', borderRadius: '6px', border: '1px solid #232d3f' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', backgroundColor: 'var(--vtt-bg-inset)', padding: '5px', borderRadius: '6px', border: '1px solid var(--vtt-border)' }}>
                 {POPULAR_ITEM_ICONS.map(ic => (
                   <button
                     key={ic}
@@ -319,8 +318,8 @@ const ItemsCatalogTab = ({
                       width: '26px',
                       height: '26px',
                       borderRadius: '4px',
-                      border: commonItemIcon === ic ? '1.5px solid #f59e0b' : '1px solid transparent',
-                      backgroundColor: commonItemIcon === ic ? 'rgba(245, 158, 11, 0.25)' : 'transparent',
+                      border: commonItemIcon === ic ? '1.5px solid var(--vtt-gold)' : '1px solid transparent',
+                      backgroundColor: commonItemIcon === ic ? 'var(--vtt-accent-amber-bg)' : 'transparent',
                       fontSize: '13px',
                       cursor: 'pointer',
                       display: 'flex',
@@ -336,13 +335,13 @@ const ItemsCatalogTab = ({
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                <label style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
                   Categoría:
                 </label>
                 <select
                   value={commonItemCategory}
                   onChange={(e) => setCommonItemCategory(e.target.value)}
-                  style={{ backgroundColor: '#0c0f17', border: '1px solid #2d3748', borderRadius: '6px', padding: '6px 8px', color: '#f8fafc', fontSize: '11px', cursor: 'pointer' }}
+                  style={{ backgroundColor: 'var(--vtt-input-bg)', border: '1px solid var(--vtt-input-border)', borderRadius: '6px', padding: '6px 8px', color: 'var(--vtt-input-text)', fontSize: '11px', cursor: 'pointer' }}
                 >
                   {ITEM_CATEGORIES.map(cat => (
                     <option key={cat} value={cat}>{cat}</option>
@@ -351,13 +350,13 @@ const ItemsCatalogTab = ({
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+                <label style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
                   Ubicación:
                 </label>
                 <select
                   value={commonItemState}
                   onChange={(e) => setCommonItemState(e.target.value)}
-                  style={{ backgroundColor: '#0c0f17', border: '1px solid #2d3748', borderRadius: '6px', padding: '6px 8px', color: '#f8fafc', fontSize: '11px', cursor: 'pointer' }}
+                  style={{ backgroundColor: 'var(--vtt-input-bg)', border: '1px solid var(--vtt-input-border)', borderRadius: '6px', padding: '6px 8px', color: 'var(--vtt-input-text)', fontSize: '11px', cursor: 'pointer' }}
                 >
                   <option value="equipped">Equipado (Puesto)</option>
                   <option value="hand">A mano (Bolsillo / Cinturón)</option>
@@ -367,7 +366,7 @@ const ItemsCatalogTab = ({
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-              <label style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase' }}>
+              <label style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>
                 Notas / Propiedades:
               </label>
               <input
@@ -375,7 +374,7 @@ const ItemsCatalogTab = ({
                 value={commonItemNotes}
                 onChange={(e) => setCommonItemNotes(e.target.value)}
                 placeholder="Detalles sobre el objeto, inscripciones, bonificaciones..."
-                style={{ backgroundColor: '#0c0f17', border: '1px solid #2d3748', borderRadius: '6px', padding: '6px 9px', color: '#f8fafc', fontSize: '11px' }}
+                style={{ backgroundColor: 'var(--vtt-input-bg)', border: '1px solid var(--vtt-input-border)', borderRadius: '6px', padding: '6px 9px', color: 'var(--vtt-input-text)', fontSize: '11px' }}
               />
             </div>
 
@@ -424,7 +423,7 @@ const ItemsCatalogTab = ({
                   }}
                   disabled={!commonItemName.trim()}
                   className="vtt-brass-btn"
-                  style={{ flex: 1, padding: '7px 8px', borderRadius: '5px', fontSize: '10px', fontWeight: 700, cursor: commonItemName.trim() ? 'pointer' : 'default', color: '#38bdf8', borderColor: '#0284c7', opacity: commonItemName.trim() ? 1 : 0.4 }}
+                  style={{ flex: 1, padding: '7px 8px', borderRadius: '5px', fontSize: '10px', fontWeight: 700, cursor: commonItemName.trim() ? 'pointer' : 'default', color: 'var(--vtt-accent-sky)', borderColor: 'var(--vtt-accent-sky-border)', opacity: commonItemName.trim() ? 1 : 0.4 }}
                   title="Colocar directamente en el suelo del tablero"
                 >
                   <MapPin size={11} strokeWidth={2.2} /> En Suelo
@@ -453,7 +452,7 @@ const ItemsCatalogTab = ({
                 }}
                 disabled={!commonItemName.trim() || !effectiveRecipientId}
                 className="vtt-brass-btn"
-                style={{ flex: 1.2, padding: '7px 8px', borderRadius: '5px', fontSize: '10px', fontWeight: 700, cursor: commonItemName.trim() && effectiveRecipientId ? 'pointer' : 'default', color: '#fbbf24', borderColor: '#f59e0b', opacity: commonItemName.trim() && effectiveRecipientId ? 1 : 0.4 }}
+                style={{ flex: 1.2, padding: '7px 8px', borderRadius: '5px', fontSize: '10px', fontWeight: 700, cursor: commonItemName.trim() && effectiveRecipientId ? 'pointer' : 'default', color: 'var(--vtt-accent-amber)', borderColor: 'var(--vtt-gold)', opacity: commonItemName.trim() && effectiveRecipientId ? 1 : 0.4 }}
                 title={effectiveRecipientId ? `Entregar directamente a ${effectiveRecipientName}` : 'Selecciona un destinatario abajo'}
               >
                 <Gift size={11} strokeWidth={2.2} /> Entregar
@@ -465,8 +464,8 @@ const ItemsCatalogTab = ({
 
       {/* 3. Traspaso entre personajes */}
       <div style={{
-        backgroundColor: '#141824',
-        border: '1px solid #2b3345',
+        backgroundColor: 'var(--vtt-bg-card)',
+        border: '1px solid var(--vtt-border)',
         borderRadius: '8px',
         padding: '12px',
         display: 'flex',
@@ -474,12 +473,12 @@ const ItemsCatalogTab = ({
         gap: '10px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <ArrowLeftRight size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
+          <ArrowLeftRight size={15} strokeWidth={2.2} style={{ color: 'var(--vtt-accent-amber)' }} />
           <div>
-            <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: 'var(--vtt-accent-amber)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
               Traspaso de Objetos entre Personajes
             </span>
-            <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: '#94a3b8' }}>
+            <p style={{ margin: '2px 0 0 0', fontSize: '10px', color: 'var(--vtt-text-muted)' }}>
               Transfiere pertenencias directamente del inventario de un personaje a otro.
             </p>
           </div>
@@ -491,7 +490,7 @@ const ItemsCatalogTab = ({
             <select
               value={effectiveGiverId}
               onChange={(e) => setSelectedGiverId(e.target.value)}
-              style={{ backgroundColor: '#0c0f17', color: '#cbd5e1', border: '1px solid #333d52', borderRadius: '5px', padding: '5px 7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', width: '100%' }}
+              style={{ backgroundColor: 'var(--vtt-input-bg)', color: 'var(--vtt-input-text)', border: '1px solid var(--vtt-input-border)', borderRadius: '5px', padding: '5px 7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', width: '100%' }}
             >
               <option value="master">El Máster (Alijo)</option>
               {tokens.length > 0 && (
@@ -513,16 +512,16 @@ const ItemsCatalogTab = ({
             </select>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '14px', color: '#fbbf24' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '14px', color: 'var(--vtt-accent-amber)' }}>
             <ArrowRight size={14} strokeWidth={2.4} />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0 }}>
-            <span className="vtt-context-section-label" style={{ color: '#38bdf8' }}>Destinatario de Entrega:</span>
+            <span className="vtt-context-section-label" style={{ color: 'var(--vtt-accent-sky)' }}>Destinatario de Entrega:</span>
             <select
               value={effectiveRecipientId}
               onChange={(e) => setSelectedRecipientId(e.target.value)}
-              style={{ backgroundColor: '#0c0f17', color: effectiveRecipientId ? '#f8fafc' : '#ef4444', border: '1px solid #333d52', borderRadius: '5px', padding: '5px 7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', width: '100%' }}
+              style={{ backgroundColor: 'var(--vtt-input-bg)', color: effectiveRecipientId ? 'var(--vtt-input-text)' : 'var(--vtt-accent-red)', border: '1px solid var(--vtt-input-border)', borderRadius: '5px', padding: '5px 7px', fontSize: '11px', fontWeight: 600, cursor: 'pointer', width: '100%' }}
             >
               {recipientTokens.length > 0 && (
                 <optgroup label="En Tablero (Escena)">
@@ -566,8 +565,8 @@ const ItemsCatalogTab = ({
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '6px 10px',
-                      backgroundColor: '#0c0f17',
-                      border: '1px solid #232d3f',
+                      backgroundColor: 'var(--vtt-bg-inset)',
+                      border: '1px solid var(--vtt-border)',
                       borderRadius: '6px',
                       gap: '8px'
                     }}
@@ -575,11 +574,11 @@ const ItemsCatalogTab = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden', flex: 1 }}>
                       <span style={{ fontSize: '15px' }}>{item.icon || '📦'}</span>
                       <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                        <span style={{ fontSize: '11px', fontWeight: 700, color: '#f8fafc', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--vtt-text-strong)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {item.name}
                         </span>
                         {item.notes && (
-                          <span style={{ fontSize: '9px', color: '#94a3b8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span style={{ fontSize: '9px', color: 'var(--vtt-text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                             {item.notes}
                           </span>
                         )}
@@ -600,8 +599,8 @@ const ItemsCatalogTab = ({
                         fontSize: '10px',
                         fontWeight: 700,
                         cursor: effectiveRecipientId ? 'pointer' : 'default',
-                        color: '#38bdf8',
-                        borderColor: '#0284c7',
+                        color: 'var(--vtt-accent-sky)',
+                        borderColor: 'var(--vtt-accent-sky-border)',
                         whiteSpace: 'nowrap',
                         opacity: effectiveRecipientId ? 1 : 0.4
                       }}

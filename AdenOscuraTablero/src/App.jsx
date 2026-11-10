@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { WebviewWindow } from '@tauri-apps/api/webviewWindow';
 import { emit as tauriEmit, listen as tauriListen } from '@tauri-apps/api/event';
 
@@ -17,15 +17,17 @@ import CharacterSheetModal from './components/CharacterSheetModal';
 import HomeScreen from './components/HomeScreen';
 import EncyclopediaView from './components/EncyclopediaView';
 import ObjectNotesModal from './components/ObjectNotesModal';
+import AppSettingsModal from './components/AppSettingsModal';
 import {
   WEATHER_TYPES,
-  AMBIENT_TINTS,
-  getClassificationMeta
+  AMBIENT_TINTS
 } from './constants/gamePresets';
 import { playerSoundEngine } from './utils/soundEngine';
 import { DEFAULT_COMMON_ITEMS } from './constants/commonItems';
 import useLocalStorage from './hooks/useLocalStorage';
+import { useAppSettings } from './hooks/useAppSettings';
 import { useConfirm } from './hooks/useConfirm';
+import { useGlobalCodex } from './hooks/useGlobalCodex';
 import { useSceneAndCampaignActions } from './hooks/useSceneAndCampaignActions';
 import { useCombatManager } from './hooks/useCombatManager';
 import { useBoardInteraction } from './hooks/useBoardInteraction';
@@ -62,6 +64,9 @@ const DEFAULT_STATUSES = [
 function App() {
   const isPlayerView = new URLSearchParams(window.location.search).get('view') === 'player';
   const confirm = useConfirm();
+  const { settings, updateSettings, importSettings } = useAppSettings();
+  const importSettingsRef = useRef(importSettings);
+  const latestAppSettingsRef = useRef(settings);
 
   const [characters, setCharacters] = useState([]);
   const [tokens, setTokens] = useState([]);
@@ -73,7 +78,10 @@ function App() {
   const [fowMemoryEnabled, setFowMemoryEnabled] = useLocalStorage('vtt_fow_memory', true, isPlayerView);
   const [fowActions, setFowActions] = useState([]);
   const [snapToGrid, setSnapToGrid] = useLocalStorage('vtt_snap_grid', false, isPlayerView);
-  const [gridSize, setGridSize] = useLocalStorage('vtt_grid_size', 50, isPlayerView);
+  const gridSize = settings.gridSize ?? 50;
+  const setGridSize = useCallback((val) => {
+    updateSettings({ gridSize: Number(val) || 50 });
+  }, [updateSettings]);
   const [customStatuses, setCustomStatuses] = useLocalStorage('vtt_custom_statuses', DEFAULT_STATUSES, isPlayerView);
   const [weatherEffect, setWeatherEffect] = useState('none');
   const [ambientTint, setAmbientTint] = useState('none');
@@ -108,6 +116,8 @@ function App() {
   const [isPaintingFow, setIsPaintingFow] = useState(false);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isAppSettingsOpen, setIsAppSettingsOpen] = useState(false);
+  const [sidebarWidth, setSidebarWidth] = useState(320);
   const [settingsInitialTab, setSettingsInitialTab] = useState(null);
   const [isMapCreatorOpen, setIsMapCreatorOpen] = useState(false);
   const [mapCreatorSceneId, setMapCreatorSceneId] = useState(null);
@@ -115,6 +125,15 @@ function App() {
   const [encyclopediaState, setEncyclopediaState] = useState({ isOpen: false, category: 'character' });
   const [isTutorialOpen, setIsTutorialOpen] = useState(() => !tutorialDismissed && !isPlayerView);
   const [dbLoaded, setDbLoaded] = useState(false);
+
+  const {
+    codex,
+    archiveEntitiesToCodex,
+    archiveItemsToCodex,
+    deleteCodexEntity,
+    deleteCodexItem,
+    clearCodexCategory
+  } = useGlobalCodex(isPlayerView);
 
   // Estado para abrir el Modal de Creación o Edición de Personaje
   const [editingCharacter, setEditingCharacter] = useState(null); // { mode: 'create' | 'edit', character: obj | null }
@@ -257,7 +276,10 @@ function App() {
     loadCampaignFromDB().then((saved) => {
       if (!mounted) return;
       if (saved && !saved.isConcluded) {
-        if (Array.isArray(saved.characters)) setCharacters(saved.characters);
+        if (Array.isArray(saved.characters)) {
+          setCharacters(saved.characters);
+          archiveEntitiesToCodex(saved.characters, { updateExisting: false });
+        }
         if (Array.isArray(saved.tokens)) setTokens(saved.tokens);
         if (Array.isArray(saved.maps)) setMaps(saved.maps);
         if (saved.fowEnabled !== undefined) setFowEnabled(saved.fowEnabled);
@@ -277,7 +299,10 @@ function App() {
         if (saved.activeHandout !== undefined) setActiveHandout(saved.activeHandout);
         if (Array.isArray(saved.graveyard)) setGraveyard(saved.graveyard);
         if (Array.isArray(saved.customObjects)) setCustomObjects(saved.customObjects);
-        if (Array.isArray(saved.commonItems)) setCommonItems(saved.commonItems);
+        if (Array.isArray(saved.commonItems)) {
+          setCommonItems(saved.commonItems);
+          archiveItemsToCodex(saved.commonItems, { updateExisting: false });
+        }
         if (saved.sceneNotes) setSceneNotes(saved.sceneNotes);
         if (saved.campaignNotes !== undefined) setCampaignNotes(saved.campaignNotes);
       }
@@ -285,13 +310,59 @@ function App() {
     });
     return () => { mounted = false; };
   }, [
+    archiveEntitiesToCodex, archiveItemsToCodex,
     setCommonItems, setCustomStatuses, setFowBrushSize,
     setFowEnabled, setFowMemoryEnabled, setFowVisionRadius, setGridSize, setSnapToGrid
   ]);
 
+  useEffect(() => {
+    importSettingsRef.current = importSettings;
+  }, [importSettings]);
+
+  useEffect(() => {
+    latestAppSettingsRef.current = settings;
+    playerSoundEngine.updateSettings({
+      masterVolume: settings.masterVolume,
+      ambientVolume: settings.ambientVolume,
+      sfxVolume: settings.sfxVolume,
+      isMuted: isPlayerView ? settings.mutePlayerAudio : !settings.playAudioOnMaster
+    });
+  }, [settings, isPlayerView]);
+
+  const campaignDbPayload = useMemo(() => ({
+    characters,
+    tokens,
+    maps,
+    fowEnabled,
+    fowBrushSize,
+    fowVisionRadius,
+    fowMemoryEnabled,
+    fowActions,
+    snapToGrid,
+    gridSize,
+    customStatuses,
+    weatherEffect,
+    ambientTint,
+    customSounds,
+    scenes,
+    activeSceneId,
+    handouts,
+    activeHandout,
+    graveyard,
+    customObjects,
+    commonItems,
+    sceneNotes,
+    campaignNotes
+  }), [
+    characters, tokens, maps, fowEnabled, fowBrushSize, fowVisionRadius, fowMemoryEnabled,
+    fowActions, snapToGrid, gridSize, customStatuses, weatherEffect, ambientTint,
+    customSounds, scenes, activeSceneId, handouts, activeHandout, graveyard, customObjects, commonItems,
+    sceneNotes, campaignNotes
+  ]);
+
   // 2. Auto-guardado en segundo plano de la sesión activa en curso (solo si no está vacía de todo)
   useEffect(() => {
-    if (!dbLoaded || isPlayerView) return;
+    if (!dbLoaded || isPlayerView || !settings.autoSaveEnabled) return;
 
     // Si el tablero está en estado limpio/vacío inicial (ej. tras concluir aventura), no sobreescribir la DB
     const isEmptyCleanSlate = (
@@ -305,40 +376,10 @@ function App() {
     if (isEmptyCleanSlate) return;
 
     const timer = setTimeout(() => {
-      saveCampaignToDB({
-        characters,
-        tokens,
-        maps,
-        fowEnabled,
-        fowBrushSize,
-        fowVisionRadius,
-        fowMemoryEnabled,
-        fowActions,
-        snapToGrid,
-        gridSize,
-        customStatuses,
-        weatherEffect,
-        ambientTint,
-        customSounds,
-        scenes,
-        activeSceneId,
-        handouts,
-        activeHandout,
-        graveyard,
-        customObjects,
-        commonItems,
-        sceneNotes,
-        campaignNotes
-      });
-    }, 400);
+      saveCampaignToDB(campaignDbPayload);
+    }, settings.autoSaveIntervalMs || 400);
     return () => clearTimeout(timer);
-  }, [
-    dbLoaded, isPlayerView, characters, tokens, maps,
-    fowEnabled, fowBrushSize, fowVisionRadius, fowMemoryEnabled,
-    fowActions, snapToGrid, gridSize, customStatuses, weatherEffect, ambientTint,
-    customSounds, scenes, activeSceneId, handouts, activeHandout, graveyard, customObjects, commonItems,
-    sceneNotes, campaignNotes
-  ]);
+  }, [dbLoaded, isPlayerView, settings.autoSaveEnabled, settings.autoSaveIntervalMs, campaignDbPayload, tokens.length, maps.length, characters.length, scenes]);
 
   // 3. Sincronización en tiempo real entre ventana de Master y ventana de Jugador
   useEffect(() => {
@@ -357,6 +398,10 @@ function App() {
             postSyncMessage({
               type: 'STATE_SYNC',
               payload: latestStateRef.current
+            });
+            postSyncMessage({
+              type: 'SETTINGS_SYNC',
+              payload: latestAppSettingsRef.current
             });
           }
           return;
@@ -417,6 +462,8 @@ function App() {
           playerSoundEngine.play(msg.payload);
         } else if (msg.type === 'SOUND_STOP_ALL') {
           playerSoundEngine.stopAll();
+        } else if (msg.type === 'SETTINGS_SYNC' && msg.payload) {
+          importSettingsRef.current(msg.payload);
         }
       }
     };
@@ -476,6 +523,14 @@ function App() {
     livingFogEnabled, fowActions, snapToGrid, gridSize, customStatuses,
     weatherEffect, ambientTint, activeHandout, isCombatActive, combatRound, activeTurnTokenId, combatGroups, movementLimitsEnabled
   ]);
+
+  useEffect(() => {
+    if (isPlayerView) return;
+    postSyncMessage({
+      type: 'SETTINGS_SYNC',
+      payload: settings
+    });
+  }, [isPlayerView, settings]);
 
   // Permitir cancelar la invocación de ficha u objeto con la tecla Escape
   useEffect(() => {
@@ -745,7 +800,7 @@ function App() {
     draggedMapElement, setDraggedMapElement, rotatingToken, setRotatingToken,
     isPaintingFow, setIsPaintingFow, tokenDragMeasurement, setTokenDragMeasurement,
     movementLimitsEnabled, combatGroups, customStatuses,
-    setGraveyard, setIsDraggingCharacter, setHoldProgress,
+    setGraveyard, setCharacters, setIsDraggingCharacter, setHoldProgress,
     setIsSettingsOpen, setFowMode, setObjectNotesModalState,
     boardRef, holdTimerRef, holdStartPosRef, lastFowPointRef,
     tokenDragOriginRef, draggedCharacterRef, draggedItemRef,
@@ -756,6 +811,7 @@ function App() {
   const {
     handleGiveItemToCharacter,
     handleSaveCommonItem,
+    handleImportCommonItems,
     handleDeleteCommonItem,
     handlePickUpItem,
     handleDropItemToFloor,
@@ -764,8 +820,45 @@ function App() {
   } = useInventoryActions({
     tokens, characters, activeTurnTokenId, pan, scale, snapToGrid, gridSize,
     setMaps, setTokens, setCharacters, setCustomObjects, setCommonItems,
-    onStartPlaceMapElement: handleStartPlaceMapElement, showMasterFeedback
+    onStartPlaceMapElement: handleStartPlaceMapElement,
+    onArchiveItemsToCodex: archiveItemsToCodex,
+    showMasterFeedback
   });
+
+  const handleBringCodexEntityToTable = (entity, { silent = false } = {}) => {
+    if (!entity) return;
+    let added = false;
+    setCharacters((prev) => {
+      if (prev.some(c => String(c.id) === String(entity.id))) {
+        return prev;
+      }
+      added = true;
+      return [...prev, { ...entity }];
+    });
+    if (!silent) {
+      showMasterFeedback(
+        added ? `"${entity.name}" traído desde el Códice a la partida` : `"${entity.name}" ya está en la partida`,
+        '📖'
+      );
+    }
+  };
+
+  const handleBringCodexItemToTable = (item) => {
+    if (!item) return;
+    let added = false;
+    setCommonItems((prev) => {
+      const exists = prev.some(
+        it => String(it.id) === String(item.id) || (it.name || '').trim().toLowerCase() === (item.name || '').trim().toLowerCase()
+      );
+      if (exists) return prev;
+      added = true;
+      return [...prev, { ...item }];
+    });
+    showMasterFeedback(
+      added ? `Objeto "${item.name}" añadido al catálogo de la partida` : `"${item.name}" ya estaba en la partida`,
+      '📦'
+    );
+  };
 
 
 
@@ -790,8 +883,15 @@ function App() {
       hp: 0
     };
 
-    setTokens(prev => prev.filter(t => t.id !== token.id));
+    const remainingTokens = tokens.filter(t => t.id !== token.id);
+    setTokens(remainingTokens);
     setGraveyard(prev => [graveEntry, ...prev]);
+
+    const linkedCharId = token.characterId || token.id;
+    const stillHasLivingToken = remainingTokens.some(t => String(t.characterId) === String(linkedCharId));
+    if (!stillHasLivingToken) {
+      setCharacters(prev => prev.filter(c => String(c.id) !== String(linkedCharId)));
+    }
 
     if (activeTurnTokenId === token.id) {
       handleNextTurn();
@@ -846,6 +946,12 @@ function App() {
       try {
         const d = JSON.parse(res.text);
         applyCampaignData(d);
+        if (Array.isArray(d.characters)) {
+          archiveEntitiesToCodex(d.characters, { updateExisting: false });
+        }
+        if (Array.isArray(d.commonItems)) {
+          archiveItemsToCodex(d.commonItems, { updateExisting: false });
+        }
         saveCampaignSnapshot(d, `Crónica: ${res.filename?.replace('.json', '') || 'Importada'}`);
         showMasterFeedback(`Crónica cargada: ${res.filename}`, '📥');
       } catch (err) {
@@ -977,17 +1083,17 @@ function App() {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: '#0b0d12' }}>
+    <div style={{ position: 'fixed', inset: 0, width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden', backgroundColor: 'var(--vtt-bg-deep)' }}>
       <div style={{
         height: '58px',
-        backgroundImage: 'linear-gradient(180deg, rgba(22, 25, 34, 0.72) 0%, rgba(15, 17, 23, 0.92) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+        background: 'var(--vtt-toolbar-bg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         padding: '0 20px',
         display: 'flex',
         alignItems: 'center',
-        borderBottom: '1px solid #3d3222',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.65)',
+        borderBottom: '1px solid var(--vtt-toolbar-border)',
+        boxShadow: 'var(--vtt-shadow-panel)',
         zIndex: 30
       }}>
         <Toolbar
@@ -996,13 +1102,13 @@ function App() {
           onSelectScene={handleSelectScene}
           onOpenHome={() => setIsHomeOpen(true)}
           onOpenSettings={() => setIsSettingsOpen(!isSettingsOpen)}
+          isSettingsOpen={isSettingsOpen}
+          onOpenAppSettings={() => setIsAppSettingsOpen(true)}
           onOpenTutorial={() => setIsTutorialOpen(true)}
           onOpenPlayerView={handleOpenPlayerView}
           onOpenHandouts={() => setIsHandoutModalOpen(true)}
           handoutsCount={handouts.length}
           hasActiveHandout={Boolean(activeHandout)}
-          onOpenGraveyard={() => setEncyclopediaState({ isOpen: true, category: 'graveyard' })}
-          graveyardCount={(graveyard || []).length}
           isCombatActive={isCombatActive}
           combatRound={combatRound}
           activeTurnToken={tokens.find(t => t.id === activeTurnTokenId)}
@@ -1018,6 +1124,8 @@ function App() {
         scenes={scenes}
         activeSceneId={activeSceneId}
         characters={characters}
+        codexEntities={codex.entities}
+        codexItems={codex.items}
         graveyard={graveyard}
         onOpenGraveyard={() => {
           setEncyclopediaState({ isOpen: true, category: 'graveyard' });
@@ -1040,18 +1148,27 @@ function App() {
         onLoadRecentCampaign={(data) => {
           if (!data) return;
           applyCampaignData(data);
+          if (Array.isArray(data.characters)) {
+            archiveEntitiesToCodex(data.characters, { updateExisting: false });
+          }
+          if (Array.isArray(data.commonItems)) {
+            archiveItemsToCodex(data.commonItems, { updateExisting: false });
+          }
           setIsHomeOpen(false);
           showMasterFeedback('Crónica cargada con éxito', '📖');
         }}
-        onOpenPlayerView={handleOpenPlayerView}
         onOpenTutorial={() => setIsTutorialOpen(true)}
+        onOpenAppSettings={() => setIsAppSettingsOpen(true)}
       />
 
-      {/* Vista Independiente: Enciclopedia de Personajes, Bestiario y Cripta/Cementerio */}
+      {/* Vista Independiente: Códice Global (Personajes, Bestiario, Objetos y Cripta) */}
       <EncyclopediaView
         isOpen={encyclopediaState.isOpen}
         initialCategory={encyclopediaState.category}
-        characters={characters}
+        characters={codex.entities}
+        codexItems={codex.items}
+        tableCharacters={characters}
+        tableCommonItems={commonItems}
         graveyard={graveyard}
         onClose={() => setEncyclopediaState(prev => ({ ...prev, isOpen: false }))}
         onReviveCharacter={handleReviveFromGraveyard}
@@ -1070,29 +1187,53 @@ function App() {
           });
         }}
         onEditCharacter={handleEditCharacter}
+        onBringToTable={(entity) => handleBringCodexEntityToTable(entity)}
+        onBringItemToTable={(item) => handleBringCodexItemToTable(item)}
         onDeleteCharacter={(id) => {
-          setCharacters(prev => prev.filter(c => c.id !== id));
-          showMasterFeedback('Registro eliminado de la biblioteca', '🗑️');
+          deleteCodexEntity(id);
+          showMasterFeedback('Registro eliminado del Códice Global', '🗑️');
+        }}
+        onDeleteCodexItem={(id) => {
+          deleteCodexItem(id);
+          showMasterFeedback('Objeto eliminado del Códice Global', '🗑️');
         }}
         onSpawnOnBoard={(char) => {
+          handleBringCodexEntityToTable(char, { silent: true });
           setEncyclopediaState(prev => ({ ...prev, isOpen: false }));
           setIsHomeOpen(false);
           handleAddToken(char);
         }}
         onImportCharacters={(list) => {
-          setCharacters(prev => [...prev, ...list]);
-          showMasterFeedback(`Importados ${list.length} registros a la biblioteca`, '📥');
+          archiveEntitiesToCodex(list, { updateExisting: true });
+          showMasterFeedback(`Archivados ${list.length} registros en el Códice Global`, '📥');
+        }}
+        onImportCodexItems={(list) => {
+          archiveItemsToCodex(list, { updateExisting: true });
+          showMasterFeedback(`Archivados ${list.length} objetos en el Códice Global`, '📥');
         }}
         onExportCharacters={async (entriesToExport, cat) => {
-          const defaultName = cat === 'graveyard' ? 'registro_bajas_vtt.json' : cat === 'monster' ? 'bestiario_mitos_vtt.json' : 'enciclopedia_personajes_vtt.json';
+          const defaultName = cat === 'graveyard'
+            ? 'registro_bajas_vtt.json'
+            : cat === 'item'
+            ? 'codex_objetos_vtt.json'
+            : cat === 'monster'
+            ? 'codex_bestiario_vtt.json'
+            : 'codex_personajes_vtt.json';
           const res = await exportJSON(defaultName, entriesToExport);
           if (res?.success) {
-            showMasterFeedback(`Biblioteca exportada: ${res.filename}`, '📤');
+            showMasterFeedback(`Códice exportado: ${res.filename}`, '📤');
           }
         }}
         onClearCategory={(cat) => {
-          setCharacters(prev => prev.filter(c => getClassificationMeta(c.entityType, c.faction).group !== cat));
-          showMasterFeedback(cat === 'monster' ? 'Bestiario vaciado' : 'Archivo de personajes vaciado', '🗑️');
+          clearCodexCategory(cat);
+          showMasterFeedback(
+            cat === 'item'
+              ? 'Objetos del Códice vaciados'
+              : cat === 'monster'
+              ? 'Bestiario del Códice vaciado'
+              : 'Personajes del Códice vaciados',
+            '🗑️'
+          );
         }}
       />
 
@@ -1198,7 +1339,8 @@ function App() {
           onSave={(savedChar) => {
             if (editingCharacter.mode === 'create') {
               setCharacters(prev => [...prev, savedChar]);
-              showMasterFeedback(`"${savedChar.name}" inscrito en la biblioteca`, '📜');
+              archiveEntitiesToCodex([savedChar], { updateExisting: true });
+              showMasterFeedback(`"${savedChar.name}" inscrito en la mesa y el Códice`, '📜');
             } else {
               setCharacters(prev => prev.map(c => {
                 if (c.id === savedChar.id || (editingCharacter.linkedTokenId && c.id === savedChar.characterId) || c.name === savedChar.name) {
@@ -1244,7 +1386,8 @@ function App() {
                 }
                 return t;
               }));
-              showMasterFeedback(`Ficha de "${savedChar.name}" actualizada`, '✏️');
+              archiveEntitiesToCodex([savedChar], { updateExisting: true });
+              showMasterFeedback(`Ficha de "${savedChar.name}" actualizada en mesa y Códice`, '✏️');
             }
             setEditingCharacter(null);
           }}
@@ -1260,10 +1403,19 @@ function App() {
         <TokenSidebar
           tokens={tokens}
           characters={characters}
+          codexEntities={codex.entities}
+          graveyard={graveyard}
+          onBringToTable={(entity) => handleBringCodexEntityToTable(entity)}
           onImportCharacters={(list) => {
-            setCharacters(prev => [...prev, ...list]);
-            showMasterFeedback(`Importados ${list.length} registros a la mesa`, '📜');
+            setCharacters(prev => {
+              const existingIds = new Set(prev.map(c => String(c.id)));
+              const additions = list.filter(c => !existingIds.has(String(c.id)));
+              return [...prev, ...additions];
+            });
+            archiveEntitiesToCodex(list, { updateExisting: false });
+            showMasterFeedback(`Importados ${list.length} registros a la mesa y archivados en el Códice`, '📜');
           }}
+          onImportCommonItems={handleImportCommonItems}
           onSendToGraveyard={handleSendToGraveyard}
           onStartDragCharacter={handleStartDragCharacter}
           onEndDragCharacter={handleEndDragCharacter}
@@ -1273,17 +1425,6 @@ function App() {
           onEndDragMapElement={handleEndDragMapElement}
           onRemoveToken={(id) => setTokens(prev => prev.filter(t => t.id !== id))}
           onEditCharacter={handleEditCharacter}
-          onCreateNewCharacter={(defaultEntityType = 'human') => {
-            const isMonster = defaultEntityType !== 'human' && defaultEntityType !== 'npc' && defaultEntityType !== 'cultist';
-            setEditingCharacter({
-              mode: 'create',
-              character: {
-                entityType: defaultEntityType,
-                faction: isMonster ? 'enemy' : 'ally',
-                color: isMonster ? '#8b5cf6' : '#3b82f6'
-              }
-            });
-          }}
           onUpdateTokenStats={handleUpdateTokenStats}
           onUpdateTokenSize={handleUpdateTokenSize}
           commonItems={commonItems}
@@ -1311,6 +1452,7 @@ function App() {
           onEndGroupCombat={handleEndGroupCombat}
           onSelectGroupActiveTurn={handleSelectGroupActiveTurn}
           onDisbandAllGroups={handleDisbandAllGroups}
+          onWidthChange={setSidebarWidth}
         />
 
         {/* Aviso Superior de Modo Invocación Activo */}
@@ -1323,21 +1465,21 @@ function App() {
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 9600,
-              background: 'linear-gradient(180deg, rgba(24, 28, 38, 0.96) 0%, rgba(14, 16, 22, 0.98) 100%)',
-              border: '1px solid #fbbf24',
+              background: 'var(--vtt-bg-panel-gradient)',
+              border: '1px solid var(--vtt-gold)',
               borderRadius: '10px',
               padding: '8px 18px',
               display: 'flex',
               alignItems: 'center',
               gap: '14px',
-              color: '#f8fafc',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.9)'
+              color: 'var(--vtt-text-strong)',
+              boxShadow: 'var(--vtt-shadow-panel)'
             }}
           >
             <span style={{ fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              {pendingTokenSpawn.fromGraveyardId ? <Sparkles size={14} strokeWidth={2.2} style={{ color: '#fbbf24' }} /> : <Crosshair size={14} strokeWidth={2.2} style={{ color: '#fbbf24' }} />}
+              {pendingTokenSpawn.fromGraveyardId ? <Sparkles size={14} strokeWidth={2.2} style={{ color: 'var(--vtt-accent-amber)' }} /> : <Crosshair size={14} strokeWidth={2.2} style={{ color: 'var(--vtt-accent-amber)' }} />}
               <span>{pendingTokenSpawn.fromGraveyardId ? 'Haz clic en el mapa para situar al resucitado: ' : 'Haz clic en el mapa para invocar a: '}</span>
-              <strong style={{ color: '#fbbf24' }}>{pendingTokenSpawn.name}</strong>
+              <strong style={{ color: 'var(--vtt-accent-amber)' }}>{pendingTokenSpawn.name}</strong>
             </span>
             <button
               onClick={() => setPendingTokenSpawn(null)}
@@ -1365,19 +1507,19 @@ function App() {
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 9600,
-              background: 'linear-gradient(180deg, rgba(24, 28, 38, 0.96) 0%, rgba(14, 16, 22, 0.98) 100%)',
-              border: '1px solid #f59e0b',
+              background: 'var(--vtt-bg-panel-gradient)',
+              border: '1px solid var(--vtt-gold)',
               borderRadius: '10px',
               padding: '8px 18px',
               display: 'flex',
               alignItems: 'center',
               gap: '14px',
-              color: '#f8fafc',
-              boxShadow: '0 10px 25px rgba(0,0,0,0.9)'
+              color: 'var(--vtt-text-strong)',
+              boxShadow: 'var(--vtt-shadow-panel)'
             }}
           >
             <span style={{ fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Package size={14} strokeWidth={2.2} style={{ color: '#fbbf24' }} /> Haz clic en el mapa para colocar: <strong style={{ color: '#fbbf24' }}>{pendingMapSpawn.name}</strong>
+              <Package size={14} strokeWidth={2.2} style={{ color: 'var(--vtt-accent-amber)' }} /> Haz clic en el mapa para colocar: <strong style={{ color: 'var(--vtt-accent-amber)' }}>{pendingMapSpawn.name}</strong>
             </span>
             <button
               onClick={() => setPendingMapSpawn(null)}
@@ -1469,9 +1611,9 @@ function App() {
           style={{
             position: 'fixed',
             bottom: '12px',
-            left: isSettingsOpen ? 'calc(50vw + 150px - 240px)' : 'calc(50vw + 150px)',
+            left: `calc(50vw + ${Math.round(sidebarWidth / 2)}px - ${isSettingsOpen ? 240 : 0}px)`,
             transform: 'translateX(-50%)',
-            transition: 'left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            transition: 'left 0.24s cubic-bezier(0.2, 0.8, 0.2, 1)',
             zIndex: 4000,
             display: 'flex',
             flexDirection: 'column',
@@ -1489,11 +1631,11 @@ function App() {
               gap: '8px',
               alignItems: 'center',
               justifyContent: 'space-between',
-              background: 'rgba(15, 18, 25, 0.96)',
+              background: 'var(--vtt-dock-bg)',
               padding: '6px 12px',
               borderRadius: '12px',
-              border: '1px solid #2d3446',
-              boxShadow: '0 8px 30px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06)',
+              border: '1px solid var(--vtt-border)',
+              boxShadow: 'var(--vtt-shadow-panel)',
               backdropFilter: 'blur(12px)',
               boxSizing: 'border-box',
               height: '44px',
@@ -1512,10 +1654,10 @@ function App() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: isDraggingDock ? 'grabbing' : 'grab',
-                color: isFogDockOpen ? '#38bdf8' : '#64748b',
+                color: isFogDockOpen ? 'var(--vtt-accent-sky)' : 'var(--vtt-text-dim)',
                 padding: '4px',
                 borderRadius: '4px',
-                backgroundColor: isDraggingDock ? 'rgba(2, 132, 199, 0.25)' : 'transparent',
+                backgroundColor: isDraggingDock ? 'var(--vtt-accent-sky-bg)' : 'transparent',
                 touchAction: 'none',
                 userSelect: 'none',
                 transition: 'color 0.15s ease'
@@ -1555,7 +1697,7 @@ function App() {
               )}
             </button>
 
-            <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+            <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--vtt-border-subtle)' }}></div>
 
             <button
               onClick={() => { setRulerActive(!rulerActive); setFowMode('none'); }}
@@ -1566,53 +1708,39 @@ function App() {
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Ruler size={13} strokeWidth={2.2} /> Regla</span>
             </button>
 
-            <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+            <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--vtt-border-subtle)' }}></div>
 
-            {/* Cuadrícula Táctica y Calibrador */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <button
-                onClick={() => setSnapToGrid(!snapToGrid)}
-                className={`vtt-brass-btn ${snapToGrid ? 'vtt-btn-active' : ''}`}
-                style={{
-                  padding: '5px 9px',
-                  borderRadius: '6px',
-                  fontSize: '11px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  color: snapToGrid ? '#86efac' : '#94a3b8',
-                  borderColor: snapToGrid ? '#10b981' : undefined,
-                  gap: '5px',
-                  height: '30px',
-                  boxSizing: 'border-box'
-                }}
-                title="Ajuste magnético automático de fichas a la cuadrícula"
-              >
-                <span style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: snapToGrid ? '#10b981' : '#475569',
-                  boxShadow: snapToGrid ? '0 0 5px #10b981' : 'none',
-                  display: 'inline-block'
-                }} />
-                <Grid size={12} strokeWidth={2.2} />
-                <span>Cuadrícula: {snapToGrid ? `${gridSize}px` : 'OFF'}</span>
-              </button>
+            {/* Cuadrícula Táctica */}
+            <button
+              onClick={() => setSnapToGrid(!snapToGrid)}
+              className={`vtt-brass-btn ${snapToGrid ? 'vtt-btn-active' : ''}`}
+              style={{
+                padding: '5px 9px',
+                borderRadius: '6px',
+                fontSize: '11px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                color: snapToGrid ? 'var(--vtt-accent-green)' : 'var(--vtt-btn-text)',
+                borderColor: snapToGrid ? 'var(--vtt-accent-green-border)' : undefined,
+                gap: '5px',
+                height: '30px',
+                boxSizing: 'border-box'
+              }}
+              title="Ajuste magnético automático de fichas a la cuadrícula (el tamaño se ajusta en Config. → Tablero)"
+            >
+              <span style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: snapToGrid ? '#10b981' : '#475569',
+                boxShadow: snapToGrid ? '0 0 5px #10b981' : 'none',
+                display: 'inline-block'
+              }} />
+              <Grid size={12} strokeWidth={2.2} />
+              <span>Cuadrícula: {snapToGrid ? `${gridSize}px` : 'OFF'}</span>
+            </button>
 
-              <input
-                type="range"
-                min="20"
-                max="150"
-                step="5"
-                value={gridSize}
-                onChange={(e) => setGridSize(Number(e.target.value))}
-                className="vtt-brass-slider"
-                style={{ width: '75px' }}
-                title={`Ajustar tamaño de cuadrícula: ${gridSize}px`}
-              />
-            </div>
-
-            <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+            <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--vtt-border-subtle)' }}></div>
 
             {/* Atmósfera y Ambiente */}
             <select
@@ -1621,9 +1749,9 @@ function App() {
               style={{
                 padding: '0 8px',
                 borderRadius: '6px',
-                backgroundColor: '#141822',
-                color: '#cbd5e1',
-                border: '1px solid #2d3546',
+                backgroundColor: 'var(--vtt-input-bg)',
+                color: 'var(--vtt-input-text)',
+                border: '1px solid var(--vtt-input-border)',
                 fontSize: '11px',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -1644,9 +1772,9 @@ function App() {
               style={{
                 padding: '0 8px',
                 borderRadius: '6px',
-                backgroundColor: '#141822',
-                color: '#cbd5e1',
-                border: '1px solid #2d3546',
+                backgroundColor: 'var(--vtt-input-bg)',
+                color: 'var(--vtt-input-text)',
+                border: '1px solid var(--vtt-input-border)',
                 fontSize: '11px',
                 fontWeight: 600,
                 cursor: 'pointer',
@@ -1661,7 +1789,7 @@ function App() {
               ))}
             </select>
 
-            <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+            <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--vtt-border-subtle)' }}></div>
 
             {/* Navegación y Cámara */}
             <button
@@ -1691,7 +1819,7 @@ function App() {
                 fontSize: '11px',
                 cursor: 'pointer',
                 fontWeight: 600,
-                color: '#94a3b8',
+                color: 'var(--vtt-text-muted)',
                 height: '30px',
                 boxSizing: 'border-box'
               }}
@@ -1700,7 +1828,7 @@ function App() {
               <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Trash2 size={12} strokeWidth={2.2} /> Vaciar Mesa</span>
             </button>
 
-            <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+            <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--vtt-border-subtle)' }}></div>
 
             {/* Conmutador Flecha / Desplegable Barra II */}
             <button
@@ -1715,9 +1843,9 @@ function App() {
                 fontSize: '12px',
                 fontWeight: 800,
                 cursor: 'pointer',
-                borderColor: isFogDockOpen ? '#38bdf8' : '#334155',
-                color: isFogDockOpen ? '#38bdf8' : '#cbd5e1',
-                backgroundColor: isFogDockOpen ? 'rgba(2, 132, 199, 0.22)' : '#141822',
+                borderColor: isFogDockOpen ? 'var(--vtt-info)' : 'var(--vtt-border)',
+                color: isFogDockOpen ? 'var(--vtt-info)' : 'var(--vtt-text)',
+                backgroundColor: isFogDockOpen ? 'rgba(2, 132, 199, 0.22)' : 'var(--vtt-input-bg)',
                 transition: 'all 0.15s ease',
                 height: '30px',
                 boxSizing: 'border-box'
@@ -1737,11 +1865,11 @@ function App() {
                 gap: '8px',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                background: 'rgba(15, 18, 25, 0.96)',
+                background: 'var(--vtt-dock-bg)',
                 padding: '6px 12px',
                 borderRadius: '12px',
-                border: '1px solid #2d3446',
-                boxShadow: '0 8px 30px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06)',
+                border: '1px solid var(--vtt-border)',
+                boxShadow: 'var(--vtt-shadow-panel)',
                 backdropFilter: 'blur(12px)',
                 boxSizing: 'border-box',
                 height: '44px',
@@ -1760,10 +1888,10 @@ function App() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   cursor: isDraggingDock ? 'grabbing' : 'grab',
-                  color: '#38bdf8',
+                  color: 'var(--vtt-accent-sky)',
                   padding: '4px',
                   borderRadius: '4px',
-                  backgroundColor: isDraggingDock ? 'rgba(2, 132, 199, 0.25)' : 'transparent',
+                  backgroundColor: isDraggingDock ? 'var(--vtt-accent-sky-bg)' : 'transparent',
                   touchAction: 'none',
                   userSelect: 'none',
                   transition: 'color 0.15s ease'
@@ -1783,8 +1911,8 @@ function App() {
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  color: fowEnabled ? '#4ade80' : '#f87171',
-                  borderColor: fowEnabled ? '#10b981' : '#ef4444',
+                  color: fowEnabled ? 'var(--vtt-accent-green-strong)' : 'var(--vtt-accent-red)',
+                  borderColor: fowEnabled ? 'var(--vtt-accent-green-border)' : 'var(--vtt-danger-border)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
@@ -1814,7 +1942,7 @@ function App() {
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  color: fowMemoryEnabled ? '#fbbf24' : '#94a3b8',
+                  color: fowMemoryEnabled ? 'var(--vtt-accent-amber)' : 'var(--vtt-btn-text)',
                   height: '30px',
                   boxSizing: 'border-box'
                 }}
@@ -1837,8 +1965,8 @@ function App() {
                   fontSize: '12px',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  color: livingFogEnabled ? '#38bdf8' : '#94a3b8',
-                  borderColor: livingFogEnabled ? '#0284c7' : '#334155',
+                  color: livingFogEnabled ? 'var(--vtt-accent-sky)' : 'var(--vtt-btn-text)',
+                  borderColor: livingFogEnabled ? 'var(--vtt-accent-sky-border)' : 'var(--vtt-btn-border)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: '6px',
@@ -1851,23 +1979,23 @@ function App() {
                   width: '6px',
                   height: '6px',
                   borderRadius: '50%',
-                  backgroundColor: livingFogEnabled ? '#38bdf8' : '#64748b',
-                  boxShadow: livingFogEnabled ? '0 0 6px #38bdf8' : 'none',
+                  backgroundColor: livingFogEnabled ? 'var(--vtt-accent-sky)' : 'var(--vtt-text-dim)',
+                  boxShadow: livingFogEnabled ? '0 0 6px var(--vtt-accent-sky)' : 'none',
                   display: 'inline-block'
                 }} />
                 <span>Bruma Viva: {livingFogEnabled ? 'ON' : 'OFF'}</span>
               </button>
 
-              <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+              <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--vtt-border-subtle)' }}></div>
 
               {/* Selector de Modo de Pincel de Niebla */}
               <div style={{
                 display: 'flex',
                 gap: '3px',
-                backgroundColor: '#121622',
+                backgroundColor: 'var(--vtt-bg-inset)',
                 padding: '2px',
                 borderRadius: '6px',
-                border: '1px solid #262e40',
+                border: '1px solid var(--vtt-border)',
                 height: '30px',
                 boxSizing: 'border-box',
                 alignItems: 'center'
@@ -1881,9 +2009,9 @@ function App() {
                     fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    color: fowMode === 'none' ? '#fbbf24' : '#94a3b8',
-                    borderColor: fowMode === 'none' ? '#f59e0b' : 'transparent',
-                    background: fowMode === 'none' ? '#241a0d' : 'transparent'
+                    color: fowMode === 'none' ? 'var(--vtt-accent-amber)' : 'var(--vtt-text-muted)',
+                    borderColor: fowMode === 'none' ? 'var(--vtt-accent-amber-border)' : 'transparent',
+                    background: fowMode === 'none' ? 'var(--vtt-accent-amber-bg)' : 'transparent'
                   }}
                   title="Modo Mover: interactúa con fichas y navega por el tablero normalmente"
                 >
@@ -1898,9 +2026,9 @@ function App() {
                     fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    color: fowMode === 'reveal' ? '#4ade80' : '#94a3b8',
-                    borderColor: fowMode === 'reveal' ? '#10b981' : 'transparent',
-                    background: fowMode === 'reveal' ? '#0f291e' : 'transparent'
+                    color: fowMode === 'reveal' ? 'var(--vtt-accent-green-strong)' : 'var(--vtt-text-muted)',
+                    borderColor: fowMode === 'reveal' ? 'var(--vtt-accent-green-border)' : 'transparent',
+                    background: fowMode === 'reveal' ? 'var(--vtt-accent-green-bg)' : 'transparent'
                   }}
                   title="Pincel Despejar: arrastra sobre el mapa para desvelar zonas a los jugadores"
                 >
@@ -1915,9 +2043,9 @@ function App() {
                     fontSize: '11px',
                     fontWeight: 600,
                     cursor: 'pointer',
-                    color: fowMode === 'hide' ? '#f87171' : '#94a3b8',
-                    borderColor: fowMode === 'hide' ? '#ef4444' : 'transparent',
-                    background: fowMode === 'hide' ? '#2b1111' : 'transparent'
+                    color: fowMode === 'hide' ? 'var(--vtt-accent-red)' : 'var(--vtt-text-muted)',
+                    borderColor: fowMode === 'hide' ? 'var(--vtt-danger-border)' : 'transparent',
+                    background: fowMode === 'hide' ? 'var(--vtt-accent-red-bg)' : 'transparent'
                   }}
                   title="Pincel Cubrir: arrastra sobre el mapa para volver a ocultar zonas en la niebla"
                 >
@@ -1927,8 +2055,8 @@ function App() {
 
               {/* Slider de Tamaño de Pincel */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-                  Pincel: <strong style={{ color: '#f8fafc' }}>{fowBrushSize}px</strong>
+                <span style={{ fontSize: '11px', color: 'var(--vtt-text-muted)', fontWeight: 600 }}>
+                  Pincel: <strong style={{ color: 'var(--vtt-text-strong)' }}>{fowBrushSize}px</strong>
                 </span>
                 <input
                   type="range"
@@ -1943,12 +2071,12 @@ function App() {
                 />
               </div>
 
-              <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
+              <div style={{ width: '1px', height: '18px', backgroundColor: 'var(--vtt-border-subtle)' }}></div>
 
               {/* Slider Radio de Visión de Héroes */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>
-                  Visión: <strong style={{ color: '#f8fafc' }}>{fowVisionRadius}px</strong>
+                <span style={{ fontSize: '11px', color: 'var(--vtt-text-muted)', fontWeight: 600 }}>
+                  Visión: <strong style={{ color: 'var(--vtt-text-strong)' }}>{fowVisionRadius}px</strong>
                 </span>
                 <input
                   type="range"
@@ -2127,6 +2255,16 @@ function App() {
           if (activeHandout && activeHandout.id === id) setActiveHandout(null);
         }}
         onProjectHandout={handleProjectHandout}
+      />
+
+      {/* Configuración Global de la Aplicación */}
+      <AppSettingsModal
+        isOpen={isAppSettingsOpen}
+        onClose={() => setIsAppSettingsOpen(false)}
+        onManualSaveCampaign={async () => {
+          const ok = await saveCampaignToDB(campaignDbPayload);
+          showMasterFeedback(ok ? 'Sesión guardada en IndexedDB' : 'Error al guardar sesión');
+        }}
       />
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { BookOpen, Scroll, ArrowRight, ArrowLeft } from 'lucide-react';
+import { BookOpen, Scroll, ArrowRight, ArrowLeft, Settings } from 'lucide-react';
 import { getClassificationMeta } from '../constants/gamePresets';
 import { getRecentCampaigns } from '../utils/campaignStorage';
 
@@ -9,21 +9,24 @@ const HomeScreen = ({
   scenes = [],
   activeSceneId,
   characters = [],
+  codexEntities,
+  codexItems = [],
   graveyard = [],
   onOpenGraveyard,
   onOpenEncyclopedia,
   onCreateCharacter,
   onImportCampaign,
   onLoadRecentCampaign,
-  onOpenPlayerView,
-  onOpenTutorial
+  onOpenTutorial,
+  onOpenAppSettings
 }) => {
   const [isArchivesOpen, setIsArchivesOpen] = useState(false);
   const [recentCampaigns, setRecentCampaigns] = useState([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState(null);
 
-  const characterEntries = characters.filter(c => getClassificationMeta(c.entityType, c.faction).group === 'character');
-  const monsterEntries = characters.filter(c => getClassificationMeta(c.entityType, c.faction).group === 'monster');
+  const codexSourceEntities = Array.isArray(codexEntities) ? codexEntities : characters;
+  const characterEntries = codexSourceEntities.filter(c => getClassificationMeta(c.entityType, c.faction).group === 'character');
+  const monsterEntries = codexSourceEntities.filter(c => getClassificationMeta(c.entityType, c.faction).group === 'monster');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -74,29 +77,26 @@ const HomeScreen = ({
         position: 'fixed',
         inset: 0,
         zIndex: 90000,
-        backgroundColor: '#090b10',
-        backgroundImage: `
-          linear-gradient(180deg, rgba(9, 11, 16, 0.72) 0%, rgba(9, 11, 16, 0.92) 55%, #090b10 100%),
-          url("/assets/textures/hub_investigator_desk.jpg")
-        `,
+        backgroundColor: 'var(--vtt-bg-deep)',
+        backgroundImage: 'var(--vtt-hub-bg)',
         backgroundSize: '100% 100%, cover',
         backgroundPosition: 'center top',
         backgroundRepeat: 'no-repeat, no-repeat',
         backgroundAttachment: 'local, fixed',
         display: 'flex',
         flexDirection: 'column',
-        color: '#e2e8f0',
+        color: 'var(--vtt-text)',
         overflowY: 'auto'
       }}
     >
       {/* Cabecera Superior del Hub */}
       <div style={{
         padding: '22px 44px',
-        borderBottom: '1px solid #3d3222',
+        borderBottom: '1px solid var(--vtt-toolbar-border)',
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        backgroundImage: 'linear-gradient(180deg, rgba(16, 20, 28, 0.75) 0%, rgba(13, 16, 23, 0.92) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+        background: 'var(--vtt-toolbar-bg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backdropFilter: 'blur(12px)',
@@ -106,45 +106,35 @@ const HomeScreen = ({
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
           <div style={{
-            width: '44px',
-            height: '44px',
-            borderRadius: '12px',
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(180, 83, 9, 0.5) 100%)',
-            backgroundColor: '#2a1a08',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '24px',
-            border: '1.5px solid #f59e0b',
-            boxShadow: '0 4px 20px rgba(245, 158, 11, 0.25)',
-            color: '#fbbf24'
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            overflow: 'hidden',
+            backgroundColor: '#0b0e14',
+            border: '1.5px solid var(--vtt-gold)',
+            boxShadow: '0 4px 18px rgba(0, 0, 0, 0.35), 0 0 14px rgba(245, 158, 11, 0.22)',
+            flexShrink: 0
           }}>
-            <BookOpen size={22} strokeWidth={2.2} />
+            <img
+              src="/assets/textures/grimorio_emblem_logo.jpg"
+              alt="Emblema Grimorio VTT"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
           </div>
-          <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <h1 className="vtt-gothic-title" style={{ margin: 0, fontSize: '22px', color: '#f8fafc', letterSpacing: '0.06em' }}>
-                GRIMORIO <span style={{ color: '#f59e0b' }}>VTT</span>
-              </h1>
-              <span className="vtt-retro-badge" style={{
-                fontSize: '10px',
-                backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                color: '#fbbf24',
-                border: '1px solid rgba(245, 158, 11, 0.4)',
-                padding: '2px 8px',
-                borderRadius: '999px',
-                fontWeight: 700
-              }}>
-                SALA DE TRONO • HUB PRINCIPAL
-              </span>
-            </div>
-            <div style={{ fontSize: '12px', color: '#94a3b8', marginTop: '2px' }}>
-              Mesa virtual táctica con iluminación dinámica, dados físicos 3D y pantalla de jugadores en tiempo real
-            </div>
-          </div>
+          <h1 className="vtt-gothic-title" style={{ margin: 0, fontSize: '24px', color: 'var(--vtt-text-strong)', letterSpacing: '0.07em' }}>
+            GRIMORIO <span style={{ color: 'var(--vtt-gold)' }}>VTT</span>
+          </h1>
         </div>
 
         <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+          <button
+            onClick={onOpenAppSettings}
+            className="vtt-brass-btn"
+            style={{ padding: '9px 15px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 600, gap: '6px' }}
+            title="Configuración de Audio, Tablero, Dados 3D, Rendimiento y Datos"
+          >
+            <Settings size={14} strokeWidth={2.2} /> Configuración
+          </button>
           <button
             onClick={onOpenTutorial}
             className="vtt-brass-btn"
@@ -168,11 +158,10 @@ const HomeScreen = ({
         
         {/* SECCIÓN 1: ACCIONES DE INICIO RÁPIDO Y CAMPAÑA */}
         <div>
-          <div className="vtt-retro-badge" style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, marginBottom: '12px' }}>
+          <div className="vtt-retro-badge" style={{ fontSize: '11px', color: 'var(--vtt-accent-amber)', fontWeight: 700, marginBottom: '12px' }}>
             ACCIONES DE INICIO RÁPIDO Y CRÓNICA
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '16px' }}>
-            
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
             {/* Botón Grande: Entrar a la Mesa */}
             <button
               type="button"
@@ -181,7 +170,7 @@ const HomeScreen = ({
               style={{
                 position: 'relative',
                 overflow: 'hidden',
-                border: '1.5px solid #d4af37',
+                border: '1.5px solid var(--vtt-gold)',
                 borderRadius: '14px',
                 padding: '28px 20px',
                 display: 'flex',
@@ -190,7 +179,7 @@ const HomeScreen = ({
                 justifyContent: 'center',
                 gap: '8px',
                 textAlign: 'center',
-                boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5)',
+                boxShadow: 'var(--vtt-shadow-panel)',
                 backgroundColor: '#11151f'
               }}
               title="Entrar directamente a la mesa y reanudar la partida"
@@ -241,25 +230,26 @@ const HomeScreen = ({
 
             {/* Card 2: Crónicas y Partidas Recientes */}
             <div style={{
-              background: 'linear-gradient(180deg, #161a24 0%, #10131b 100%)',
-              border: '1px solid #2c3344',
+              background: 'var(--vtt-bg-panel-gradient)',
+              border: '1px solid var(--vtt-border)',
               borderRadius: '14px',
               padding: '18px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: '12px'
+              gap: '12px',
+              boxShadow: 'var(--vtt-shadow-panel)'
             }}>
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <div className="vtt-gothic-title" style={{ fontSize: '15px', fontWeight: 'bold', color: '#f8fafc' }}>
+                  <div className="vtt-gothic-title" style={{ fontSize: '15px', fontWeight: 'bold', color: 'var(--vtt-text-strong)' }}>
                     Archivo de Campaña
                   </div>
-                  <span className="vtt-retro-badge" style={{ fontSize: '10px', color: '#94a3b8' }}>
+                  <span className="vtt-retro-badge" style={{ fontSize: '10px', color: 'var(--vtt-text-muted)' }}>
                     Recientes
                   </span>
                 </div>
-                <div style={{ fontSize: '11px', color: '#8e9caa', marginBottom: '10px' }}>
+                <div style={{ fontSize: '11px', color: 'var(--vtt-text-muted)', marginBottom: '10px' }}>
                   Doble clic sobre una crónica para cargarla:
                 </div>
 
@@ -268,10 +258,10 @@ const HomeScreen = ({
                   <div style={{
                     padding: '16px 12px',
                     borderRadius: '8px',
-                    backgroundColor: '#0c0f16',
-                    border: '1px dashed #232b3b',
+                    backgroundColor: 'var(--vtt-bg-inset)',
+                    border: '1px dashed var(--vtt-border)',
                     fontSize: '11px',
-                    color: '#64748b',
+                    color: 'var(--vtt-text-dim)',
                     textAlign: 'center',
                     lineHeight: 1.5
                   }}>
@@ -289,8 +279,8 @@ const HomeScreen = ({
                           style={{
                             padding: '8px 10px',
                             borderRadius: '8px',
-                            backgroundColor: isSelected ? 'rgba(245, 158, 11, 0.16)' : '#0e121a',
-                            border: isSelected ? '1.5px solid #f59e0b' : '1px solid #232b3b',
+                            backgroundColor: isSelected ? 'var(--vtt-accent-amber-bg)' : 'var(--vtt-bg-card)',
+                            border: isSelected ? '1.5px solid var(--vtt-gold)' : '1px solid var(--vtt-border-subtle)',
                             cursor: 'pointer',
                             display: 'flex',
                             justifyContent: 'space-between',
@@ -303,7 +293,7 @@ const HomeScreen = ({
                             <div style={{
                               fontSize: '12px',
                               fontWeight: 700,
-                              color: isSelected ? '#fbbf24' : '#f1f5f9',
+                              color: isSelected ? 'var(--vtt-accent-amber)' : 'var(--vtt-text-strong)',
                               whiteSpace: 'nowrap',
                               textOverflow: 'ellipsis',
                               overflow: 'hidden',
@@ -315,9 +305,9 @@ const HomeScreen = ({
                               {camp.isConcluded && (
                                 <span style={{
                                   fontSize: '9px',
-                                  backgroundColor: 'rgba(245, 158, 11, 0.2)',
-                                  color: '#fbbf24',
-                                  border: '1px solid rgba(245, 158, 11, 0.45)',
+                                  backgroundColor: 'var(--vtt-accent-amber-bg)',
+                                  color: 'var(--vtt-accent-amber)',
+                                  border: '1px solid var(--vtt-accent-amber-border)',
                                   padding: '1px 5px',
                                   borderRadius: '4px',
                                   fontWeight: 700,
@@ -327,7 +317,7 @@ const HomeScreen = ({
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: '10px', color: isSelected ? '#d4af37' : '#6b7a90', marginTop: '1px' }}>
+                            <div style={{ fontSize: '10px', color: isSelected ? 'var(--vtt-accent-amber-soft)' : 'var(--vtt-text-muted)', marginTop: '1px' }}>
                               {camp.dateStr} • {camp.scenesCount} esc. • {camp.charactersCount} fichas
                             </div>
                           </div>
@@ -355,93 +345,27 @@ const HomeScreen = ({
               <button
                 onClick={onImportCampaign}
                 className="vtt-brass-btn"
-                style={{ width: '100%', padding: '9px', borderRadius: '7px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, color: '#cbd5e1' }}
+                style={{ width: '100%', padding: '9px', borderRadius: '7px', cursor: 'pointer', fontSize: '11px', fontWeight: 700, color: 'var(--vtt-btn-text)' }}
                 title="Explora tu equipo para abrir cualquier crónica .json"
               >
                 Cargar archivo .JSON externo...
               </button>
             </div>
 
-            {/* Botón Grande: Pantalla de Jugadores */}
-            <button
-              type="button"
-              onClick={onOpenPlayerView}
-              className="vtt-image-action-btn vtt-image-action-btn-emerald"
-              style={{
-                position: 'relative',
-                overflow: 'hidden',
-                border: '1.5px solid #059669',
-                borderRadius: '14px',
-                padding: '28px 20px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                textAlign: 'center',
-                boxShadow: '0 12px 30px rgba(0, 0, 0, 0.5)',
-                backgroundColor: '#0c1a16'
-              }}
-              title="Lanzar una segunda ventana sincronizada para los jugadores"
-            >
-              {/* Fondo Cinematográfico con Movimiento Vivo Ken Burns */}
-              <div
-                className="vtt-live-kenburns-projector"
-                style={{
-                  position: 'absolute',
-                  inset: '-30px',
-                  backgroundImage: 'url("/assets/textures/player_projector_button_bg.jpg")',
-                  backgroundSize: 'cover',
-                  backgroundPosition: 'center',
-                  backgroundRepeat: 'no-repeat',
-                  pointerEvents: 'none',
-                  zIndex: 0
-                }}
-              />
-
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <div className="vtt-gothic-title" style={{
-                  fontSize: '22px',
-                  fontWeight: 'bold',
-                  color: '#f8fafc',
-                  letterSpacing: '0.06em',
-                  textShadow: '0 2px 14px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.9)',
-                  margin: 0
-                }}>
-                  Pantalla de Jugadores
-                </div>
-
-                <div style={{
-                  fontSize: '12px',
-                  color: '#34d399',
-                  fontWeight: 600,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  marginTop: '8px',
-                  textShadow: '0 1px 8px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.9)'
-                }}>
-                  <span>Lanzar ventana sincronizada</span>
-                  <ArrowRight size={14} strokeWidth={2.2} />
-                </div>
-              </div>
-            </button>
-
           </div>
         </div>
 
         {/* SECCIÓN 2: ARCHIVOS Y CÓDICE */}
         <div>
-          <div className="vtt-retro-badge" style={{ fontSize: '11px', color: '#f59e0b', fontWeight: 700, marginBottom: '12px' }}>
+          <div className="vtt-retro-badge" style={{ fontSize: '11px', color: 'var(--vtt-accent-amber)', fontWeight: 700, marginBottom: '12px' }}>
             ARCHIVOS Y EXPEDIENTES DE CAMPAÑA
           </div>
           
           <div
             onClick={() => setIsArchivesOpen(true)}
             style={{
-              background: 'linear-gradient(180deg, #171b26 0%, #0f121a 100%)',
-              border: '1px solid rgba(245, 158, 11, 0.45)',
+              background: 'var(--vtt-bg-panel-gradient)',
+              border: '1px solid var(--vtt-accent-amber-border)',
               borderRadius: '16px',
               padding: '24px 28px',
               display: 'grid',
@@ -449,7 +373,7 @@ const HomeScreen = ({
               alignItems: 'center',
               gap: '28px',
               cursor: 'pointer',
-              boxShadow: '0 14px 35px rgba(0, 0, 0, 0.55)',
+              boxShadow: 'var(--vtt-shadow-panel)',
               transition: 'all 0.18s ease'
             }}
           >
@@ -458,9 +382,9 @@ const HomeScreen = ({
               height: '140px',
               borderRadius: '10px',
               overflow: 'hidden',
-              border: '1px solid rgba(245, 158, 11, 0.35)',
+              border: '1px solid var(--vtt-accent-amber-border)',
               position: 'relative',
-              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)'
+              boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)'
             }}>
               <img
                 src="/assets/textures/archive_characters_bg.jpg"
@@ -483,40 +407,44 @@ const HomeScreen = ({
                   fontWeight: 700,
                   backdropFilter: 'blur(4px)'
                 }}>
-                  {characterEntries.length + monsterEntries.length + graveyard.length} expedientes
+                  {characterEntries.length + monsterEntries.length + codexItems.length + graveyard.length} expedientes
                 </span>
               </div>
             </div>
 
             <div>
-              <h3 className="vtt-gothic-title" style={{ margin: '0 0 6px 0', fontSize: '22px', color: '#f8fafc' }}>
-                Archivos y Códice de Campaña
+              <h3 className="vtt-gothic-title" style={{ margin: '0 0 6px 0', fontSize: '22px', color: 'var(--vtt-text-strong)' }}>
+                Archivos y Códice Global
               </h3>
-              <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6, maxWidth: '640px' }}>
-                Acceso centralizado al archivo de <strong>Investigadores y Aliados</strong>, el <strong>Bestiario de los Mitos</strong> y el registro fúnebre de combatientes en la <strong>Cripta de Caídos</strong>.
+              <p style={{ fontSize: '13px', color: 'var(--vtt-text-muted)', margin: 0, lineHeight: 1.6, maxWidth: '640px' }}>
+                Archivo histórico persistente de <strong>Investigadores y Aliados</strong>, <strong>Bestiario de los Mitos</strong>, <strong>Objetos Únicos</strong> y la <strong>Cripta de Caídos</strong>.
               </p>
 
-              {/* Tira resumen de las 3 categorías */}
+              {/* Tira resumen de las 4 categorías */}
               <div style={{
                 display: 'inline-flex',
                 gap: '14px',
                 marginTop: '16px',
                 padding: '10px 16px',
-                backgroundColor: '#0c0f16',
+                backgroundColor: 'var(--vtt-bg-card)',
                 borderRadius: '8px',
-                border: '1px solid #202737'
+                border: '1px solid var(--vtt-border)'
               }}>
-                <div style={{ paddingRight: '14px', borderRight: '1px solid #222b3d' }}>
-                  <div style={{ fontSize: '10px', color: '#8e9caa', fontWeight: 700, textTransform: 'uppercase' }}>Personajes</div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#fbbf24', marginTop: '2px' }}>{characterEntries.length}</div>
+                <div style={{ paddingRight: '14px', borderRight: '1px solid var(--vtt-border-subtle)' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Personajes</div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--vtt-accent-amber)', marginTop: '2px' }}>{characterEntries.length}</div>
                 </div>
-                <div style={{ paddingRight: '14px', borderRight: '1px solid #222b3d' }}>
-                  <div style={{ fontSize: '10px', color: '#8e9caa', fontWeight: 700, textTransform: 'uppercase' }}>Bestiario</div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color: '#c4b5fd', marginTop: '2px' }}>{monsterEntries.length}</div>
+                <div style={{ paddingRight: '14px', borderRight: '1px solid var(--vtt-border-subtle)' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Bestiario</div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--vtt-accent-purple)', marginTop: '2px' }}>{monsterEntries.length}</div>
+                </div>
+                <div style={{ paddingRight: '14px', borderRight: '1px solid var(--vtt-border-subtle)' }}>
+                  <div style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Objetos</div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: 'var(--vtt-accent-sky)', marginTop: '2px' }}>{codexItems.length}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: '10px', color: '#8e9caa', fontWeight: 700, textTransform: 'uppercase' }}>Cripta</div>
-                  <div style={{ fontSize: '15px', fontWeight: 800, color: graveyard.length > 0 ? '#fca5a5' : '#94a3b8', marginTop: '2px' }}>{graveyard.length}</div>
+                  <div style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Cripta</div>
+                  <div style={{ fontSize: '15px', fontWeight: 800, color: graveyard.length > 0 ? 'var(--vtt-accent-red)' : 'var(--vtt-text-muted)', marginTop: '2px' }}>{graveyard.length}</div>
                 </div>
               </div>
             </div>
@@ -544,26 +472,26 @@ const HomeScreen = ({
           position: 'fixed',
           inset: 0,
           zIndex: 96000,
-          backgroundColor: '#07090e',
-          backgroundImage: 'linear-gradient(180deg, rgba(8, 11, 16, 0.85) 0%, rgba(6, 8, 12, 0.96) 100%), url("/assets/textures/archive_characters_bg.jpg")',
+          backgroundColor: 'var(--vtt-bg-deep)',
+          backgroundImage: 'var(--vtt-archives-bg)',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           display: 'flex',
           flexDirection: 'column',
-          color: '#e2e8f0',
+          color: 'var(--vtt-text)',
           overflowY: 'auto'
         }}>
           {/* Header de la vista de archivos */}
           <div style={{
             padding: '18px 40px',
-            borderBottom: '1px solid #3d3222',
-            backgroundImage: 'linear-gradient(180deg, rgba(16, 20, 28, 0.8) 0%, rgba(13, 16, 23, 0.95) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+            borderBottom: '1px solid var(--vtt-toolbar-border)',
+            background: 'var(--vtt-toolbar-bg)',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.75)',
+            boxShadow: 'var(--vtt-shadow-panel)',
             position: 'sticky',
             top: 0,
             zIndex: 10
@@ -573,21 +501,20 @@ const HomeScreen = ({
                 width: '42px',
                 height: '42px',
                 borderRadius: '8px',
-                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(180, 83, 9, 0.45) 100%)',
+                background: 'var(--vtt-gold-soft)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                color: '#fbbf24',
-                border: '1.5px solid #7c5826',
-                boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5)'
+                color: 'var(--vtt-accent-amber)',
+                border: '1.5px solid var(--vtt-gold)'
               }}>
                 <BookOpen size={20} strokeWidth={2.1} />
               </div>
               <div>
-                <div className="vtt-gothic-title" style={{ fontSize: '18px', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '0.06em' }}>
+                <div className="vtt-gothic-title" style={{ fontSize: '18px', fontWeight: 'bold', color: 'var(--vtt-text-strong)', letterSpacing: '0.06em' }}>
                   ARCHIVOS Y CÓDICE DE CAMPAÑA
                 </div>
-                <div className="vtt-retro-badge" style={{ fontSize: '11px', color: '#b49b78', marginTop: '2px' }}>
+                <div className="vtt-retro-badge" style={{ fontSize: '11px', color: 'var(--vtt-accent-amber)', marginTop: '2px' }}>
                   {characterEntries.length} Personajes • {monsterEntries.length} Criaturas • {graveyard.length} Caídos en Cripta
                 </div>
               </div>
@@ -614,10 +541,10 @@ const HomeScreen = ({
             gap: '28px'
           }}>
             <div style={{ textAlign: 'center', marginBottom: '8px' }}>
-              <div className="vtt-gothic-title" style={{ fontSize: '24px', color: '#fdf8ea', marginBottom: '8px' }}>
+              <div className="vtt-gothic-title" style={{ fontSize: '24px', color: 'var(--vtt-text-strong)', marginBottom: '8px' }}>
                 Selecciona una Sección de Archivo
               </div>
-              <p style={{ fontSize: '13px', color: '#94a3b8', maxWidth: '620px', margin: '0 auto', lineHeight: 1.6 }}>
+              <p style={{ fontSize: '13px', color: 'var(--vtt-text-muted)', maxWidth: '620px', margin: '0 auto', lineHeight: 1.6 }}>
                 Explora el registro de combatientes, las entidades y horrores de los mitos o la cripta fúnebre para consultar trasfondos, facultades y botín.
               </p>
             </div>
@@ -626,16 +553,16 @@ const HomeScreen = ({
               
               {/* Opción 1: Enciclopedia de Personajes */}
               <div style={{
-                background: 'linear-gradient(180deg, rgba(23, 28, 41, 0.92) 0%, rgba(16, 19, 29, 0.95) 100%)',
+                background: 'var(--vtt-bg-panel-gradient)',
                 backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(245, 158, 11, 0.45)',
+                border: '1px solid var(--vtt-accent-amber-border)',
                 borderRadius: '16px',
                 padding: '22px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 gap: '18px',
-                boxShadow: '0 14px 35px rgba(0,0,0,0.5)'
+                boxShadow: 'var(--vtt-shadow-panel)'
               }}>
                 <div>
                   <div style={{
@@ -643,9 +570,9 @@ const HomeScreen = ({
                     borderRadius: '10px',
                     overflow: 'hidden',
                     marginBottom: '16px',
-                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    border: '1px solid var(--vtt-accent-amber-border)',
                     position: 'relative',
-                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)'
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)'
                   }}>
                     <img
                       src="/assets/textures/encyclopedia_characters_banner.jpg"
@@ -673,10 +600,10 @@ const HomeScreen = ({
                     </div>
                   </div>
 
-                  <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: '#f8fafc' }}>
+                  <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: 'var(--vtt-text-strong)' }}>
                     Enciclopedia de Personajes
                   </h3>
-                  <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
+                  <p style={{ fontSize: '13px', color: 'var(--vtt-text-muted)', margin: 0, lineHeight: 1.6 }}>
                     Vista dedicada estilo enciclopedia con retrato en gran formato, biografía, inventario y grimorio para <strong>Investigadores, Humanos, Aliados y Cultistas</strong>.
                   </p>
                 </div>
@@ -688,7 +615,7 @@ const HomeScreen = ({
                       if (onOpenEncyclopedia) onOpenEncyclopedia('character');
                     }}
                     className="vtt-brass-btn"
-                    style={{ flex: 1, padding: '11px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, borderColor: '#f59e0b', color: '#fbbf24' }}
+                    style={{ flex: 1, padding: '11px', borderRadius: '8px', cursor: 'pointer', fontSize: '12px', fontWeight: 700, borderColor: 'var(--vtt-accent-amber-border)', color: 'var(--vtt-accent-amber)' }}
                   >
                     Abrir Enciclopedia
                   </button>
@@ -708,16 +635,16 @@ const HomeScreen = ({
 
               {/* Opción 2: Bestiario y Biblioteca de los Mitos */}
               <div style={{
-                background: 'linear-gradient(180deg, rgba(25, 22, 43, 0.92) 0%, rgba(17, 15, 29, 0.95) 100%)',
+                background: 'var(--vtt-bg-panel-gradient)',
                 backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(139, 92, 246, 0.45)',
+                border: '1px solid var(--vtt-accent-purple-border)',
                 borderRadius: '16px',
                 padding: '22px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 gap: '18px',
-                boxShadow: '0 14px 35px rgba(0,0,0,0.5)'
+                boxShadow: 'var(--vtt-shadow-panel)'
               }}>
                 <div>
                   <div style={{
@@ -725,9 +652,9 @@ const HomeScreen = ({
                     borderRadius: '10px',
                     overflow: 'hidden',
                     marginBottom: '16px',
-                    border: '1px solid rgba(139, 92, 246, 0.4)',
+                    border: '1px solid var(--vtt-accent-purple-border)',
                     position: 'relative',
-                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)'
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)'
                   }}>
                     <img
                       src="/assets/textures/bestiary_mythos_banner.jpg"
@@ -755,10 +682,10 @@ const HomeScreen = ({
                     </div>
                   </div>
 
-                  <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: '#f8fafc' }}>
+                  <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: 'var(--vtt-text-strong)' }}>
                     Bestiario y Biblioteca de los Mitos
                   </h3>
-                  <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
+                  <p style={{ fontSize: '13px', color: 'var(--vtt-text-muted)', margin: 0, lineHeight: 1.6 }}>
                     Códice ilustrado de <strong>Criaturas de los Mitos, Dioses Primigenios, Dioses Exteriores, Animales y Horrores</strong> clasificados por naturaleza.
                   </p>
                 </div>
@@ -777,8 +704,8 @@ const HomeScreen = ({
                       cursor: 'pointer',
                       fontSize: '12px',
                       fontWeight: 700,
-                      borderColor: '#8b5cf6',
-                      color: '#c4b5fd'
+                      borderColor: 'var(--vtt-accent-purple-border)',
+                      color: 'var(--vtt-accent-purple)'
                     }}
                   >
                     Abrir Bestiario
@@ -799,16 +726,16 @@ const HomeScreen = ({
 
               {/* Opción 3: Cripta y Cementerio */}
               <div style={{
-                background: 'linear-gradient(180deg, rgba(23, 26, 36, 0.92) 0%, rgba(15, 18, 26, 0.95) 100%)',
+                background: 'var(--vtt-bg-panel-gradient)',
                 backdropFilter: 'blur(10px)',
-                border: '1px solid rgba(148, 163, 184, 0.35)',
+                border: '1px solid var(--vtt-border)',
                 borderRadius: '16px',
                 padding: '22px',
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 gap: '18px',
-                boxShadow: '0 14px 35px rgba(0,0,0,0.5)'
+                boxShadow: 'var(--vtt-shadow-panel)'
               }}>
                 <div>
                   <div style={{
@@ -816,9 +743,9 @@ const HomeScreen = ({
                     borderRadius: '10px',
                     overflow: 'hidden',
                     marginBottom: '16px',
-                    border: '1px solid rgba(148, 163, 184, 0.35)',
+                    border: '1px solid var(--vtt-border)',
                     position: 'relative',
-                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.5)'
+                    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.35)'
                   }}>
                     <img
                       src="/assets/textures/crypt_graveyard_banner.jpg"
@@ -846,10 +773,10 @@ const HomeScreen = ({
                     </div>
                   </div>
 
-                  <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: '#f8fafc' }}>
+                  <h3 className="vtt-gothic-title" style={{ margin: '0 0 8px 0', fontSize: '19px', color: 'var(--vtt-text-strong)' }}>
                     Cripta y Cementerio
                   </h3>
-                  <p style={{ fontSize: '13px', color: '#94a3b8', margin: 0, lineHeight: 1.6 }}>
+                  <p style={{ fontSize: '13px', color: 'var(--vtt-text-muted)', margin: 0, lineHeight: 1.6 }}>
                     Registro fúnebre de combatientes perecidos. Consulta el <strong>botín e inventario para saquearlos</strong>, inspecciona sus notas o devuélvelos a la vida.
                   </p>
                 </div>
@@ -857,19 +784,19 @@ const HomeScreen = ({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {graveyard.length > 0 && (
                     <div style={{
-                      backgroundColor: '#0c0e14',
-                      border: '1px solid #1f2535',
+                      backgroundColor: 'var(--vtt-bg-inset)',
+                      border: '1px solid var(--vtt-border)',
                       borderRadius: '8px',
                       padding: '8px 10px',
                       display: 'flex',
                       flexDirection: 'column',
                       gap: '4px'
                     }}>
-                      <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 700 }}>ÚLTIMAS BAJAS REGISTRADAS:</span>
+                      <span style={{ fontSize: '10px', color: 'var(--vtt-text-dim)', fontWeight: 700 }}>ÚLTIMAS BAJAS REGISTRADAS:</span>
                       {graveyard.slice(0, 2).map(g => (
                         <div key={g.graveyardId || g.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px' }}>
-                          <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{g.name}</span>
-                          <span style={{ color: '#94a3b8', fontSize: '10px' }}>{g.sceneName || 'Tablero'}</span>
+                          <span style={{ color: 'var(--vtt-text)', fontWeight: 600 }}>{g.name}</span>
+                          <span style={{ color: 'var(--vtt-text-muted)', fontSize: '10px' }}>{g.sceneName || 'Tablero'}</span>
                         </div>
                       ))}
                     </div>
@@ -889,8 +816,8 @@ const HomeScreen = ({
                       cursor: 'pointer',
                       fontSize: '12px',
                       fontWeight: 700,
-                      borderColor: '#4a5568',
-                      color: '#e2e8f0'
+                      borderColor: 'var(--vtt-border-strong)',
+                      color: 'var(--vtt-btn-text)'
                     }}
                   >
                     Abrir Cripta / Registro ({graveyard.length})

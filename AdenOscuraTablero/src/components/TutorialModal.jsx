@@ -137,7 +137,7 @@ const TutorialModal = ({ isOpen, onClose, onNeverShowAgain }) => {
             <div style={{
               height: '5px',
               borderRadius: '3px',
-              backgroundColor: idx === currentStep ? '#f59e0b' : idx < currentStep ? 'rgba(245, 158, 11, 0.45)' : 'rgba(255, 255, 255, 0.12)',
+              backgroundColor: idx === currentStep ? 'var(--vtt-gold)' : idx < currentStep ? 'var(--vtt-accent-amber-border)' : 'var(--vtt-border)',
               transition: 'all 0.2s ease'
             }} />
           </button>
@@ -150,26 +150,26 @@ const TutorialModal = ({ isOpen, onClose, onNeverShowAgain }) => {
           width: '64px',
           height: '64px',
           borderRadius: '14px',
-          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(180, 83, 9, 0.45) 100%)',
-          border: '1.5px solid #f59e0b',
+          background: 'var(--vtt-accent-amber-bg)',
+          border: '1.5px solid var(--vtt-gold)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
-          boxShadow: '0 6px 18px rgba(245, 158, 11, 0.25)',
-          color: '#fbbf24'
+          boxShadow: '0 6px 18px rgba(245, 158, 11, 0.2)',
+          color: 'var(--vtt-accent-amber)'
         }}>
           {step.icon}
         </div>
 
         <div style={{ flex: 1 }}>
-          <h3 className="vtt-gothic-title" style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#ffffff', letterSpacing: '0.03em' }}>
+          <h3 className="vtt-gothic-title" style={{ margin: '0 0 4px 0', fontSize: '18px', color: 'var(--vtt-text-strong)', letterSpacing: '0.03em' }}>
             {step.title}
           </h3>
-          <div style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--vtt-accent-amber)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
             {step.subtitle}
           </div>
-          <p style={{ fontSize: '13px', lineHeight: '1.6', margin: 0, color: '#cbd5e1' }}>
+          <p style={{ fontSize: '13px', lineHeight: '1.6', margin: 0, color: 'var(--vtt-text)' }}>
             {step.text}
           </p>
         </div>

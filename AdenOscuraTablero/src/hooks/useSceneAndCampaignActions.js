@@ -1,6 +1,8 @@
 import { SOUND_CATALOG } from '../constants/gamePresets';
 import { saveCampaignToDB, clearActiveCampaignDB, exportCampaignJSON, saveCampaignSnapshot } from '../utils/campaignStorage';
 import { exportJSON } from '../utils/fileDialog';
+import { playerSoundEngine } from '../utils/soundEngine';
+import { useAppSettings } from './useAppSettings';
 
 /**
  * Hook para gestión de escenas, proyecciones, audio espacial, tiradas 3D
@@ -76,6 +78,8 @@ export function useSceneAndCampaignActions({
   postSyncMessage,
   showMasterFeedback
 }) {
+  const { settings } = useAppSettings();
+
   const syncLiveSceneIntoList = (sceneList) => (
     sceneList.map((sc) =>
       sc.id === activeSceneId
@@ -224,6 +228,9 @@ export function useSceneAndCampaignActions({
       : [...SOUND_CATALOG, ...customSounds].find(s => s.id === soundOrId) || { id: soundOrId, label: 'Efecto', icon: '🔊' };
 
     postSyncMessage({ type: 'SOUND_PLAY', payload: soundObj });
+    if (settings.playAudioOnMaster) {
+      playerSoundEngine.play(soundObj);
+    }
 
     if (soundObj.loop || String(soundObj.id).startsWith('amb_')) {
       const isAlreadyActive = activeLoops.includes(soundObj.id);
@@ -239,6 +246,7 @@ export function useSceneAndCampaignActions({
 
   const handleStopAllSounds = () => {
     postSyncMessage({ type: 'SOUND_STOP_ALL' });
+    playerSoundEngine.stopAll();
     setActiveLoops([]);
     showMasterFeedback('Ecos silenciados');
   };
@@ -248,6 +256,9 @@ export function useSceneAndCampaignActions({
 
     if (soundObj) {
       postSyncMessage({ type: 'SOUND_PLAY', payload: soundObj });
+      if (settings.playAudioOnMaster) {
+        playerSoundEngine.play(soundObj);
+      }
       showMasterFeedback(`${soundObj.label} (en el mapa)`);
     }
     setRadialMenu(null);
@@ -262,8 +273,9 @@ export function useSceneAndCampaignActions({
   const handleTriggerPublicRoll = (rollReq) => {
     clearExistingDiceCanvases();
     const isPlayerViewConnected = (Date.now() - lastPlayerPingRef.current) < 6500;
+    const sendToPlayers = settings.dicePublicTarget !== 'local_master' && isPlayerViewConnected;
 
-    if (isPlayerViewConnected) {
+    if (sendToPlayers) {
       postSyncMessage({ type: 'TRIGGER_3D_ROLL', payload: rollReq });
       setWaitingForPlayerRoll(true);
       showMasterFeedback(`Lanzando ${rollReq.formula} en Pantalla de Jugadores...`);

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useMemo } from 'react';
 import { getVisionBlockers, raySegmentIntersection, angleDiff } from '../utils/fogGeometry';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 const CANVAS_SIZE = 4000;
 const CANVAS_OFFSET = 1000;
@@ -126,6 +127,7 @@ const FogLayer = ({
   fowMemoryEnabled = true,
   isPlayerView = false
 }) => {
+  const { settings } = useAppSettings();
   const exploredMaskCanvasRef = useRef(null);
   const lastActionsCountRef = useRef(0);
   const lastSceneIdRef = useRef(activeSceneId);
@@ -266,7 +268,7 @@ const FogLayer = ({
         left: -CANVAS_OFFSET,
         pointerEvents: 'none',
         zIndex: 8,
-        opacity: isPlayerView ? 1 : 0.68,
+        opacity: isPlayerView ? 1 : settings.masterFogOpacity,
         transition: 'opacity 0.25s ease'
       }}
     />

@@ -1,10 +1,9 @@
 import {
-  BookOpen,
   Map,
-  Skull,
   SkipForward,
   Monitor,
   Projector,
+  Compass,
   Settings,
   HelpCircle
 } from 'lucide-react';
@@ -12,6 +11,8 @@ import {
 const Toolbar = ({
   onOpenHome,
   onOpenSettings,
+  isSettingsOpen = false,
+  onOpenAppSettings,
   onOpenTutorial,
   onOpenPlayerView,
   onOpenHandouts,
@@ -20,8 +21,6 @@ const Toolbar = ({
   scenes = [],
   activeSceneId = null,
   onSelectScene,
-  onOpenGraveyard,
-  graveyardCount = 0,
   isCombatActive = false,
   combatRound = 1,
   activeTurnToken = null,
@@ -42,7 +41,7 @@ const Toolbar = ({
       }}
     >
       {/* Bloque Izquierdo: Identidad + Selector de Escena */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+      <div style={{ flex: '1 1 0', minWidth: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
         <button
           onClick={onOpenHome}
           className="vtt-brass-btn"
@@ -50,52 +49,52 @@ const Toolbar = ({
             padding: '4px 10px 4px 6px',
             borderRadius: '7px',
             cursor: 'pointer',
-            border: '1px solid #2f384c',
-            background: '#131722',
+            border: '1px solid var(--vtt-border)',
+            background: 'var(--vtt-btn-bg)',
             gap: '8px'
           }}
           title="Abrir Hub de Inicio (Campañas, Crónica y Enciclopedia)"
         >
           <div style={{
-            width: '26px',
-            height: '26px',
-            borderRadius: '5px',
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(180, 83, 9, 0.5) 100%)',
-            backgroundColor: '#2a1a08',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: '1.5px solid #f59e0b',
-            fontSize: '13px',
-            color: '#fbbf24',
-            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)'
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            overflow: 'hidden',
+            backgroundColor: '#0b0e14',
+            border: '1.5px solid var(--vtt-gold)',
+            boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)',
+            flexShrink: 0
           }}>
-            <BookOpen size={15} strokeWidth={2.2} />
+            <img
+              src="/assets/textures/grimorio_emblem_logo.jpg"
+              alt="Grimorio VTT"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+            />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-            <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 800, letterSpacing: '0.05em', lineHeight: 1.1 }}>
-              GRIMORIO <span style={{ color: '#f59e0b', fontWeight: 700 }}>VTT</span>
+            <span className="vtt-gothic-title" style={{ fontSize: '13px', color: 'var(--vtt-text-strong)', fontWeight: 800, letterSpacing: '0.05em', lineHeight: 1.1 }}>
+              GRIMORIO <span style={{ color: 'var(--vtt-gold)', fontWeight: 700 }}>VTT</span>
             </span>
-            <span style={{ fontSize: '9px', color: '#94a3b8', fontWeight: 500, letterSpacing: '0.02em' }}>
+            <span style={{ fontSize: '9px', color: 'var(--vtt-text-muted)', fontWeight: 500, letterSpacing: '0.02em' }}>
               Inicio &amp; Crónica
             </span>
           </div>
         </button>
 
-        <div style={{ width: '1px', height: '20px', backgroundColor: '#222938' }}></div>
+        <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--vtt-border-subtle)' }}></div>
 
         {/* Selector Rápido de Escenas */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          backgroundColor: '#121622',
+          backgroundColor: 'var(--vtt-bg-inset)',
           padding: '3px 8px',
           borderRadius: '6px',
-          border: '1px solid #262e40'
+          border: '1px solid var(--vtt-border)'
         }}>
-          <Map size={13} strokeWidth={2.2} style={{ color: '#94a3b8' }} />
-          <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+          <Map size={13} strokeWidth={2.2} style={{ color: 'var(--vtt-text-muted)' }} />
+          <span style={{ fontSize: '11px', color: 'var(--vtt-text-dim)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Escena
           </span>
           <select
@@ -105,7 +104,7 @@ const Toolbar = ({
               padding: '2px 6px',
               borderRadius: '4px',
               backgroundColor: 'transparent',
-              color: '#f1f5f9',
+              color: 'var(--vtt-text-strong)',
               border: 'none',
               fontSize: '12px',
               fontWeight: 600,
@@ -116,75 +115,96 @@ const Toolbar = ({
             title="Cambiar de mapa o escena activa"
           >
             {scenes.map((sc) => (
-              <option key={sc.id} value={sc.id} style={{ backgroundColor: '#141822', color: '#f8fafc' }}>
+              <option key={sc.id} value={sc.id} style={{ backgroundColor: 'var(--vtt-bg-panel)', color: 'var(--vtt-text-strong)' }}>
                 {sc.name}
               </option>
             ))}
           </select>
         </div>
-
-        {/* Botón Cripta trasladado justo después del selector de escena */}
-        {onOpenGraveyard && (
-          <button
-            type="button"
-            onClick={onOpenGraveyard}
-            className="vtt-brass-btn"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '3px 9px',
-              fontSize: '11px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              color: '#cbd5e1',
-              backgroundColor: '#121622',
-              border: '1px solid #262e40',
-              fontWeight: 600,
-              height: '26px'
-            }}
-            title="Abrir Cripta y Cementerio de Caídos"
-          >
-            <Skull size={14} strokeWidth={2.2} style={{ color: '#cbd5e1' }} />
-            <span>Cripta</span>
-            {graveyardCount > 0 && (
-              <span style={{
-                backgroundColor: '#dc2626',
-                color: '#fff',
-                borderRadius: '8px',
-                padding: '0 5px',
-                fontSize: '9px',
-                fontWeight: 700
-              }}>
-                {graveyardCount}
-              </span>
-            )}
-          </button>
-        )}
       </div>
 
-      {/* Indicador Central de Turnos / Modo Combate */}
-      {isCombatActive && (
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '10px',
-          backgroundColor: '#10141f',
-          border: '1px solid rgba(245, 158, 11, 0.45)',
-          borderRadius: '7px',
-          padding: '4px 10px',
-          boxShadow: '0 2px 10px rgba(0, 0, 0, 0.4)'
-        }}>
+      {/* Bloque Central: Mesa de Juego, Proyección y Combate */}
+      <div style={{ flex: '0 0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+        <button
+          onClick={onOpenPlayerView}
+          className="vtt-brass-btn"
+          style={{
+            height: '32px',
+            padding: '0 10px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            borderColor: 'var(--vtt-accent-green-border)',
+            color: 'var(--vtt-accent-green)',
+            boxSizing: 'border-box'
+          }}
+          title="Pantalla Jugadores: abre la ventana sincronizada en tiempo real para proyectar o llevar a la pantalla de jugadores"
+          aria-label="Pantalla Jugadores"
+        >
+          <Monitor size={18} strokeWidth={2.1} />
+        </button>
+
+        <button
+          onClick={onOpenHandouts}
+          className="vtt-brass-btn"
+          style={{
+            height: '32px',
+            padding: '0 10px',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            borderColor: hasActiveHandout ? 'var(--vtt-accent-green-border)' : 'var(--vtt-accent-sky-border)',
+            color: hasActiveHandout ? 'var(--vtt-accent-green)' : 'var(--vtt-accent-sky-soft)',
+            boxSizing: 'border-box'
+          }}
+          title={`Proyector de Ilustraciones y Pistas${handoutsCount > 0 ? ` (${handoutsCount})` : ''}`}
+          aria-label="Proyector"
+        >
+          <Projector size={18} strokeWidth={2.1} />
+        </button>
+
+        <button
+          onClick={onOpenSettings}
+          className={`vtt-primary-cta ${isSettingsOpen ? 'vtt-btn-active' : ''}`}
+          style={{
+            height: '32px',
+            padding: '0 14px',
+            borderRadius: '6px',
+            fontSize: '12px',
+            cursor: 'pointer',
+            gap: '7px',
+            boxSizing: 'border-box'
+          }}
+          title="Abre el Centro de Mando: Escenas, Notas, Estados y Objetos"
+        >
+          <Compass size={15} strokeWidth={2.2} style={{ color: 'currentColor' }} />
+          <span className="vtt-gothic-title" style={{ fontWeight: 800, fontSize: '12px', letterSpacing: '0.06em' }}>
+            Centro de mando
+          </span>
+        </button>
+
+        {/* Indicador Central de Turnos / Modo Combate */}
+        {isCombatActive && (
+          <>
+            <div style={{ width: '1px', height: '20px', backgroundColor: 'var(--vtt-border-subtle)', margin: '0 2px' }}></div>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              backgroundColor: 'var(--vtt-bg-panel)',
+              border: '1px solid var(--vtt-accent-amber-border)',
+              borderRadius: '7px',
+              padding: '4px 10px',
+              boxShadow: '0 2px 10px rgba(0, 0, 0, 0.25)'
+            }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{
               display: 'inline-block',
               width: '7px',
               height: '7px',
               borderRadius: '50%',
-              backgroundColor: '#f59e0b',
-              boxShadow: '0 0 6px #f59e0b'
+              backgroundColor: 'var(--vtt-gold)',
+              boxShadow: '0 0 6px var(--vtt-gold)'
             }} />
-            <span style={{ fontSize: '11px', fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
+            <span style={{ fontSize: '11px', fontWeight: 800, color: 'var(--vtt-accent-amber)', letterSpacing: '0.04em' }}>
               RONDA {combatRound}
             </span>
           </div>
@@ -194,10 +214,10 @@ const Toolbar = ({
               display: 'flex',
               alignItems: 'center',
               gap: '7px',
-              borderLeft: '1px solid #232b3c',
+              borderLeft: '1px solid var(--vtt-border)',
               paddingLeft: '10px'
             }}>
-              <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase' }}>Turno:</span>
+              <span style={{ fontSize: '10px', color: 'var(--vtt-text-dim)', fontWeight: 600, textTransform: 'uppercase' }}>Turno:</span>
               <div style={{
                 width: '20px',
                 height: '20px',
@@ -214,7 +234,7 @@ const Toolbar = ({
                 {activeTurnToken.avatar ? (
                   <img src={activeTurnToken.avatar} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                 ) : (
-                  <span style={{ fontSize: '10px', fontWeight: 800, color: activeTurnToken.faction === 'enemy' ? '#fca5a5' : '#93c5fd' }}>
+                  <span style={{ fontSize: '10px', fontWeight: 800, color: '#ffffff' }}>
                     {(activeTurnToken.name || '?').charAt(0).toUpperCase()}
                   </span>
                 )}
@@ -222,7 +242,7 @@ const Toolbar = ({
               <span style={{
                 fontSize: '12px',
                 fontWeight: 700,
-                color: activeTurnToken.faction === 'enemy' ? '#fca5a5' : '#93c5fd',
+                color: activeTurnToken.faction === 'enemy' ? 'var(--vtt-accent-red)' : 'var(--vtt-accent-sky)',
                 maxWidth: '130px',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -233,9 +253,9 @@ const Toolbar = ({
               <span style={{
                 fontSize: '10px',
                 fontWeight: 700,
-                color: activeTurnToken.isGraveWound ? '#fca5a5' : '#6ee7b7',
-                background: '#182030',
-                border: '1px solid #26334d',
+                color: activeTurnToken.isGraveWound ? 'var(--vtt-accent-red)' : 'var(--vtt-accent-green)',
+                background: 'var(--vtt-bg-inset)',
+                border: '1px solid var(--vtt-border)',
                 padding: '1px 6px',
                 borderRadius: '4px'
               }} title="Movimiento restante en este turno">
@@ -268,10 +288,8 @@ const Toolbar = ({
             <button
               type="button"
               onClick={onEndCombat}
+              className="vtt-btn-danger"
               style={{
-                background: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                color: '#fca5a5',
                 padding: '2px 6px',
                 fontSize: '10px',
                 borderRadius: '4px',
@@ -283,60 +301,15 @@ const Toolbar = ({
               Terminar
             </button>
           )}
-        </div>
-      )}
+            </div>
+          </>
+        )}
+      </div>
 
-      {/* Bloque Derecho: Acciones Globales */}
-      <div style={{ display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center' }}>
+      {/* Bloque Derecho: Preferencias y Ayuda */}
+      <div style={{ flex: '1 1 0', minWidth: 0, display: 'flex', flexDirection: 'row', gap: '8px', alignItems: 'center', justifyContent: 'flex-end' }}>
         <button
-          onClick={onOpenPlayerView}
-          className="vtt-brass-btn"
-          style={{
-            padding: '6px 13px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            borderColor: '#059669',
-            color: '#6ee7b7',
-            gap: '7px'
-          }}
-          title="Abre la ventana sincronizada en tiempo real para proyectar o llevar a la pantalla de jugadores"
-        >
-          <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 5px #10b981' }}></span>
-          <Monitor size={14} strokeWidth={2.2} />
-          Pantalla Jugadores
-        </button>
-
-        <button
-          onClick={onOpenHandouts}
-          className="vtt-brass-btn"
-          style={{
-            padding: '6px 12px',
-            borderRadius: '6px',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: 'pointer',
-            borderColor: hasActiveHandout ? '#10b981' : '#38bdf8',
-            color: hasActiveHandout ? '#86efac' : '#bae6fd',
-            gap: '6px'
-          }}
-          title="Abrir Proyector de Ilustraciones y Pistas para la Pantalla de Jugadores"
-        >
-          <span style={{
-            display: 'inline-block',
-            width: '7px',
-            height: '7px',
-            borderRadius: '50%',
-            backgroundColor: hasActiveHandout ? '#10b981' : '#38bdf8',
-            boxShadow: hasActiveHandout ? '0 0 6px #10b981' : '0 0 4px #38bdf8'
-          }} />
-          <Projector size={14} strokeWidth={2.2} />
-          Proyector {handoutsCount > 0 ? `(${handoutsCount})` : ''}
-        </button>
-
-        <button
-          onClick={onOpenSettings}
+          onClick={onOpenAppSettings}
           className="vtt-brass-btn"
           style={{
             padding: '6px 12px',
@@ -346,10 +319,10 @@ const Toolbar = ({
             cursor: 'pointer',
             gap: '6px'
           }}
-          title="Abre el Centro de Mando: Escenas, Niebla, Estados y Decorado"
+          title="Configuración global de la aplicación (Audio, Cuadrícula, Dados, Rendimiento)"
         >
           <Settings size={14} strokeWidth={2.2} />
-          Ajustes
+          Config.
         </button>
 
         <button
@@ -361,8 +334,8 @@ const Toolbar = ({
             fontSize: '12px',
             fontWeight: 600,
             cursor: 'pointer',
-            color: '#fbbf24',
-            borderColor: 'rgba(212, 175, 55, 0.45)',
+            color: 'var(--vtt-accent-amber)',
+            borderColor: 'var(--vtt-accent-amber-border)',
             gap: '5px'
           }}
           title="Guía rápida y tutorial del Grimorio VTT"

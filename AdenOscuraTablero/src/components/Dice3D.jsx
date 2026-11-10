@@ -2,8 +2,122 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import DiceBox from '@3d-dice/dice-box';
 import { Dices, X } from 'lucide-react';
+import { useAppSettings } from '../hooks/useAppSettings';
+
+const extractGroupsFromReq = (reqSnapshot) => {
+  if (Array.isArray(reqSnapshot?.diceGroups) && reqSnapshot.diceGroups.length > 0) {
+    return reqSnapshot.diceGroups.map((g) => ({
+      count: Number(g.count) || 1,
+      sides: Number(g.sides) || 20,
+      modifier: Number(g.modifier) || 0
+    }));
+  }
+
+  let notation = reqSnapshot?.diceNotation;
+  if (!notation || (Array.isArray(notation) && notation.length === 0)) {
+    const count = Number(reqSnapshot?.diceCount) || 1;
+    const sides = Number(reqSnapshot?.diceSides) || 20;
+    notation = [`${count}d${sides}`];
+  }
+
+  const list = Array.isArray(notation) ? notation : [notation];
+  return list.map((n, idx) => {
+    const m = String(n).match(/(\d+)\s*d\s*(\d+)/i);
+    return {
+      count: m ? parseInt(m[1], 10) : 1,
+      sides: m ? parseInt(m[2], 10) : 20,
+      modifier: idx === 0 ? (Number(reqSnapshot?.modifier) || 0) : 0
+    };
+  });
+};
+
+const buildRandomGroupRolls = (groups) => {
+  const rolls = [];
+  const detailedRolls = [];
+  const groupedValues = groups.map((g) => {
+    const cnt = g.count || 1;
+    const sds = g.sides || 20;
+    const values = [];
+    for (let i = 0; i < cnt; i++) {
+      const val = Math.floor(Math.random() * sds) + 1;
+      values.push(val);
+      rolls.push(val);
+      detailedRolls.push({ sides: sds, dieType: `d${sds}`, value: val });
+    }
+    return values;
+  });
+  return { rolls, detailedRolls, groupedValues };
+};
+
+const finalizeRollResult = (reqSnapshot, groups, rolls, detailedRolls, groupedValues) => {
+  const groupResults = groups.map((g, idx) => {
+    const gRolls = groupedValues[idx] || [];
+    const diceSubtotal = gRolls.reduce((acc, v) => acc + v, 0);
+    const gMod = Number(g.modifier) || 0;
+    return {
+      count: g.count,
+      sides: g.sides,
+      modifier: gMod,
+      rolls: gRolls,
+      diceSubtotal,
+      subtotal: diceSubtotal + gMod
+    };
+  });
+
+  const hasPerGroupMods = groupResults.some(g => g.modifier !== 0);
+  const totalMod = hasPerGroupMods
+    ? groupResults.reduce((acc, g) => acc + g.modifier, 0)
+    : (Number(reqSnapshot?.modifier) || 0);
+  const total = rolls.reduce((acc, v) => acc + v, 0) + totalMod;
+
+  const fallbackFormula = groups
+    .map((g) => {
+      const base = `${g.count}d${g.sides}`;
+      if (!g.modifier) return base;
+      const sign = g.modifier > 0 ? '+' : '-';
+      return `${base}${sign}${Math.abs(g.modifier)}`;
+    })
+    .join(' + ');
+
+  return {
+    id: reqSnapshot?.id || (Date.now() + Math.random()),
+    formula: reqSnapshot?.formula || fallbackFormula,
+    modifier: totalMod,
+    diceSides: reqSnapshot?.diceSides || detailedRolls[0]?.sides || 20,
+    rolls,
+    detailedRolls,
+    groupResults,
+    total,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+  };
+};
+
+const assignFlatRollsToGroups = (groups, detailedRolls) => {
+  const used = new Array(detailedRolls.length).fill(false);
+  return groups.map((g) => {
+    const values = [];
+    for (let i = 0; i < g.count; i++) {
+      let matchIdx = detailedRolls.findIndex((r, idx) => !used[idx] && r.sides === g.sides);
+      if (matchIdx === -1) {
+        matchIdx = detailedRolls.findIndex((_, idx) => !used[idx]);
+      }
+      if (matchIdx !== -1) {
+        used[matchIdx] = true;
+        values.push(detailedRolls[matchIdx].value);
+      }
+    }
+    return values;
+  });
+};
+
+const buildRandomDiceResult = (reqSnapshot) => {
+  const groups = extractGroupsFromReq(reqSnapshot);
+  const { rolls, detailedRolls, groupedValues } = buildRandomGroupRolls(groups);
+  return finalizeRollResult(reqSnapshot, groups, rolls, detailedRolls, groupedValues);
+};
 
 const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded }) => {
+  const { settings } = useAppSettings();
   const diceBoxRef = useRef(null);
   const [result, setResult] = useState(() => resultData || null);
   const [prevResultData, setPrevResultData] = useState(resultData);
@@ -47,16 +161,31 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded }) => {
     let isCancelled = false;
     containerEl.innerHTML = '';
 
+    if (!settings.dice3DEnabled) {
+      Promise.resolve().then(() => {
+        if (isCancelled) return;
+        const instantObj = buildRandomDiceResult(reqSnapshot);
+        setResult(instantObj);
+        if (onRollLandedRef.current) {
+          onRollLandedRef.current(instantObj);
+        }
+      });
+      return () => {
+        isCancelled = true;
+      };
+    }
+
     const startDiceEngine = async () => {
       try {
+        const throwForce = settings.diceThrowForce || 5;
         const box = new DiceBox({
           container: `#${containerId}`,
           assetPath: '/assets/dice-box/',
           theme: 'default',
-          themeColor: '#d4af37',
-          scale: 7,
-          spinForce: 5,
-          throwForce: 5,
+          themeColor: settings.diceThemeColor || '#d4af37',
+          scale: settings.diceScale || 7,
+          spinForce: throwForce,
+          throwForce,
           gravity: 1.8,
           startingHeight: 8
         });
@@ -88,27 +217,32 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded }) => {
         const res = await box.roll(boxNotation);
         if (isCancelled) return;
 
+        const groups = extractGroupsFromReq(reqSnapshot);
         let rolls = [];
         let detailedRolls = [];
-        let diceSum = 0;
+        let groupedValues = null;
 
         if (Array.isArray(res) && res.length > 0) {
           if (Array.isArray(res[0]?.rolls)) {
-            // Resultado devuelto agrupado por grupos
+            const rawGroupValues = [];
             res.forEach(grp => {
+              const gVals = [];
               if (Array.isArray(grp.rolls)) {
                 grp.rolls.forEach(r => {
                   if (typeof r.value === 'number') {
                     rolls.push(r.value);
+                    gVals.push(r.value);
                     const sideVal = r.sides || grp.sides || (r.dieType ? parseInt(r.dieType.replace(/\D/g, ''), 10) : 20);
                     detailedRolls.push({ sides: sideVal, dieType: r.dieType || `d${sideVal}`, value: r.value });
                   }
                 });
               }
+              rawGroupValues.push(gVals);
             });
-            diceSum = rolls.reduce((acc, v) => acc + v, 0);
+            groupedValues = rawGroupValues.length === groups.length
+              ? rawGroupValues
+              : assignFlatRollsToGroups(groups, detailedRolls);
           } else {
-            // Resultado devuelto como array plano de dados
             res.forEach(r => {
               if (typeof r.value === 'number') {
                 rolls.push(r.value);
@@ -116,44 +250,19 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded }) => {
                 detailedRolls.push({ sides: sideVal, dieType: r.dieType || `d${sideVal}`, value: r.value });
               }
             });
-            diceSum = rolls.reduce((acc, v) => acc + v, 0);
+            groupedValues = assignFlatRollsToGroups(groups, detailedRolls);
           }
         }
 
         // Si por alguna razón la física no devuelve tiradas, generamos valores coherentes para cada grupo
         if (rolls.length === 0) {
-          const groups = Array.isArray(reqSnapshot?.diceGroups) && reqSnapshot.diceGroups.length > 0
-            ? reqSnapshot.diceGroups
-            : (Array.isArray(notation) ? notation : [notation]).map(n => {
-                const m = String(n).match(/(\d+)\s*d\s*(\d+)/i);
-                return m ? { count: parseInt(m[1], 10), sides: parseInt(m[2], 10) } : { count: 1, sides: 20 };
-              });
-
-          groups.forEach(g => {
-            const cnt = g.count || 1;
-            const sds = g.sides || 20;
-            for (let i = 0; i < cnt; i++) {
-              const val = Math.floor(Math.random() * sds) + 1;
-              rolls.push(val);
-              detailedRolls.push({ sides: sds, dieType: `d${sds}`, value: val });
-            }
-          });
-          diceSum = rolls.reduce((acc, v) => acc + v, 0);
+          const fallbackData = buildRandomGroupRolls(groups);
+          rolls = fallbackData.rolls;
+          detailedRolls = fallbackData.detailedRolls;
+          groupedValues = fallbackData.groupedValues;
         }
 
-        const mod = Number(reqSnapshot?.modifier) || 0;
-        const total = diceSum + mod;
-
-        const finalObj = {
-          id: reqSnapshot?.id || (Date.now() + Math.random()),
-          formula: reqSnapshot?.formula || (Array.isArray(notation) ? notation.join(' + ') : notation),
-          modifier: mod,
-          diceSides: reqSnapshot?.diceSides || (detailedRolls[0]?.sides) || 20,
-          rolls,
-          detailedRolls,
-          total,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-        };
+        const finalObj = finalizeRollResult(reqSnapshot, groups, rolls, detailedRolls, groupedValues);
 
         setResult(finalObj);
         if (onRollLandedRef.current) {
@@ -162,33 +271,7 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded }) => {
       } catch (err) {
         console.error('Error en el motor 3D:', err);
         if (!isCancelled) {
-          const groups = Array.isArray(reqSnapshot?.diceGroups) && reqSnapshot.diceGroups.length > 0
-            ? reqSnapshot.diceGroups
-            : [{ count: Number(reqSnapshot?.diceCount) || 1, sides: Number(reqSnapshot?.diceSides) || 20 }];
-
-          const rolls = [];
-          const detailedRolls = [];
-          groups.forEach(g => {
-            const cnt = g.count || 1;
-            const sds = g.sides || 20;
-            for (let i = 0; i < cnt; i++) {
-              const val = Math.floor(Math.random() * sds) + 1;
-              rolls.push(val);
-              detailedRolls.push({ sides: sds, dieType: `d${sds}`, value: val });
-            }
-          });
-          const mod = Number(reqSnapshot?.modifier) || 0;
-          const total = rolls.reduce((a, b) => a + b, 0) + mod;
-          const fallback = {
-            id: reqSnapshot?.id || Date.now(),
-            formula: reqSnapshot?.formula || groups.map(g => `${g.count}d${g.sides}`).join(' + '),
-            modifier: mod,
-            diceSides: groups[0]?.sides || 20,
-            rolls,
-            detailedRolls,
-            total,
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-          };
+          const fallback = buildRandomDiceResult(reqSnapshot);
           setResult(fallback);
           if (onRollLandedRef.current) {
             onRollLandedRef.current(fallback);
@@ -214,7 +297,7 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded }) => {
         containerEl.innerHTML = '';
       }
     };
-  }, [rollReq?.id, containerId, resultData]);
+  }, [rollReq?.id, containerId, resultData, settings.dice3DEnabled, settings.diceThemeColor, settings.diceScale, settings.diceThrowForce]);
 
   const handleCloseRoll = (finalVal = null) => {
     document.querySelectorAll('.dice-box-canvas').forEach(c => {
@@ -397,27 +480,57 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded }) => {
               gap: '6px'
             }}>
               <span>Dados:</span>
-              {result.detailedRolls && result.detailedRolls.length > 0 && new Set(result.detailedRolls.map(r => r.dieType || `d${r.sides}`)).size > 1 ? (
+              {result.groupResults && result.groupResults.length > 1 ? (
                 <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
-                  {result.detailedRolls.map((r, i) => (
+                  {result.groupResults.map((g, i) => (
                     <span key={i} style={{
                       background: 'rgba(0,0,0,0.5)',
                       border: '1px solid #8a6d3b',
                       borderRadius: '4px',
-                      padding: '2px 7px',
-                      fontSize: '13px'
+                      padding: '2px 8px',
+                      fontSize: '13px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
                     }}>
-                      <strong style={{ color: '#fbbf24' }}>{r.dieType || `d${r.sides}`}:</strong> {r.value}
+                      <strong style={{ color: '#fbbf24' }}>{g.count}d{g.sides}:</strong>
+                      <span>{g.rolls.length === 1 ? g.rolls[0] : `[${g.rolls.join(', ')}]`}</span>
+                      {g.modifier !== 0 && (
+                        <span style={{ color: g.modifier > 0 ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+                          {g.modifier > 0 ? `+${g.modifier}` : g.modifier}
+                        </span>
+                      )}
+                      {(g.modifier !== 0 || g.rolls.length > 1) && (
+                        <strong style={{ color: '#fffbeb' }}>= {g.subtotal}</strong>
+                      )}
                     </span>
                   ))}
                 </div>
               ) : (
-                <span>[{result.rolls.join(', ')}]</span>
-              )}
-              {result.modifier !== 0 && (
-                <span style={{ color: result.modifier > 0 ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
-                  {result.modifier > 0 ? `+ ${result.modifier}` : `- ${Math.abs(result.modifier)}`}
-                </span>
+                <>
+                  {result.detailedRolls && result.detailedRolls.length > 0 && new Set(result.detailedRolls.map(r => r.dieType || `d${r.sides}`)).size > 1 ? (
+                    <div style={{ display: 'inline-flex', gap: '6px', flexWrap: 'wrap', alignItems: 'center' }}>
+                      {result.detailedRolls.map((r, i) => (
+                        <span key={i} style={{
+                          background: 'rgba(0,0,0,0.5)',
+                          border: '1px solid #8a6d3b',
+                          borderRadius: '4px',
+                          padding: '2px 7px',
+                          fontSize: '13px'
+                        }}>
+                          <strong style={{ color: '#fbbf24' }}>{r.dieType || `d${r.sides}`}:</strong> {r.value}
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <span>[{result.rolls.join(', ')}]</span>
+                  )}
+                  {result.modifier !== 0 && (
+                    <span style={{ color: result.modifier > 0 ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
+                      {result.modifier > 0 ? `+ ${result.modifier}` : `- ${Math.abs(result.modifier)}`}
+                    </span>
+                  )}
+                </>
               )}
             </div>
 

@@ -1,7 +1,9 @@
 import { useState, useRef } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, GripVertical } from 'lucide-react';
 import LibraryTab from './sidebar/LibraryTab';
 import SceneCombatTab from './sidebar/SceneCombatTab';
+
+const SIDEBAR_OPEN_WIDTH = 320;
 
 /**
  * Panel lateral principal del tablero: alterna entre "En Escena" (turnos y combate)
@@ -10,7 +12,10 @@ import SceneCombatTab from './sidebar/SceneCombatTab';
 const TokenSidebar = ({
   tokens = [],
   characters = [],
+  codexEntities = [],
+  graveyard = [],
   onImportCharacters,
+  onBringToTable,
   onSendToGraveyard,
   onStartDragCharacter,
   onEndDragCharacter,
@@ -20,11 +25,11 @@ const TokenSidebar = ({
   onEndDragMapElement,
   onRemoveToken,
   onEditCharacter,
-  onCreateNewCharacter,
   onUpdateTokenStats,
   onUpdateTokenSize,
   commonItems = [],
   onGiveItemToCharacter,
+  onImportCommonItems,
   onOpenTokenSheet,
   onReorderTokens,
   onCenterOnToken,
@@ -47,11 +52,16 @@ const TokenSidebar = ({
   onNextGroupTurn,
   onEndGroupCombat,
   onSelectGroupActiveTurn,
-  onDisbandAllGroups
+  onDisbandAllGroups,
+  onWidthChange
 }) => {
   const [activeMainTab, setActiveMainTab] = useState('scene');
   const [expandedTokenIds, setExpandedTokenIds] = useState(new Set());
   const [activeDrag, setActiveDrag] = useState(null);
+  const [drawerWidth, setDrawerWidth] = useState(SIDEBAR_OPEN_WIDTH);
+  const [isDraggingDrawer, setIsDraggingDrawer] = useState(false);
+  const [isHoveringHandle, setIsHoveringHandle] = useState(false);
+  const drawerDragRef = useRef(null);
 
   const dragRef = useRef(null);
   const cardRefs = useRef({});
@@ -276,32 +286,102 @@ const TokenSidebar = ({
     });
   };
 
+  const applyDrawerWidth = (w) => {
+    setDrawerWidth(w);
+    if (onWidthChange) onWidthChange(w);
+  };
+
+  const handleDrawerPointerDown = (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.stopPropagation();
+    e.preventDefault();
+    drawerDragRef.current = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startWidth: drawerWidth,
+      latestWidth: drawerWidth
+    };
+    setIsDraggingDrawer(true);
+    try {
+      e.currentTarget.setPointerCapture?.(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handleDrawerPointerMove = (e) => {
+    const drag = drawerDragRef.current;
+    if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    const clamped = Math.round(Math.min(SIDEBAR_OPEN_WIDTH, Math.max(0, drag.startWidth + dx)));
+    drag.latestWidth = clamped;
+    applyDrawerWidth(clamped);
+  };
+
+  const handleDrawerPointerUp = (e) => {
+    const drag = drawerDragRef.current;
+    if (!drag) return;
+    try {
+      e.currentTarget.releasePointerCapture?.(drag.pointerId);
+    } catch {
+      /* ignore */
+    }
+    const dx = e.clientX - drag.startX;
+    const isClick = Math.abs(dx) < 5;
+    let finalWidth;
+    if (isClick) {
+      finalWidth = drag.startWidth > SIDEBAR_OPEN_WIDTH / 2 ? 0 : SIDEBAR_OPEN_WIDTH;
+    } else if (drag.startWidth >= SIDEBAR_OPEN_WIDTH / 2) {
+      finalWidth = (dx < -40 || drag.latestWidth < SIDEBAR_OPEN_WIDTH * 0.65) ? 0 : SIDEBAR_OPEN_WIDTH;
+    } else {
+      finalWidth = (dx > 40 || drag.latestWidth > SIDEBAR_OPEN_WIDTH * 0.35) ? SIDEBAR_OPEN_WIDTH : 0;
+    }
+    drawerDragRef.current = null;
+    setIsDraggingDrawer(false);
+    applyDrawerWidth(finalWidth);
+  };
+
+  const isDrawerOpen = drawerWidth > 0;
+
   return (
     <div style={{
-      width: '320px',
+      position: 'relative',
+      width: `${drawerWidth}px`,
       height: '100%',
-      background: 'linear-gradient(180deg, #14171f 0%, #0e1016 100%)',
-      color: '#e2e8f0',
-      display: 'flex',
-      flexDirection: 'column',
-      borderRight: '1px solid #2b3040',
-      boxShadow: '6px 0 24px rgba(0,0,0,0.65)',
-      zIndex: 20,
-      flexShrink: 0
+      flexShrink: 0,
+      zIndex: 25,
+      transition: isDraggingDrawer ? 'none' : 'width 0.24s cubic-bezier(0.2, 0.8, 0.2, 1)'
     }}>
+      <div style={{
+        width: '100%',
+        height: '100%',
+        overflow: 'hidden',
+        borderRight: isDrawerOpen ? '1px solid var(--vtt-border)' : 'none',
+        boxShadow: isDrawerOpen ? '6px 0 24px rgba(0,0,0,0.28)' : 'none',
+        background: 'var(--vtt-sidebar-bg)'
+      }}>
+        <div style={{
+          width: `${SIDEBAR_OPEN_WIDTH}px`,
+          height: '100%',
+          marginLeft: `${drawerWidth - SIDEBAR_OPEN_WIDTH}px`,
+          transition: isDraggingDrawer ? 'none' : 'margin-left 0.24s cubic-bezier(0.2, 0.8, 0.2, 1)',
+          color: 'var(--vtt-text)',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
       {/* Selector de Pestañas Superiores: En Escena vs Elementos */}
       <div style={{
         padding: '8px 10px',
-        backgroundColor: '#0c0e15',
-        borderBottom: '1px solid #242c3d',
+        backgroundColor: 'var(--vtt-sidebar-header-bg)',
+        borderBottom: '1px solid var(--vtt-border-subtle)',
         flexShrink: 0
       }}>
         <div style={{
           display: 'flex',
-          backgroundColor: '#131722',
+          backgroundColor: 'var(--vtt-bg-inset)',
           padding: '3px',
           borderRadius: '8px',
-          border: '1px solid #242d40',
+          border: '1px solid var(--vtt-border)',
           gap: '4px'
         }}>
           <button
@@ -313,11 +393,11 @@ const TokenSidebar = ({
               fontSize: '12px',
               fontWeight: 700,
               cursor: 'pointer',
-              border: activeMainTab === 'scene' ? '1px solid #f59e0b' : '1px solid transparent',
+              border: activeMainTab === 'scene' ? '1px solid var(--vtt-gold)' : '1px solid transparent',
               borderRadius: '6px',
-              backgroundColor: activeMainTab === 'scene' ? '#1e2638' : 'transparent',
-              color: activeMainTab === 'scene' ? '#fbbf24' : '#8593a8',
-              boxShadow: activeMainTab === 'scene' ? '0 2px 8px rgba(0,0,0,0.45)' : 'none',
+              backgroundColor: activeMainTab === 'scene' ? 'var(--vtt-gold-soft)' : 'transparent',
+              color: activeMainTab === 'scene' ? 'var(--vtt-gold-light)' : 'var(--vtt-text-muted)',
+              boxShadow: activeMainTab === 'scene' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
               transition: 'all 0.15s ease',
               display: 'flex',
               alignItems: 'center',
@@ -337,11 +417,11 @@ const TokenSidebar = ({
               fontSize: '12px',
               fontWeight: 700,
               cursor: 'pointer',
-              border: activeMainTab === 'library' ? '1px solid #f59e0b' : '1px solid transparent',
+              border: activeMainTab === 'library' ? '1px solid var(--vtt-gold)' : '1px solid transparent',
               borderRadius: '6px',
-              backgroundColor: activeMainTab === 'library' ? '#1e2638' : 'transparent',
-              color: activeMainTab === 'library' ? '#fbbf24' : '#8593a8',
-              boxShadow: activeMainTab === 'library' ? '0 2px 8px rgba(0,0,0,0.45)' : 'none',
+              backgroundColor: activeMainTab === 'library' ? 'var(--vtt-gold-soft)' : 'transparent',
+              color: activeMainTab === 'library' ? 'var(--vtt-gold-light)' : 'var(--vtt-text-muted)',
+              boxShadow: activeMainTab === 'library' ? '0 2px 8px rgba(0,0,0,0.2)' : 'none',
               transition: 'all 0.15s ease',
               display: 'flex',
               alignItems: 'center',
@@ -357,10 +437,12 @@ const TokenSidebar = ({
       {activeMainTab === 'library' ? (
         <LibraryTab
           characters={characters}
+          codexEntities={codexEntities}
+          graveyard={graveyard}
           commonItems={commonItems}
           activeTurnTokenId={activeTurnTokenId}
           onImportCharacters={onImportCharacters}
-          onCreateNewCharacter={onCreateNewCharacter}
+          onBringToTable={onBringToTable}
           onStartDragCharacter={onStartDragCharacter}
           onEndDragCharacter={onEndDragCharacter}
           onEditCharacter={onEditCharacter}
@@ -369,6 +451,7 @@ const TokenSidebar = ({
           onStartDragMapElement={onStartDragMapElement}
           onEndDragMapElement={onEndDragMapElement}
           onGiveItemToCharacter={onGiveItemToCharacter}
+          onImportCommonItems={onImportCommonItems}
         />
       ) : (
         <SceneCombatTab
@@ -411,7 +494,6 @@ const TokenSidebar = ({
           onRemoveToken={onRemoveToken}
           onUpdateTokenStats={onUpdateTokenStats}
           onUpdateTokenSize={onUpdateTokenSize}
-          onOpenLibraryTab={() => setActiveMainTab('library')}
         />
       )}
 
@@ -464,6 +546,55 @@ const TokenSidebar = ({
           </span>
         </div>
       )}
+        </div>
+      </div>
+
+      {/* Agarre central en el borde derecho interior para desplegar / contraer arrastrando */}
+      <div
+        role="button"
+        tabIndex={0}
+        aria-label={isDrawerOpen ? 'Contraer panel lateral' : 'Desplegar panel lateral'}
+        title={isDrawerOpen ? 'Arrastra hacia la izquierda o haz clic para ocultar el menú' : 'Arrastra hacia la derecha o haz clic para abrir el menú'}
+        onPointerDown={handleDrawerPointerDown}
+        onPointerMove={handleDrawerPointerMove}
+        onPointerUp={handleDrawerPointerUp}
+        onPointerCancel={handleDrawerPointerUp}
+        onMouseEnter={() => setIsHoveringHandle(true)}
+        onMouseLeave={() => setIsHoveringHandle(false)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            applyDrawerWidth(isDrawerOpen ? 0 : SIDEBAR_OPEN_WIDTH);
+          }
+        }}
+        style={{
+          position: 'absolute',
+          top: '50%',
+          right: '-16px',
+          transform: 'translateY(-50%)',
+          width: '16px',
+          height: '72px',
+          borderRadius: '0 8px 8px 0',
+          border: `1px solid ${isDraggingDrawer || isHoveringHandle ? 'var(--vtt-gold)' : 'var(--vtt-border)'}`,
+          borderLeft: 'none',
+          background: isDraggingDrawer
+            ? 'var(--vtt-gold-soft)'
+            : 'var(--vtt-bg-panel)',
+          boxShadow: isDraggingDrawer
+            ? '4px 0 16px rgba(245, 158, 11, 0.3)'
+            : '4px 0 14px rgba(0, 0, 0, 0.35)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: isDraggingDrawer ? 'grabbing' : 'grab',
+          color: isDraggingDrawer || isHoveringHandle ? 'var(--vtt-gold-light)' : 'var(--vtt-text-dim)',
+          touchAction: 'none',
+          userSelect: 'none',
+          transition: 'border-color 0.15s ease, color 0.15s ease, background 0.15s ease'
+        }}
+      >
+        <GripVertical size={13} strokeWidth={2.2} />
+      </div>
     </div>
   );
 };

@@ -5,6 +5,7 @@ import {
   getDefaultStructureDimensions,
   getStructureOrientationSizes
 } from '../utils/fogGeometry';
+import { useAppSettings } from './useAppSettings';
 
 const segmentIntersectsRect = (fromX, fromY, toX, toY, x1, y1, w, h) => {
   const x2 = x1 + w;
@@ -63,6 +64,7 @@ export function useBoardInteraction({
   combatGroups,
   customStatuses,
   setGraveyard,
+  setCharacters,
   setIsDraggingCharacter,
   setHoldProgress,
   setIsSettingsOpen,
@@ -80,6 +82,8 @@ export function useBoardInteraction({
   handleAssignTokenToGroup,
   showMasterFeedback
 }) {
+  const { settings } = useAppSettings();
+
   const handleToggleDoor = (doorId) => {
     setMaps(prev => prev.map(el => {
       if (el.id === doorId && el.type === 'door') {
@@ -196,8 +200,8 @@ export function useBoardInteraction({
       visionMode: 'cone',
       isLocked: false,
       isHidden: char.faction === 'enemy',
-      showName: true,
-      showBars: false,
+      showName: settings.defaultShowTokenName,
+      showBars: settings.defaultShowTokenBars,
       statuses: char.statuses || [],
       hp: char.hp ?? 20,
       maxHp: char.maxHp ?? 20,
@@ -217,8 +221,28 @@ export function useBoardInteraction({
     };
     if (char.fromGraveyardId) {
       setGraveyard(prev => prev.filter(g => (g.graveyardId || g.id) !== char.fromGraveyardId));
+      if (setCharacters) {
+        const revivedCharId = char.characterId || char.id;
+        setCharacters((prev) => {
+          const exists = prev.some(c => String(c.id) === String(revivedCharId));
+          if (exists) {
+            return prev.map(c => (String(c.id) === String(revivedCharId) ? { ...c, hp: newToken.hp } : c));
+          }
+          const revivedLibraryEntry = {
+            ...char,
+            id: revivedCharId,
+            hp: newToken.hp
+          };
+          delete revivedLibraryEntry.fromGraveyardId;
+          delete revivedLibraryEntry.characterId;
+          return [...prev, revivedLibraryEntry];
+        });
+      }
       showMasterFeedback(`"${char.name}" ha resucitado y regresa al tablero`);
     } else {
+      if (setCharacters && char.id) {
+        setCharacters((prev) => (prev.some(c => String(c.id) === String(char.id)) ? prev : [...prev, { ...char }]));
+      }
       showMasterFeedback(`${char.name} desplegado en escena`);
     }
     setTokens(prev => [...prev, newToken]);
@@ -300,7 +324,7 @@ export function useBoardInteraction({
 
     if (droppedElement) {
       const defaults = (droppedElement.type === 'door' || droppedElement.type === 'window')
-        ? getDefaultStructureDimensions(droppedElement.type)
+        ? getDefaultStructureDimensions(droppedElement.type, settings)
         : { width: droppedElement.type === 'item' ? 18 : 38, height: droppedElement.type === 'item' ? 18 : 38 };
       const elWidth = droppedElement.width || defaults.width;
       const elHeight = droppedElement.height || defaults.height;
@@ -353,7 +377,7 @@ export function useBoardInteraction({
       if (!isPlayerView && pendingMapSpawn) {
         const coords = getLogicalCoords(e);
         const isStructure = pendingMapSpawn.type === 'door' || pendingMapSpawn.type === 'window';
-        const defaults = isStructure ? getDefaultStructureDimensions(pendingMapSpawn.type) : { width: 48, height: 48 };
+        const defaults = isStructure ? getDefaultStructureDimensions(pendingMapSpawn.type, settings) : { width: 48, height: 48 };
         const w = pendingMapSpawn.width || defaults.width;
         const h = pendingMapSpawn.height || defaults.height;
         const spawnX = snapToGrid ? Math.round(coords.x / gridSize) * gridSize : coords.x - w / 2;

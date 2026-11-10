@@ -8,6 +8,8 @@ import GameToken from './GameToken';
 import WeatherOverlay from './WeatherOverlay';
 import MapStructureGraphic from './map-layer/MapStructureGraphic';
 import { SOUND_CATALOG } from '../constants/gamePresets';
+import { useAppSettings } from '../hooks/useAppSettings';
+import { formatBoardDistance, formatShortUnitDistance, getBoardSurfaceConfig } from '../constants/appSettings';
 
 const BASE_QUICK_SOUNDS = SOUND_CATALOG.filter(s => !s.loop).slice(0, 6);
 
@@ -37,6 +39,8 @@ const GameBoard = ({
   tokenDragMeasurement = null,
   handleDropOnBoard = null
 }) => {
+  const { settings } = useAppSettings();
+  const boardSurface = getBoardSurfaceConfig(settings.boardSurface);
   const [spawnHoverPos, setSpawnHoverPos] = useState(null);
   const isToolActive = rulerActive || Boolean(pendingTokenSpawn) || Boolean(pendingMapSpawn) || (!isPlayerView && fowEnabled && fowMode !== 'none');
   const boardCursor = isDraggingPan ? 'grabbing' : (isToolActive ? 'crosshair' : 'grab');
@@ -100,9 +104,8 @@ const GameBoard = ({
     const dx = endX - startX;
     const dy = endY - startY;
     const pixelDist = Math.hypot(dx, dy);
-    const squares = (pixelDist / (gridSize || 50)).toFixed(1);
-    const feet = Math.round((pixelDist / (gridSize || 50)) * 5);
-    const meters = ((pixelDist / (gridSize || 50)) * 1.5).toFixed(1);
+    const squares = pixelDist / (gridSize || 50);
+    const distanceLabel = formatBoardDistance(squares, settings, true);
     const midX = (startX + endX) / 2;
     const midY = (startY + endY) / 2;
 
@@ -134,7 +137,7 @@ const GameBoard = ({
             boxShadow: '0 6px 16px rgba(0,0,0,0.85)'
           }}
         >
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Ruler size={13} strokeWidth={2.2} /> {squares} casillas ({feet} ft / {meters} m)</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Ruler size={13} strokeWidth={2.2} /> {distanceLabel}</span>
         </div>
       </div>
     );
@@ -212,8 +215,8 @@ const GameBoard = ({
           }} />
           <span>
             {isGraveWound
-              ? `Herida Grave: ${remaining}/${maxSpeed} casillas (${remaining * 5} ft)`
-              : `Movimiento: ${remaining}/${maxSpeed} casillas (${remaining * 5} ft)`}
+              ? `Herida Grave: ${remaining}/${maxSpeed} casillas${formatShortUnitDistance(remaining, settings)}`
+              : `Movimiento: ${remaining}/${maxSpeed} casillas${formatShortUnitDistance(remaining, settings)}`}
           </span>
         </div>
       </div>
@@ -262,7 +265,7 @@ const GameBoard = ({
           }}
         >
           {atLimit ? '🔴 ¡Límite alcanzado! ' : '🟢 '}
-          {movedSquares} / {maxSquares} casillas ({movedSquares * 5} ft / {(movedSquares * 1.5).toFixed(1)} m)
+          {movedSquares} / {maxSquares} casillas{formatShortUnitDistance(movedSquares, settings)}
         </div>
       </div>
     );
@@ -286,10 +289,10 @@ const GameBoard = ({
         cursor: boardCursor,
         userSelect: 'none',
         WebkitUserSelect: 'none',
-        background: 'radial-gradient(circle at center, rgba(16, 20, 28, 0.42) 0%, rgba(5, 7, 10, 0.88) 100%), url("/assets/textures/tabletop_dark_wood.jpg")',
-        backgroundSize: 'cover',
+        background: `${boardSurface.overlay}, url("${boardSurface.image}")`,
+        backgroundSize: boardSurface.backgroundSize,
         backgroundPosition: 'center',
-        backgroundRepeat: 'repeat'
+        backgroundRepeat: boardSurface.backgroundRepeat
       }}
     >
       <style>{`

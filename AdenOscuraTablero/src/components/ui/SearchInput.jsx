@@ -21,7 +21,7 @@ const SearchInput = ({
           left: '10px',
           top: '50%',
           transform: 'translateY(-50%)',
-          color: '#64748b',
+          color: 'var(--vtt-text-dim)',
           pointerEvents: 'none'
         }}
       />
@@ -35,9 +35,9 @@ const SearchInput = ({
           width: '100%',
           padding: value ? '7px 28px 7px 30px' : '7px 10px 7px 30px',
           borderRadius: '6px',
-          backgroundColor: '#121622',
-          border: '1px solid #2a3447',
-          color: '#f1f5f9',
+          backgroundColor: 'var(--vtt-input-bg)',
+          border: '1px solid var(--vtt-input-border)',
+          color: 'var(--vtt-input-text)',
           fontSize: '12px',
           boxSizing: 'border-box',
           ...inputStyle
@@ -60,7 +60,7 @@ const SearchInput = ({
             border: 'none',
             borderRadius: '4px',
             background: 'transparent',
-            color: '#94a3b8',
+            color: 'var(--vtt-text-muted)',
             cursor: 'pointer',
             display: 'inline-flex',
             alignItems: 'center',

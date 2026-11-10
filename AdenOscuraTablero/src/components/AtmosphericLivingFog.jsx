@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 const CANVAS_SIZE = 4000;
 const CANVAS_OFFSET = 1000;
@@ -119,12 +120,14 @@ const AtmosphericLivingFog = ({
   fowVisionRadius = 180,
   isPlayerView = false
 }) => {
+  const { settings } = useAppSettings();
+  const quality = settings.livingFogQuality || 'high';
   const mountRef = useRef(null);
   const threeRefs = useRef(null);
 
   useEffect(() => {
     const mountEl = mountRef.current;
-    if (!fowEnabled || !livingFogEnabled || !mountEl || !fowCanvasRef?.current) return;
+    if (!fowEnabled || !livingFogEnabled || quality === 'off' || !mountEl || !fowCanvasRef?.current) return;
 
     const width = CANVAS_SIZE;
     const height = CANVAS_SIZE;
@@ -156,8 +159,8 @@ const AtmosphericLivingFog = ({
       uLightRadii: { value: new Float32Array(12).fill(0) },
       uLightColors: { value: Array(12).fill(new THREE.Vector3(1, 0.7, 0.3)) },
       uNumLights: { value: 0 },
-      uFogIntensity: { value: 0.8 },
-      uFlickerStrength: { value: 0.12 }
+      uFogIntensity: { value: quality === 'low' ? 0.55 : 0.8 },
+      uFlickerStrength: { value: quality === 'low' ? 0.08 : 0.12 }
     };
 
     const material = new THREE.ShaderMaterial({
@@ -183,10 +186,16 @@ const AtmosphericLivingFog = ({
     };
 
     let reqId;
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
+    const minFrameMs = quality === 'low' ? 66 : quality === 'medium' ? 33 : 0;
+    let lastRenderTime = 0;
 
-    const animate = () => {
+    const animate = (nowMs = 0) => {
       reqId = requestAnimationFrame(animate);
+      if (minFrameMs > 0 && nowMs - lastRenderTime < minFrameMs) {
+        return;
+      }
+      lastRenderTime = nowMs;
       if (uniforms && maskTexture) {
         uniforms.uTime.value = clock.getElapsedTime();
         maskTexture.needsUpdate = true;
@@ -207,7 +216,7 @@ const AtmosphericLivingFog = ({
       maskTexture.dispose();
       threeRefs.current = null;
     };
-  }, [fowEnabled, livingFogEnabled, fowCanvasRef]);
+  }, [fowEnabled, livingFogEnabled, quality, fowCanvasRef]);
 
   // Actualizar posiciones de luces y antorchas dinámicamente en los uniforms
   useEffect(() => {
@@ -264,7 +273,7 @@ const AtmosphericLivingFog = ({
     uniforms.uNumLights.value = lightList.length;
   }, [tokens, maps, fowVisionRadius]);
 
-  if (!fowEnabled || !livingFogEnabled) return null;
+  if (!fowEnabled || !livingFogEnabled || quality === 'off') return null;
 
   return (
     <div
@@ -277,7 +286,7 @@ const AtmosphericLivingFog = ({
         height: `${CANVAS_SIZE}px`,
         pointerEvents: 'none',
         zIndex: 9,
-        opacity: isPlayerView ? 1 : 0.75,
+        opacity: isPlayerView ? 1 : Math.min(0.98, settings.masterFogOpacity + 0.08),
         mixBlendMode: 'normal'
       }}
     />

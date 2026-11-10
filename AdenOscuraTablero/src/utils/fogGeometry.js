@@ -50,9 +50,18 @@ export const segmentIntersectsRotatedRect = (fromX, fromY, toX, toY, cx, cy, w, 
   );
 };
 
-export const getDefaultStructureDimensions = (type) => (
-  type === 'window' ? { width: 36, height: 8 } : { width: 36, height: 10 }
-);
+export const getDefaultStructureDimensions = (type, settings = null) => {
+  if (type === 'window') {
+    return {
+      width: settings?.defaultWindowWidth || 36,
+      height: settings?.defaultWindowThickness || 8
+    };
+  }
+  return {
+    width: settings?.defaultDoorWidth || 36,
+    height: settings?.defaultDoorThickness || 10
+  };
+};
 
 const normalizeDeg = (deg) => ((Math.round(deg) % 360) + 360) % 360;
 

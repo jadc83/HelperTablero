@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   Play, SkipForward, Square, Swords, Pencil, Trash2,
-  Circle, ArrowRight, X, ChevronUp, ChevronDown
+  Circle, X, ChevronUp, ChevronDown
 } from 'lucide-react';
 import { useConfirm } from '../../hooks/useConfirm';
 import TokenCombatCard from './TokenCombatCard';
@@ -49,8 +49,7 @@ const SceneCombatTab = ({
   onSendToGraveyard,
   onRemoveToken,
   onUpdateTokenStats,
-  onUpdateTokenSize,
-  onOpenLibraryTab
+  onUpdateTokenSize
 }) => {
   const { confirm } = useConfirm();
   const [editingGroupId, setEditingGroupId] = useState(null);
@@ -126,15 +125,15 @@ const SceneCombatTab = ({
           marginBottom: '10px',
           padding: '7px 8px',
           background: isCombatActive
-            ? 'linear-gradient(90deg, rgba(245, 158, 11, 0.18) 0%, rgba(20, 24, 34, 0.95) 100%)'
-            : '#131620',
-          border: isCombatActive ? '1px solid #fbbf24' : '1px solid #282f3f',
+            ? 'var(--vtt-accent-amber-bg)'
+            : 'var(--vtt-bg-card)',
+          border: isCombatActive ? '1px solid var(--vtt-gold)' : '1px solid var(--vtt-border)',
           borderRadius: '8px',
           flexShrink: 0
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span style={{ fontSize: '11px', color: isCombatActive ? '#fbbf24' : '#94a3b8', fontWeight: 600 }}>
+              <span style={{ fontSize: '11px', color: isCombatActive ? 'var(--vtt-accent-amber)' : 'var(--vtt-text-muted)', fontWeight: 600 }}>
                 {isCombatActive ? `Ronda ${combatRound}` : 'Orden de turnos'}
               </span>
             </div>
@@ -170,9 +169,9 @@ const SceneCombatTab = ({
                       type="button"
                       onClick={onToggleMovementLimits}
                       style={{
-                        background: movementLimitsEnabled ? 'rgba(16, 185, 129, 0.18)' : 'rgba(239, 68, 68, 0.15)',
-                        border: movementLimitsEnabled ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid rgba(239, 68, 68, 0.4)',
-                        color: movementLimitsEnabled ? '#34d399' : '#fca5a5',
+                        background: movementLimitsEnabled ? 'var(--vtt-accent-green-bg)' : 'var(--vtt-accent-red-bg)',
+                        border: movementLimitsEnabled ? '1px solid var(--vtt-accent-green-border)' : '1px solid var(--vtt-danger-border)',
+                        color: movementLimitsEnabled ? 'var(--vtt-accent-green-strong)' : 'var(--vtt-accent-red)',
                         padding: '3px 6px',
                         fontSize: '10px',
                         borderRadius: '4px',
@@ -199,10 +198,8 @@ const SceneCombatTab = ({
                     <button
                       type="button"
                       onClick={onEndCombat}
+                      className="vtt-btn-danger"
                       style={{
-                        background: 'rgba(239, 68, 68, 0.15)',
-                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                        color: '#fca5a5',
                         padding: '4px 7px',
                         fontSize: '10px',
                         borderRadius: '4px',
@@ -222,12 +219,12 @@ const SceneCombatTab = ({
           </div>
 
           {isCombatActive ? (
-            <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', marginTop: '2px' }}>
-              En combate solo se mueve el turno activo. <strong style={{ color: '#fbbf24' }}>Ctrl + Arrastre</strong> para mover libre.
+            <span style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontStyle: 'italic', marginTop: '2px' }}>
+              En combate solo se mueve el turno activo. <strong style={{ color: 'var(--vtt-accent-amber)' }}>Ctrl + Arrastre</strong> para mover libre.
             </span>
           ) : (
-            <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', marginTop: '2px' }}>
-              Pulsa <strong style={{ color: '#fbbf24' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Play size={10} strokeWidth={2.4} /> Iniciar</span></strong> para comenzar el combate y activar el límite de movimiento por turno.
+            <span style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontStyle: 'italic', marginTop: '2px' }}>
+              Pulsa <strong style={{ color: 'var(--vtt-accent-amber)' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Play size={10} strokeWidth={2.4} /> Iniciar</span></strong> para comenzar el combate y activar el límite de movimiento por turno.
             </span>
           )}
         </div>
@@ -241,12 +238,12 @@ const SceneCombatTab = ({
           alignItems: 'center',
           marginBottom: '10px',
           padding: '7px 9px',
-          background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, rgba(19, 22, 32, 0.95) 100%)',
-          border: '1px solid #3b4255',
+          background: 'var(--vtt-bg-card)',
+          border: '1px solid var(--vtt-border)',
           borderRadius: '8px',
           flexShrink: 0
         }}>
-          <span style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+          <span style={{ fontSize: '11px', color: 'var(--vtt-accent-amber)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
             <Swords size={12} strokeWidth={2.2} /> Encuentros ({combatGroups.length})
           </span>
           <div style={{ display: 'flex', gap: '5px' }}>
@@ -265,13 +262,11 @@ const SceneCombatTab = ({
               <button
                 type="button"
                 onClick={handleConfirmDisbandAll}
+                className="vtt-btn-danger"
                 style={{
                   padding: '3px 6px',
                   fontSize: '10px',
                   borderRadius: '4px',
-                  background: 'rgba(239, 68, 68, 0.15)',
-                  border: '1px solid rgba(239, 68, 68, 0.35)',
-                  color: '#fca5a5',
                   cursor: 'pointer',
                   fontWeight: 600
                 }}
@@ -287,7 +282,7 @@ const SceneCombatTab = ({
       {/* Botón rápido de desplegar / plegar todos */}
       {tokens.length > 0 && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', padding: '0 2px', flexShrink: 0 }}>
-          <span style={{ fontSize: '10px', color: '#64748b', fontWeight: 600 }}>
+          <span style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 600 }}>
             Combatientes ({tokens.length})
           </span>
           <button
@@ -583,23 +578,13 @@ const SceneCombatTab = ({
 
       {tokens.length === 0 && (
         <div style={{
-          textAlign: 'center', color: '#64748b', fontSize: '12px', marginTop: '16px',
-          padding: '28px 14px', backgroundColor: '#11141b', borderRadius: '10px', border: '1px dashed #262b38'
+          textAlign: 'center', color: 'var(--vtt-text-dim)', fontSize: '12px', marginTop: '16px',
+          padding: '28px 14px', backgroundColor: 'var(--vtt-bg-inset)', borderRadius: '10px', border: '1px dashed var(--vtt-border)'
         }}>
-          <div style={{ fontWeight: 700, color: '#e2e8f0', marginBottom: '4px' }}>Mesa Despejada</div>
-          <div style={{ fontSize: '11px', marginBottom: '14px', lineHeight: 1.4 }}>
+          <div style={{ fontWeight: 700, color: 'var(--vtt-text-strong)', marginBottom: '4px' }}>Mesa Despejada</div>
+          <div style={{ fontSize: '11px', lineHeight: 1.4 }}>
             No hay personajes ni criaturas en juego.
           </div>
-          <button
-            type="button"
-            onClick={onOpenLibraryTab}
-            className="vtt-brass-btn"
-            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', color: '#fbbf24', borderColor: '#f59e0b' }}
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              Abrir Elementos <ArrowRight size={12} strokeWidth={2.4} />
-            </span>
-          </button>
         </div>
       )}
     </div>

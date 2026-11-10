@@ -145,12 +145,12 @@ const SettingsDrawer = ({
       bottom: '0',
       transition: 'right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
       zIndex: 4500,
-      background: 'linear-gradient(180deg, #131722 0%, #0a0d14 100%)',
-      borderLeft: '1.5px solid #2a3448',
-      boxShadow: isOpen ? '-16px 0 50px rgba(0,0,0,0.92)' : 'none',
+      background: 'var(--vtt-bg-panel-gradient)',
+      borderLeft: '1.5px solid var(--vtt-border)',
+      boxShadow: isOpen ? 'var(--vtt-shadow-panel)' : 'none',
       display: 'flex',
       flexDirection: 'column',
-      color: '#e2e8f0',
+      color: 'var(--vtt-text)',
       overflow: 'hidden'
     }}>
       {/* Cabecera Superior */}
@@ -159,11 +159,11 @@ const SettingsDrawer = ({
         justifyContent: 'space-between',
         alignItems: 'center',
         padding: '12px 18px',
-        backgroundImage: 'linear-gradient(180deg, rgba(16, 19, 27, 0.75) 0%, rgba(13, 16, 23, 0.95) 100%), url("/assets/textures/grimoire_leather_header.jpg")',
+        background: 'var(--vtt-toolbar-bg)',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
-        borderBottom: '1px solid rgba(212, 175, 55, 0.3)',
-        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.6)'
+        borderBottom: '1px solid var(--vtt-toolbar-border)',
+        boxShadow: '0 2px 12px rgba(0, 0, 0, 0.25)'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '9px' }}>
           <span style={{
@@ -173,14 +173,14 @@ const SettingsDrawer = ({
             width: '24px',
             height: '24px',
             borderRadius: '5px',
-            background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.3) 0%, rgba(180, 83, 9, 0.4) 100%)',
-            border: '1px solid #d4af37',
-            color: '#fbbf24',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.5)'
+            background: 'var(--vtt-gold-soft)',
+            border: '1px solid var(--vtt-gold)',
+            color: 'var(--vtt-gold-light)',
+            boxShadow: '0 2px 6px rgba(0,0,0,0.35)'
           }}>
             <Settings size={14} strokeWidth={2.2} />
           </span>
-          <span className="vtt-gothic-title" style={{ fontSize: '16px', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '0.06em' }}>
+          <span className="vtt-gothic-title" style={{ fontSize: '16px', fontWeight: 'bold', color: 'var(--vtt-text-strong)', letterSpacing: '0.06em' }}>
             CENTRO DE MANDO
           </span>
         </div>
@@ -208,7 +208,7 @@ const SettingsDrawer = ({
               className={`vtt-dossier-tab ${isActive ? 'vtt-dossier-tab-active' : ''}`}
               title={`Expediente: ${tab.label}`}
             >
-              <IconComponent size={13} strokeWidth={2.2} style={{ color: isActive ? '#fef08a' : '#8e9caa' }} />
+              <IconComponent size={13} strokeWidth={2.2} style={{ color: isActive ? 'currentColor' : 'var(--vtt-text-muted)' }} />
               <span>{tab.label}</span>
             </button>
           );
@@ -220,11 +220,11 @@ const SettingsDrawer = ({
         {statusMessage && (
           <div style={{
             padding: '7px 12px',
-            backgroundColor: '#261810',
-            border: '1px solid #d4af37',
+            backgroundColor: 'var(--vtt-accent-amber-bg)',
+            border: '1px solid var(--vtt-gold)',
             borderRadius: '6px',
             fontSize: '12px',
-            color: '#fbbf24',
+            color: 'var(--vtt-accent-amber)',
             textAlign: 'center',
             fontWeight: 'bold'
           }}>

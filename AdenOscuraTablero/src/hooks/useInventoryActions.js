@@ -16,6 +16,7 @@ export function useInventoryActions({
   setCustomObjects,
   setCommonItems,
   onStartPlaceMapElement,
+  onArchiveItemsToCodex,
   showMasterFeedback
 }) {
   const handleSaveCustomObject = (obj) => {
@@ -68,6 +69,10 @@ export function useInventoryActions({
       assignedName = found ? found.name : 'combatiente';
     }
 
+    if (onArchiveItemsToCodex) {
+      onArchiveItemsToCodex([newItem], { updateExisting: false });
+    }
+
     return { newItem, assignedName };
   };
 
@@ -87,7 +92,26 @@ export function useInventoryActions({
       const exists = prev.some(it => it.id === item.id);
       return exists ? prev.map(it => (it.id === item.id ? item : it)) : [...prev, item];
     });
+    if (onArchiveItemsToCodex) {
+      onArchiveItemsToCodex([item], { updateExisting: true });
+    }
     showMasterFeedback(`Objeto "${item.name}" guardado en el catálogo`);
+  };
+
+  const handleImportCommonItems = (importedList) => {
+    if (!Array.isArray(importedList) || importedList.length === 0) return;
+    setCommonItems(prev => {
+      const existingIds = new Set(prev.map(it => String(it.id)));
+      const existingNames = new Set(prev.map(it => (it.name || '').trim().toLowerCase()));
+      const additions = importedList.filter(it =>
+        !existingIds.has(String(it.id)) && !existingNames.has((it.name || '').trim().toLowerCase())
+      );
+      return additions.length > 0 ? [...prev, ...additions] : prev;
+    });
+    if (onArchiveItemsToCodex) {
+      onArchiveItemsToCodex(importedList, { updateExisting: false });
+    }
+    showMasterFeedback(`Importados ${importedList.length} objeto(s) a la mesa y al Códice`, '📦');
   };
 
   const handleDeleteCommonItem = (id) => {
@@ -203,6 +227,7 @@ export function useInventoryActions({
     handleDeleteCustomObject,
     handleGiveItemToCharacter,
     handleSaveCommonItem,
+    handleImportCommonItems,
     handleDeleteCommonItem,
     handlePickUpItem,
     handleDropItemToFloor,

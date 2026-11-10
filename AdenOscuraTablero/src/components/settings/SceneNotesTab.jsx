@@ -24,16 +24,16 @@ const SceneNotesTab = ({
           display: 'flex',
           flexDirection: 'column',
           gap: '6px',
-          backgroundColor: '#121620',
-          border: '1px solid #283144',
+          backgroundColor: 'var(--vtt-bg-card)',
+          border: '1px solid var(--vtt-border)',
           borderRadius: '8px',
           padding: '10px 12px'
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span className="vtt-context-section-label" style={{ color: '#fbbf24' }}>
+            <span className="vtt-context-section-label" style={{ color: 'var(--vtt-accent-amber)' }}>
               Crónica Global de la Campaña
             </span>
-            <span style={{ fontSize: '10px', color: '#64748b' }}>
+            <span style={{ fontSize: '10px', color: 'var(--vtt-text-dim)' }}>
               Persistido con la partida
             </span>
           </div>
@@ -44,11 +44,11 @@ const SceneNotesTab = ({
             rows={3}
             style={{
               width: '100%',
-              backgroundColor: '#0a0d14',
-              border: '1px solid #232b3b',
+              backgroundColor: 'var(--vtt-input-bg)',
+              border: '1px solid var(--vtt-input-border)',
               borderRadius: '6px',
               padding: '8px 10px',
-              color: '#e2e8f0',
+              color: 'var(--vtt-input-text)',
               fontSize: '12px',
               resize: 'vertical',
               lineHeight: '1.5'
@@ -63,13 +63,13 @@ const SceneNotesTab = ({
         alignItems: 'center',
         justifyContent: 'space-between',
         padding: '8px 12px',
-        backgroundColor: '#121620',
-        border: '1px solid #283144',
+        backgroundColor: 'var(--vtt-bg-card)',
+        border: '1px solid var(--vtt-border)',
         borderRadius: '8px',
         gap: '10px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
-          <span style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 700, whiteSpace: 'nowrap' }}>
+          <span style={{ fontSize: '12px', color: 'var(--vtt-accent-amber)', fontWeight: 700, whiteSpace: 'nowrap' }}>
             Escena:
           </span>
           <select
@@ -80,9 +80,9 @@ const SceneNotesTab = ({
               minWidth: 0,
               padding: '5px 8px',
               borderRadius: '5px',
-              backgroundColor: '#0a0d14',
-              border: '1px solid #3b4255',
-              color: '#f8fafc',
+              backgroundColor: 'var(--vtt-input-bg)',
+              border: '1px solid var(--vtt-input-border)',
+              color: 'var(--vtt-input-text)',
               fontSize: '12px',
               fontWeight: 600,
               cursor: 'pointer'
@@ -99,9 +99,9 @@ const SceneNotesTab = ({
         {targetSceneId === activeSceneId && (
           <span style={{
             fontSize: '10px',
-            color: '#34d399',
-            backgroundColor: 'rgba(16, 185, 129, 0.15)',
-            border: '1px solid rgba(16, 185, 129, 0.4)',
+            color: 'var(--vtt-accent-green)',
+            backgroundColor: 'var(--vtt-accent-green-bg)',
+            border: '1px solid var(--vtt-accent-green-border)',
             padding: '2px 7px',
             borderRadius: '999px',
             fontWeight: 700,
@@ -117,16 +117,16 @@ const SceneNotesTab = ({
         display: 'flex',
         flexDirection: 'column',
         gap: '6px',
-        backgroundColor: '#121620',
-        border: '1px solid #283144',
+        backgroundColor: 'var(--vtt-bg-card)',
+        border: '1px solid var(--vtt-border)',
         borderRadius: '8px',
         padding: '10px 12px'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="vtt-context-section-label" style={{ color: '#f8fafc' }}>
+          <span className="vtt-context-section-label" style={{ color: 'var(--vtt-text-strong)' }}>
             Pistas y Secretos de la Sala
           </span>
-          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+          <span style={{ fontSize: '10px', color: 'var(--vtt-text-muted)' }}>
             {clues.filter(c => c.completed).length} / {clues.length} descubiertas
           </span>
         </div>
@@ -140,8 +140,8 @@ const SceneNotesTab = ({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '5px 8px',
-                backgroundColor: clue.completed ? 'rgba(16, 185, 129, 0.08)' : '#0d1017',
-                border: clue.completed ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid #232b3b',
+                backgroundColor: clue.completed ? 'var(--vtt-accent-green-bg)' : 'var(--vtt-bg-inset)',
+                border: clue.completed ? '1px solid var(--vtt-accent-green-border)' : '1px solid var(--vtt-border-subtle)',
                 borderRadius: '5px',
                 gap: '8px'
               }}
@@ -157,7 +157,7 @@ const SceneNotesTab = ({
                 />
                 <span style={{
                   fontSize: '11px',
-                  color: clue.completed ? '#94a3b8' : '#e2e8f0',
+                  color: clue.completed ? 'var(--vtt-text-muted)' : 'var(--vtt-text)',
                   textDecoration: clue.completed ? 'line-through' : 'none',
                   lineHeight: '1.4',
                   overflow: 'hidden',
@@ -172,7 +172,7 @@ const SceneNotesTab = ({
                   const filtered = clues.filter(c => c.id !== clue.id);
                   if (onUpdateSceneNotes) onUpdateSceneNotes(targetSceneId, { ...currentNoteData, clues: filtered });
                 }}
-                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: '2px 4px' }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--vtt-text-dim)', cursor: 'pointer', padding: '2px 4px' }}
                 title="Eliminar pista"
               >
                 <X size={12} strokeWidth={2.4} />
@@ -181,7 +181,7 @@ const SceneNotesTab = ({
           ))}
 
           {clues.length === 0 && (
-            <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', padding: '4px 0' }}>
+            <div style={{ fontSize: '11px', color: 'var(--vtt-text-dim)', fontStyle: 'italic', padding: '4px 0' }}>
               Sin pistas registradas para esta sala.
             </div>
           )}
@@ -214,9 +214,9 @@ const SceneNotesTab = ({
             style={{
               flex: 1,
               padding: '5px 8px',
-              backgroundColor: '#0a0d14',
-              border: '1px solid #283144',
-              color: '#f8fafc',
+              backgroundColor: 'var(--vtt-input-bg)',
+              border: '1px solid var(--vtt-input-border)',
+              color: 'var(--vtt-input-text)',
               borderRadius: '5px',
               fontSize: '11px'
             }}
@@ -237,17 +237,17 @@ const SceneNotesTab = ({
         flexDirection: 'column',
         flex: 1,
         minHeight: '210px',
-        backgroundColor: '#121620',
-        border: '1px solid #283144',
+        backgroundColor: 'var(--vtt-bg-card)',
+        border: '1px solid var(--vtt-border)',
         borderRadius: '8px',
         padding: '10px 12px',
         gap: '6px'
       }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="vtt-context-section-label" style={{ color: '#f8fafc' }}>
+          <span className="vtt-context-section-label" style={{ color: 'var(--vtt-text-strong)' }}>
             Apuntes y Secretos de la Escena
           </span>
-          <span style={{ fontSize: '10px', color: '#94a3b8' }}>
+          <span style={{ fontSize: '10px', color: 'var(--vtt-text-muted)' }}>
             Guardado automático
           </span>
         </div>
@@ -266,11 +266,11 @@ const SceneNotesTab = ({
             width: '100%',
             flex: 1,
             minHeight: '180px',
-            backgroundColor: '#0a0d14',
-            border: '1px solid #232b3b',
+            backgroundColor: 'var(--vtt-input-bg)',
+            border: '1px solid var(--vtt-input-border)',
             borderRadius: '6px',
             padding: '10px 12px',
-            color: '#e2e8f0',
+            color: 'var(--vtt-input-text)',
             fontSize: '12px',
             resize: 'none',
             lineHeight: '1.6'

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Music, Square, X, Repeat, FolderOpen, VolumeX, Volume2, AlertTriangle, Trash2 } from 'lucide-react';
+import { Music, Grip, Square, X, Repeat, FolderOpen, VolumeX, Volume2, AlertTriangle, Trash2 } from 'lucide-react';
 import { SOUND_CATALOG } from '../constants/gamePresets';
 import { useConfirm } from '../hooks/useConfirm';
+import { useDraggablePanel } from '../hooks/useDraggablePanel';
 import EmptyState from './ui/EmptyState';
 
 const MAX_AUDIO_SIZE_BYTES = 1.5 * 1024 * 1024; // 1.5 MB máximo para mantener ligereza
@@ -25,6 +26,10 @@ const Soundboard = ({
   const [uploadError, setUploadError] = useState(null);
   const fileInputRef = useRef(null);
   const confirm = useConfirm();
+  const { panelRef, panelPos, isDragging, gripProps } = useDraggablePanel('soundboard', {
+    fallbackWidth: 360,
+    fallbackHeight: 460
+  });
 
   const categories = ['Ambiente', 'Entorno', 'Combate', 'Criaturas', 'Propios'];
 
@@ -135,13 +140,21 @@ const Soundboard = ({
       {/* Panel Flotante de Efectos de Sonido */}
       {isOpen && (
         <div
+          ref={panelRef}
           onPointerDown={(e) => e.stopPropagation()}
           onWheel={(e) => e.stopPropagation()}
           style={{
             position: 'fixed',
-            top: '65px',
-            right: isSettingsOpen ? '526px' : '16px',
-            transition: 'right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            ...(panelPos
+              ? {
+                  left: `${panelPos.x}px`,
+                  top: `${panelPos.y}px`
+                }
+              : {
+                  top: '65px',
+                  right: isSettingsOpen ? '526px' : '16px',
+                  transition: 'right 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)'
+                }),
             zIndex: 5500,
             display: 'flex',
             flexDirection: 'column',
@@ -153,21 +166,45 @@ const Soundboard = ({
             style={{
               width: '360px',
               maxWidth: 'calc(100vw - 32px)',
-              border: '1.5px solid #334155',
+              border: '1.5px solid var(--vtt-border-strong)',
               borderRadius: '10px',
               padding: '15px',
-              color: '#e2e8f0',
+              color: 'var(--vtt-text)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
-              background: 'linear-gradient(180deg, #161b26 0%, #0d1017 100%)',
-              boxShadow: '0 16px 40px rgba(0,0,0,0.92)'
+              background: 'var(--vtt-bg-panel-gradient)',
+              boxShadow: 'var(--vtt-shadow-panel)'
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #242d3f', paddingBottom: '9px' }}>
-              <span className="vtt-gothic-title" style={{ fontWeight: 'bold', fontSize: '14px', color: '#f8fafc', display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-                <Music size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} /> Órgano de Ecos
-              </span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--vtt-border-subtle)', paddingBottom: '9px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+                <div
+                  {...gripProps}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: isDragging ? 'grabbing' : 'grab',
+                    color: isDragging ? 'var(--vtt-info)' : 'var(--vtt-text-dim)',
+                    padding: '4px',
+                    marginLeft: '-4px',
+                    borderRadius: '4px',
+                    backgroundColor: isDragging ? 'rgba(2, 132, 199, 0.25)' : 'transparent',
+                    touchAction: 'none',
+                    userSelect: 'none',
+                    transition: 'color 0.15s ease, background-color 0.15s ease'
+                  }}
+                  title="Arrastra desde aquí para mover el Órgano de Ecos (doble clic para restaurar)"
+                  aria-label="Mover Órgano de Ecos"
+                >
+                  <Grip size={14} strokeWidth={2.2} />
+                </div>
+                <Music size={15} strokeWidth={2.2} style={{ color: 'var(--vtt-gold-light)' }} />
+                <span className="vtt-gothic-title" style={{ fontWeight: 'bold', fontSize: '14px', color: 'var(--vtt-text-strong)' }}>
+                  Órgano de Ecos
+                </span>
+              </div>
               <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                 {activeLoops.length > 0 && (
                   <button
@@ -193,7 +230,7 @@ const Soundboard = ({
             </div>
 
             {/* Pestañas de Categorías */}
-            <div style={{ display: 'flex', gap: '4px', backgroundColor: '#0c0f16', padding: '4px', borderRadius: '7px', border: '1px solid #242c3d' }}>
+            <div style={{ display: 'flex', gap: '4px', backgroundColor: 'var(--vtt-bg-inset)', padding: '4px', borderRadius: '7px', border: '1px solid var(--vtt-border)' }}>
               {categories.map(cat => (
                 <button
                   key={cat}
@@ -205,10 +242,10 @@ const Soundboard = ({
                     fontSize: '10.5px',
                     fontWeight: 700,
                     borderRadius: '5px',
-                    border: activeCategory === cat ? '1px solid #f59e0b' : '1px solid transparent',
+                    border: activeCategory === cat ? '1px solid var(--vtt-gold)' : '1px solid transparent',
                     cursor: 'pointer',
-                    background: activeCategory === cat ? 'rgba(245, 158, 11, 0.16)' : 'transparent',
-                    color: activeCategory === cat ? '#fbbf24' : '#94a3b8',
+                    background: activeCategory === cat ? 'var(--vtt-accent-amber-bg)' : 'transparent',
+                    color: activeCategory === cat ? 'var(--vtt-accent-amber)' : 'var(--vtt-text-muted)',
                     transition: 'all 0.15s ease'
                   }}
                 >
@@ -219,14 +256,14 @@ const Soundboard = ({
 
             {/* Formulario para subir audio ligero (.ogg / .mp3) en la pestaña Propios */}
             {activeCategory === 'Propios' && (
-              <div style={{ backgroundColor: '#10141e', border: '1px solid #263044', borderRadius: '7px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <div style={{ backgroundColor: 'var(--vtt-bg-card)', border: '1px solid var(--vtt-border)', borderRadius: '7px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <div style={{ display: 'flex', gap: '6px' }}>
                   <input
                     type="text"
                     value={newSoundIcon}
                     onChange={(e) => setNewSoundIcon(e.target.value)}
                     placeholder="🎵"
-                    style={{ width: '42px', padding: '6px', textAlign: 'center', backgroundColor: '#161b26', color: '#f8fafc', border: '1px solid #2b3345', borderRadius: '5px' }}
+                    style={{ width: '42px', padding: '6px', textAlign: 'center', backgroundColor: 'var(--vtt-input-bg)', color: 'var(--vtt-input-text)', border: '1px solid var(--vtt-input-border)', borderRadius: '5px' }}
                     title="Icono del sonido"
                   />
                   <input
@@ -234,12 +271,12 @@ const Soundboard = ({
                     value={newSoundLabel}
                     onChange={(e) => setNewSoundLabel(e.target.value)}
                     placeholder="Nombre (opcional)..."
-                    style={{ flex: 1, padding: '6px 8px', backgroundColor: '#161b26', color: '#f8fafc', border: '1px solid #2b3345', borderRadius: '5px', fontSize: '12px' }}
+                    style={{ flex: 1, padding: '6px 8px', backgroundColor: 'var(--vtt-input-bg)', color: 'var(--vtt-input-text)', border: '1px solid var(--vtt-input-border)', borderRadius: '5px', fontSize: '12px' }}
                   />
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: '#cbd5e1', cursor: 'pointer' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '11px', color: 'var(--vtt-text)', cursor: 'pointer' }}>
                     <input
                       type="checkbox"
                       checked={newSoundLoop}
@@ -266,7 +303,7 @@ const Soundboard = ({
                 </div>
 
                 {uploadError && (
-                  <div style={{ fontSize: '11px', color: '#fca5a5', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--vtt-accent-red)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                     <AlertTriangle size={12} strokeWidth={2.2} />
                     <span>{uploadError}</span>
                   </div>
@@ -285,8 +322,8 @@ const Soundboard = ({
                       display: 'flex',
                       alignItems: 'center',
                       borderRadius: '6px',
-                      border: isLooping ? '1px solid #f59e0b' : '1px solid #2b3345',
-                      backgroundColor: isLooping ? 'rgba(245, 158, 11, 0.16)' : '#171c26',
+                      border: isLooping ? '1px solid var(--vtt-gold)' : '1px solid var(--vtt-border)',
+                      backgroundColor: isLooping ? 'var(--vtt-accent-amber-bg)' : 'var(--vtt-bg-card)',
                       overflow: 'hidden'
                     }}
                   >
@@ -301,7 +338,7 @@ const Soundboard = ({
                         padding: '8px 9px',
                         background: 'transparent',
                         border: 'none',
-                        color: isLooping ? '#fef08a' : '#e2e8f0',
+                        color: isLooping ? 'var(--vtt-accent-amber-soft)' : 'var(--vtt-text)',
                         cursor: 'pointer',
                         textAlign: 'left',
                         fontSize: '12px',
@@ -313,7 +350,7 @@ const Soundboard = ({
                       <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                         {sound.label}
                       </span>
-                      {isLooping && <span style={{ color: '#fbbf24', fontSize: '9px' }}>●</span>}
+                      {isLooping && <span style={{ color: 'var(--vtt-accent-amber)', fontSize: '9px' }}>●</span>}
                     </button>
 
                     {activeCategory === 'Propios' && onRemoveCustomSound && (
@@ -323,8 +360,8 @@ const Soundboard = ({
                         style={{
                           background: 'transparent',
                           border: 'none',
-                          borderLeft: '1px solid #263044',
-                          color: '#fca5a5',
+                          borderLeft: '1px solid var(--vtt-border-subtle)',
+                          color: 'var(--vtt-accent-red)',
                           cursor: 'pointer',
                           padding: '8px 7px',
                           display: 'inline-flex',
@@ -349,7 +386,7 @@ const Soundboard = ({
               )}
             </div>
 
-            <div style={{ fontSize: '11px', color: '#94a3b8', textAlign: 'center', borderTop: '1px solid #242c3d', paddingTop: '8px' }}>
+            <div style={{ fontSize: '11px', color: 'var(--vtt-text-muted)', textAlign: 'center', borderTop: '1px solid var(--vtt-border-subtle)', paddingTop: '8px' }}>
               <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
                 <VolumeX size={13} strokeWidth={2.2} /> Silenciado en la mesa del Master para evitar eco.
               </span>

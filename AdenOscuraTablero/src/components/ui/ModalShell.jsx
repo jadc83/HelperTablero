@@ -68,10 +68,10 @@ const ModalShell = ({
           flexDirection: 'column',
           borderRadius: '12px',
           overflow: 'hidden',
-          background: 'linear-gradient(180deg, #161b26 0%, #0d1017 100%)',
-          border: '1.5px solid #334155',
-          boxShadow: '0 24px 60px rgba(0, 0, 0, 0.92), 0 0 0 1px rgba(245, 158, 11, 0.12)',
-          color: '#e2e8f0',
+          background: 'var(--vtt-bg-panel-gradient)',
+          border: '1.5px solid var(--vtt-border-strong)',
+          boxShadow: 'var(--vtt-shadow-panel)',
+          color: 'var(--vtt-text)',
           ...panelStyle
         }}
       >
@@ -83,14 +83,14 @@ const ModalShell = ({
               justifyContent: 'space-between',
               gap: '12px',
               padding: '13px 18px',
-              borderBottom: '1px solid #242d3f',
-              background: 'linear-gradient(180deg, rgba(22, 27, 38, 0.96) 0%, rgba(15, 19, 28, 0.98) 100%)',
+              borderBottom: '1px solid var(--vtt-border-subtle)',
+              background: 'var(--vtt-bg-header)',
               flexShrink: 0
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
               {icon && (
-                <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, color: '#fbbf24' }}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0, color: 'var(--vtt-gold-light)' }}>
                   {icon}
                 </span>
               )}
@@ -102,7 +102,7 @@ const ModalShell = ({
                       margin: 0,
                       fontSize: '15px',
                       fontWeight: 700,
-                      color: '#f8fafc',
+                      color: 'var(--vtt-text-strong)',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis'
@@ -112,7 +112,7 @@ const ModalShell = ({
                   </h3>
                 )}
                 {subtitle && (
-                  <span style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--vtt-text-muted)', marginTop: '2px' }}>
                     {subtitle}
                   </span>
                 )}
@@ -156,8 +156,8 @@ const ModalShell = ({
               justifyContent: 'flex-end',
               gap: '8px',
               padding: '12px 18px',
-              borderTop: '1px solid #242d3f',
-              background: '#0e121a',
+              borderTop: '1px solid var(--vtt-border-subtle)',
+              background: 'var(--vtt-bg-inset)',
               flexShrink: 0
             }}
           >

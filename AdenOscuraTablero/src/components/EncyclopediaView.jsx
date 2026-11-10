@@ -10,9 +10,12 @@ import {
   Pencil,
   Crosshair,
   RotateCcw,
-  AlertTriangle
+  AlertTriangle,
+  Package,
+  Check
 } from 'lucide-react';
 import { ENTITY_CLASSIFICATIONS, getClassificationMeta } from '../constants/gamePresets';
+import { getGameIconComponent } from '../utils/gameIcons';
 import { useConfirm } from '../hooks/useConfirm';
 import SearchInput from './ui/SearchInput';
 
@@ -20,13 +23,20 @@ const EncyclopediaView = ({
   isOpen,
   initialCategory = 'character',
   characters = [],
+  codexItems = [],
+  tableCharacters = [],
+  tableCommonItems = [],
   graveyard = [],
   onClose,
   onCreateNew,
   onEditCharacter,
   onDeleteCharacter,
+  onDeleteCodexItem,
   onSpawnOnBoard,
+  onBringToTable,
+  onBringItemToTable,
   onImportCharacters,
+  onImportCodexItems,
   onExportCharacters,
   onClearCategory,
   onReviveCharacter,
@@ -64,15 +74,20 @@ const EncyclopediaView = ({
   }, [isOpen, onClose]);
 
   const isGraveyard = activeCategory === 'graveyard';
+  const isItems = activeCategory === 'item';
 
   const activeBackgroundTexture = isGraveyard
     ? '/assets/textures/crypt_graveyard_bg.jpg'
     : activeCategory === 'character'
     ? '/assets/textures/archive_characters_bg.jpg'
+    : activeCategory === 'item'
+    ? '/assets/textures/archive_characters_bg.jpg'
     : '/assets/textures/bestiary_mythos_bg.jpg';
 
   const categoryEntries = isGraveyard
     ? graveyard
+    : isItems
+    ? codexItems
     : characters.filter(c => {
         const meta = getClassificationMeta(c.entityType, c.faction);
         return meta.group === activeCategory;
@@ -80,6 +95,9 @@ const EncyclopediaView = ({
 
   const allyGraveyardCount = graveyard.filter(g => g.faction !== 'enemy').length;
   const enemyGraveyardCount = graveyard.filter(g => g.faction === 'enemy').length;
+  const itemCategoryList = Array.from(new Set((codexItems || []).map(it => it.category).filter(Boolean)));
+  const tableEntityIdSet = new Set((tableCharacters || []).map(c => String(c.id)));
+  const tableItemNameSet = new Set((tableCommonItems || []).map(it => (it.name || '').trim().toLowerCase()));
 
   const getEntryId = (e) => e?.graveyardId || e?.id;
 
@@ -96,6 +114,17 @@ const EncyclopediaView = ({
         (c.sceneName || '').toLowerCase().includes(q) ||
         (c.notes || '').toLowerCase().includes(q) ||
         (c.history || '').toLowerCase().includes(q);
+      return matchesFilter && matchesSearch;
+    }
+
+    if (isItems) {
+      const matchesFilter = selectedFilter === 'all' || c.category === selectedFilter;
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
+        !q ||
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.category || '').toLowerCase().includes(q) ||
+        (c.notes || '').toLowerCase().includes(q);
       return matchesFilter && matchesSearch;
     }
 
@@ -120,6 +149,12 @@ const EncyclopediaView = ({
         { id: 'ally', label: 'Aliados caídos', count: allyGraveyardCount },
         { id: 'enemy', label: 'Enemigos caídos', count: enemyGraveyardCount }
       ]
+    : isItems
+    ? itemCategoryList.map(cat => ({
+        id: cat,
+        label: cat,
+        count: (codexItems || []).filter(i => i.category === cat).length
+      }))
     : ENTITY_CLASSIFICATIONS.filter(c => c.group === activeCategory);
 
   const handleImportFile = (e) => {
@@ -130,19 +165,44 @@ const EncyclopediaView = ({
     reader.onload = (ev) => {
       try {
         const parsed = JSON.parse(ev.target.result);
-        const list = Array.isArray(parsed) ? parsed : [parsed];
+        const rawList = Array.isArray(parsed)
+          ? parsed
+          : (Array.isArray(parsed?.items) && isItems)
+          ? parsed.items
+          : (Array.isArray(parsed?.entities) && !isItems)
+          ? parsed.entities
+          : [parsed];
+
+        if (isItems) {
+          if (onImportCodexItems) {
+            onImportCodexItems(
+              rawList
+                .filter(it => it && typeof it === 'object' && it.name)
+                .map(item => ({
+                  ...item,
+                  id: item.id || `codex_item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                  icon: item.icon || '📦',
+                  category: item.category || 'Herramienta',
+                  state: item.state || 'equipped',
+                  notes: item.notes || ''
+                }))
+            );
+          }
+          return;
+        }
+
         if (onImportCharacters) {
           onImportCharacters(
-            list.map(item => ({
+            rawList.map(item => ({
               ...item,
-              id: Date.now() + Math.random(),
+              id: item.id || `entity_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
               entityType: item.entityType || (activeCategory === 'monster' ? 'mythos_creature' : 'human')
             }))
           );
         }
       } catch (err) {
         console.error('Error al importar fichas:', err);
-        setImportError('El archivo seleccionado no es un JSON válido de fichas.');
+        setImportError('El archivo seleccionado no es un JSON válido.');
       }
     };
     reader.readAsText(file);
@@ -208,18 +268,24 @@ const EncyclopediaView = ({
               border: '1.5px solid #7c5826',
               boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5)'
             }}>
-              {isGraveyard ? <Skull size={20} strokeWidth={2.1} /> : <BookOpen size={20} strokeWidth={2.1} />}
+              {isGraveyard ? <Skull size={20} strokeWidth={2.1} /> : isItems ? <Package size={20} strokeWidth={2.1} /> : <BookOpen size={20} strokeWidth={2.1} />}
             </div>
             <div>
               <div className="vtt-gothic-title" style={{ fontSize: '17px', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '0.06em' }}>
                 {isGraveyard
                   ? 'CRIPTA Y REGISTRO DE BAJAS'
+                  : isItems
+                  ? 'ARCHIVO HISTÓRICO DE OBJETOS'
                   : activeCategory === 'character'
-                  ? 'ENCICLOPEDIA DE PERSONAJES'
-                  : 'BIBLIOTECA DEL BESTIARIO Y LOS MITOS'}
+                  ? 'CÓDICE DE PERSONAJES'
+                  : 'CÓDICE DEL BESTIARIO Y LOS MITOS'}
               </div>
               <div className="vtt-retro-badge" style={{ fontSize: '10px', color: '#b49b78', marginTop: '2px' }}>
-                {isGraveyard ? `${graveyard.length} COMBATIENTES FALLECIDOS` : `${categoryEntries.length} EXPEDIENTES EN ARCHIVO`}
+                {isGraveyard
+                  ? `${graveyard.length} COMBATIENTES FALLECIDOS`
+                  : isItems
+                  ? `${categoryEntries.length} OBJETOS ÚNICOS EN CÓDICE GLOBAL`
+                  : `${categoryEntries.length} EXPEDIENTES EN CÓDICE GLOBAL`}
               </div>
             </div>
           </div>
@@ -237,7 +303,7 @@ const EncyclopediaView = ({
             <button
               onClick={() => { setActiveCategory('character'); setSelectedFilter('all'); }}
               style={{
-                padding: '7px 16px',
+                padding: '7px 14px',
                 borderRadius: '6px',
                 border: activeCategory === 'character' ? '1.5px solid #f59e0b' : '1.5px solid transparent',
                 cursor: 'pointer',
@@ -251,12 +317,12 @@ const EncyclopediaView = ({
                 transition: 'all 0.15s ease'
               }}
             >
-              Archivo de Personajes
+              Personajes
             </button>
             <button
               onClick={() => { setActiveCategory('monster'); setSelectedFilter('all'); }}
               style={{
-                padding: '7px 16px',
+                padding: '7px 14px',
                 borderRadius: '6px',
                 border: activeCategory === 'monster' ? '1.5px solid #f59e0b' : '1.5px solid transparent',
                 cursor: 'pointer',
@@ -270,12 +336,31 @@ const EncyclopediaView = ({
                 transition: 'all 0.15s ease'
               }}
             >
-              Criaturas de los Mitos
+              Bestiario
+            </button>
+            <button
+              onClick={() => { setActiveCategory('item'); setSelectedFilter('all'); }}
+              style={{
+                padding: '7px 14px',
+                borderRadius: '6px',
+                border: activeCategory === 'item' ? '1.5px solid #f59e0b' : '1.5px solid transparent',
+                cursor: 'pointer',
+                fontSize: '12px',
+                fontWeight: 700,
+                background: activeCategory === 'item'
+                  ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%)'
+                  : 'transparent',
+                color: activeCategory === 'item' ? '#fbbf24' : '#94a3b8',
+                boxShadow: activeCategory === 'item' ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none',
+                transition: 'all 0.15s ease'
+              }}
+            >
+              Objetos ({codexItems.length})
             </button>
             <button
               onClick={() => { setActiveCategory('graveyard'); setSelectedFilter('all'); }}
               style={{
-                padding: '7px 16px',
+                padding: '7px 14px',
                 borderRadius: '6px',
                 border: activeCategory === 'graveyard' ? '1.5px solid #f59e0b' : '1.5px solid transparent',
                 cursor: 'pointer',
@@ -289,7 +374,7 @@ const EncyclopediaView = ({
                 transition: 'all 0.15s ease'
               }}
             >
-              Cripta y Cementerio ({graveyard.length})
+              Cripta ({graveyard.length})
             </button>
           </div>
         </div>
@@ -342,21 +427,23 @@ const EncyclopediaView = ({
             </>
           ) : (
             <>
-              <button
-                type="button"
-                onClick={() => onCreateNew && onCreateNew(activeCategory === 'monster' ? 'mythos_creature' : 'human')}
-                className="vtt-primary-cta"
-                style={{ padding: '8px 18px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
-              >
-                <Plus size={14} strokeWidth={2.4} /> {activeCategory === 'character' ? 'Inscribir Personaje' : 'Registrar Criatura'}
-              </button>
+              {!isItems && (
+                <button
+                  type="button"
+                  onClick={() => onCreateNew && onCreateNew(activeCategory === 'monster' ? 'mythos_creature' : 'human')}
+                  className="vtt-primary-cta"
+                  style={{ padding: '8px 18px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
+                >
+                  <Plus size={14} strokeWidth={2.4} /> {activeCategory === 'character' ? 'Inscribir Personaje' : 'Registrar Criatura'}
+                </button>
+              )}
 
               <button
                 type="button"
                 onClick={() => fileInputRef.current.click()}
                 className="vtt-brass-btn"
                 style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
-                title="Importar fichas desde un archivo .json"
+                title="Importar al Códice desde un archivo .json"
               >
                 <Upload size={13} strokeWidth={2.2} /> Importar JSON
               </button>
@@ -366,7 +453,7 @@ const EncyclopediaView = ({
                 onClick={() => onExportCharacters && onExportCharacters(categoryEntries, activeCategory)}
                 className="vtt-brass-btn"
                 style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
-                title="Exportar esta biblioteca a un archivo .json"
+                title="Exportar esta sección del Códice a un archivo .json"
               >
                 <Download size={13} strokeWidth={2.2} /> Exportar
               </button>
@@ -376,8 +463,8 @@ const EncyclopediaView = ({
                   type="button"
                   onClick={async () => {
                     const ok = await confirm({
-                      title: activeCategory === 'monster' ? 'Vaciar bestiario' : 'Vaciar archivo de personajes',
-                      message: `Se eliminarán permanentemente los ${categoryEntries.length} registros de esta sección.`,
+                      title: isItems ? 'Vaciar objetos del Códice' : activeCategory === 'monster' ? 'Vaciar bestiario del Códice' : 'Vaciar personajes del Códice',
+                      message: `Se eliminarán permanentemente los ${categoryEntries.length} registros de esta sección del Códice Global.`,
                       confirmLabel: 'Limpiar todos',
                       tone: 'danger'
                     });
@@ -434,7 +521,7 @@ const EncyclopediaView = ({
             <SearchInput
               value={searchQuery}
               onChange={setSearchQuery}
-              placeholder={isGraveyard ? 'Buscar caído por nombre, escena o notas...' : activeCategory === 'character' ? 'Buscar investigador o personaje...' : 'Buscar criatura o entidad...'}
+              placeholder={isGraveyard ? 'Buscar caído por nombre, escena o notas...' : isItems ? 'Buscar objeto por nombre, categoría o notas...' : activeCategory === 'character' ? 'Buscar investigador o personaje...' : 'Buscar criatura o entidad...'}
             />
             {importError && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 10px', borderRadius: '6px', backgroundColor: 'rgba(127, 29, 29, 0.35)', border: '1px solid #ef4444', fontSize: '11px', color: '#fca5a5' }}>
@@ -462,7 +549,7 @@ const EncyclopediaView = ({
                 Todos ({categoryEntries.length})
               </button>
               {availableSubFilters.map(sub => {
-                const count = isGraveyard
+                const count = (isGraveyard || isItems)
                   ? sub.count
                   : categoryEntries.filter(e => getClassificationMeta(e.entityType, e.faction).id === sub.id).length;
                 const active = selectedFilter === sub.id;
@@ -516,7 +603,7 @@ const EncyclopediaView = ({
                     transition: 'all 0.14s ease'
                   }}
                 >
-                  {/* Miniatura / Monograma */}
+                  {/* Miniatura / Monograma / Icono de Objeto */}
                   <div style={{
                     width: '44px',
                     height: '44px',
@@ -530,7 +617,11 @@ const EncyclopediaView = ({
                     justifyContent: 'center',
                     position: 'relative'
                   }}>
-                    {entry.avatar ? (
+                    {isItems ? (
+                      entry.icon && entry.icon !== '📦'
+                        ? <span style={{ fontSize: '20px' }}>{entry.icon}</span>
+                        : getGameIconComponent(entry.name, 22)
+                    ) : entry.avatar ? (
                       <img
                         src={entry.avatar}
                         alt={entry.name}
@@ -549,15 +640,36 @@ const EncyclopediaView = ({
                   </div>
 
                   <div style={{ flex: 1, overflow: 'hidden' }}>
-                    <div style={{
-                      fontSize: '13px',
-                      fontWeight: 700,
-                      color: entry.isGraveWound || isGraveyard ? '#f8fafc' : '#f8fafc',
-                      whiteSpace: 'nowrap',
-                      textOverflow: 'ellipsis',
-                      overflow: 'hidden'
-                    }}>
-                      {entry.name}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{
+                        fontSize: '13px',
+                        fontWeight: 700,
+                        color: '#f8fafc',
+                        whiteSpace: 'nowrap',
+                        textOverflow: 'ellipsis',
+                        overflow: 'hidden',
+                        flex: 1
+                      }}>
+                        {entry.name}
+                      </div>
+                      {!isGraveyard && (
+                        isItems
+                          ? tableItemNameSet.has((entry.name || '').trim().toLowerCase())
+                          : tableEntityIdSet.has(String(entry.id))
+                      ) && (
+                        <span style={{
+                          fontSize: '9px',
+                          padding: '1px 5px',
+                          borderRadius: '4px',
+                          backgroundColor: 'rgba(16, 185, 129, 0.16)',
+                          border: '1px solid rgba(16, 185, 129, 0.45)',
+                          color: '#6ee7b7',
+                          fontWeight: 700,
+                          flexShrink: 0
+                        }}>
+                          En mesa
+                        </span>
+                      )}
                     </div>
                     <div style={{
                       fontSize: '11px',
@@ -567,7 +679,11 @@ const EncyclopediaView = ({
                       textOverflow: 'ellipsis',
                       overflow: 'hidden'
                     }}>
-                      {isGraveyard ? `Caído en: ${entry.sceneName || 'Tablero'}` : meta.label}
+                      {isGraveyard
+                        ? `Caído en: ${entry.sceneName || 'Tablero'}`
+                        : isItems
+                        ? (entry.category || 'Objeto')
+                        : meta.label}
                     </div>
                   </div>
                 </div>
@@ -617,7 +733,114 @@ const EncyclopediaView = ({
           backgroundAttachment: 'fixed',
           position: 'relative'
         }}>
-          {selectedEntity ? (() => {
+          {selectedEntity && isItems ? (() => {
+            const isItemInTable = tableItemNameSet.has((selectedEntity.name || '').trim().toLowerCase());
+            return (
+              <div style={{ maxWidth: '780px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div style={{
+                  display: 'flex',
+                  gap: '24px',
+                  alignItems: 'flex-start',
+                  background: 'linear-gradient(180deg, rgba(19, 23, 34, 0.92) 0%, rgba(13, 17, 25, 0.96) 100%)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid #362a1b',
+                  borderRadius: '14px',
+                  padding: '24px',
+                  boxShadow: '0 18px 48px rgba(0, 0, 0, 0.7)'
+                }}>
+                  <div style={{
+                    width: '104px',
+                    height: '104px',
+                    borderRadius: '12px',
+                    backgroundColor: '#090c12',
+                    border: '1.5px solid #4a3a25',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                    boxShadow: 'inset 0 0 16px rgba(0, 0, 0, 0.8)'
+                  }}>
+                    {selectedEntity.icon && selectedEntity.icon !== '📦'
+                      ? <span style={{ fontSize: '46px' }}>{selectedEntity.icon}</span>
+                      : getGameIconComponent(selectedEntity.name, 46)}
+                  </div>
+
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
+                      <div>
+                        <div style={{ fontSize: '10px', fontFamily: "'Cinzel', Georgia, serif", color: '#fbbf24', fontWeight: 800, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+                          ARCHIVO DE OBJETOS • {selectedEntity.category || 'HERRAMIENTA'}
+                        </div>
+                        <h2 className="vtt-gothic-title" style={{ margin: '4px 0 0 0', fontSize: '26px', color: '#f8fafc' }}>
+                          {selectedEntity.name}
+                        </h2>
+                        {selectedEntity.firstSeenAt && (
+                          <div style={{ fontSize: '11px', color: '#8d9bb0', marginTop: '4px' }}>
+                            Registrado en el Códice el {new Date(selectedEntity.firstSeenAt).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {onBringItemToTable && (
+                          <button
+                            type="button"
+                            disabled={isItemInTable}
+                            onClick={() => onBringItemToTable(selectedEntity)}
+                            className={isItemInTable ? 'vtt-brass-btn' : 'vtt-primary-cta'}
+                            style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', cursor: isItemInTable ? 'default' : 'pointer', opacity: isItemInTable ? 0.65 : 1 }}
+                          >
+                            {isItemInTable ? <><Check size={13} strokeWidth={2.3} /> En mesa actual</> : <><Plus size={13} strokeWidth={2.3} /> Traer a la mesa</>}
+                          </button>
+                        )}
+
+                        {onDeleteCodexItem && (
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const ok = await confirm({
+                                title: 'Eliminar objeto del Códice',
+                                message: `¿Eliminar permanentemente "${selectedEntity.name}" del Códice Global?`,
+                                confirmLabel: 'Eliminar',
+                                tone: 'danger'
+                              });
+                              if (ok) onDeleteCodexItem(selectedEntity.id);
+                            }}
+                            className="vtt-btn-danger"
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: '7px',
+                              cursor: 'pointer',
+                              fontSize: '12px',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <Trash2 size={13} strokeWidth={2.2} /> Eliminar del Códice
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{
+                      marginTop: '18px',
+                      padding: '14px 16px',
+                      borderRadius: '8px',
+                      backgroundColor: '#0a0d14',
+                      border: '1px solid #202737',
+                      fontSize: '13px',
+                      color: '#cbd5e1',
+                      lineHeight: 1.6
+                    }}>
+                      {selectedEntity.notes || 'Sin descripción o notas adicionales en el archivo.'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })() : selectedEntity ? (() => {
             const meta = getClassificationMeta(selectedEntity.entityType, selectedEntity.faction);
             const equippedItems = (selectedEntity.inventory || []).filter(i => i.state === 'equipped');
             const handItems = (selectedEntity.inventory || []).filter(i => i.state === 'hand');
@@ -800,6 +1023,28 @@ const EncyclopediaView = ({
                             </>
                           ) : (
                             <>
+                              {onBringToTable && (
+                                <button
+                                  type="button"
+                                  disabled={tableEntityIdSet.has(String(selectedEntity.id))}
+                                  onClick={() => onBringToTable(selectedEntity)}
+                                  className="vtt-brass-btn"
+                                  style={{
+                                    padding: '8px 14px',
+                                    borderRadius: '7px',
+                                    fontSize: '12px',
+                                    fontWeight: 700,
+                                    cursor: tableEntityIdSet.has(String(selectedEntity.id)) ? 'default' : 'pointer',
+                                    opacity: tableEntityIdSet.has(String(selectedEntity.id)) ? 0.65 : 1,
+                                    color: tableEntityIdSet.has(String(selectedEntity.id)) ? '#6ee7b7' : '#38bdf8',
+                                    borderColor: tableEntityIdSet.has(String(selectedEntity.id)) ? '#059669' : '#0284c7'
+                                  }}
+                                >
+                                  {tableEntityIdSet.has(String(selectedEntity.id))
+                                    ? <><Check size={13} strokeWidth={2.3} /> En mesa</>
+                                    : <><Plus size={13} strokeWidth={2.3} /> Traer a mesa</>}
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => onEditCharacter && onEditCharacter(selectedEntity)}
@@ -823,8 +1068,8 @@ const EncyclopediaView = ({
                                   type="button"
                                   onClick={async () => {
                                     const ok = await confirm({
-                                      title: 'Eliminar expediente',
-                                      message: `¿Eliminar permanentemente a "${selectedEntity.name}" de la enciclopedia?`,
+                                      title: 'Eliminar del Códice Global',
+                                      message: `¿Eliminar permanentemente a "${selectedEntity.name}" del Códice Global?`,
                                       confirmLabel: 'Eliminar',
                                       tone: 'danger'
                                     });
@@ -841,7 +1086,7 @@ const EncyclopediaView = ({
                                     alignItems: 'center',
                                     gap: '6px'
                                   }}
-                                  title="Eliminar permanentemente de la enciclopedia"
+                                  title="Eliminar permanentemente del Códice Global"
                                 >
                                   <Trash2 size={13} strokeWidth={2.2} /> Eliminar
                                 </button>
@@ -1224,6 +1469,8 @@ const EncyclopediaView = ({
               <div className="vtt-gothic-title" style={{ fontSize: '19px', color: '#e2e8f0', marginBottom: '8px' }}>
                 {isGraveyard
                   ? 'Cripta y Registro de Bajas'
+                  : isItems
+                  ? 'Archivo Histórico de Objetos'
                   : activeCategory === 'character'
                   ? 'Archivo de Investigadores y Aliados'
                   : 'Códice del Bestiario y los Mitos'}
@@ -1231,6 +1478,8 @@ const EncyclopediaView = ({
               <p style={{ maxWidth: '440px', fontSize: '13px', lineHeight: 1.6, color: '#8d9bb0' }}>
                 {isGraveyard
                   ? 'Selecciona un combatiente caído para saquear su botín, consultar sus últimas notas o resucitarlo.'
+                  : isItems
+                  ? 'Todo objeto personalizado que forjes o importes en tus aventuras se archiva aquí automáticamente.'
                   : `Selecciona un expediente del índice lateral o pulsa "${activeCategory === 'character' ? 'Inscribir Personaje' : 'Registrar Criatura'}" para forjar un nuevo registro.`}
               </p>
             </div>

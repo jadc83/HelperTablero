@@ -1,6 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronUp, ChevronDown, ArrowLeftRight, Plus, CornerDownRight, Gift, AlertTriangle } from 'lucide-react';
-import { DEFAULT_COMMON_ITEMS } from '../../constants/commonItems';
+import {
+  DEFAULT_COMMON_ITEMS,
+  filterCatalogItems
+} from '../../constants/commonItems';
 import { getGameIconComponent, getItemIcon } from '../../utils/gameIcons';
 import SearchInput from '../ui/SearchInput';
 import ItemContextMenu from './ItemContextMenu';
@@ -271,11 +274,9 @@ const InventorySlotsTab = ({
     const isMovingSource = item && movingItemId === item.id;
     const isDragOver = dragOverTarget?.section === section && dragOverTarget?.index === index;
 
-    const matchesSearch = !inventorySearch.trim() || (isOccupied && (
-      item.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
-      (item.notes && item.notes.toLowerCase().includes(inventorySearch.toLowerCase())) ||
-      (item.category && item.category.toLowerCase().includes(inventorySearch.toLowerCase()))
-    ));
+    const matchesSearch = !inventorySearch.trim() || (
+      isOccupied && filterCatalogItems([item], inventorySearch).length > 0
+    );
 
     const sectionColors = {
       inventory: { border: '#10b981', dot: '#10b981', label: 'Inventario' },
@@ -536,18 +537,13 @@ const InventorySlotsTab = ({
   };
 
   const displayedStoredItems = inventorySearch.trim()
-    ? storedItems.filter(item =>
-        item.name.toLowerCase().includes(inventorySearch.toLowerCase()) ||
-        (item.notes && item.notes.toLowerCase().includes(inventorySearch.toLowerCase())) ||
-        (item.category && item.category.toLowerCase().includes(inventorySearch.toLowerCase()))
-      )
+    ? filterCatalogItems(storedItems, inventorySearch)
     : storedItems;
 
-  const filteredCommon = DEFAULT_COMMON_ITEMS.filter(ci =>
-    !commonFilter.trim() ||
-    ci.name.toLowerCase().includes(commonFilter.toLowerCase()) ||
-    ci.category.toLowerCase().includes(commonFilter.toLowerCase())
-  );
+  const trimmedCommonFilter = commonFilter.trim();
+  const filteredCommon = trimmedCommonFilter
+    ? filterCatalogItems(DEFAULT_COMMON_ITEMS, trimmedCommonFilter)
+    : DEFAULT_COMMON_ITEMS;
 
   const currentContextItem = contextMenu
     ? (inventory.find(i => String(i.id) === String(contextMenu.item?.id)) || contextMenu.item)

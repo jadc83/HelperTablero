@@ -73,8 +73,8 @@ const ScenesManagerTab = ({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflow: 'hidden' }}>
       <div className="vtt-wood-panel" style={{ padding: '12px 14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflow: 'hidden' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#d4af37', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Map size={14} strokeWidth={2.2} style={{ color: '#d4af37' }} />
+          <div className="vtt-gothic-title" style={{ fontSize: '13px', color: 'var(--vtt-accent-amber)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <Map size={14} strokeWidth={2.2} style={{ color: 'var(--vtt-accent-amber)' }} />
             <span>Selector de Escenas y Planos ({scenes.length})</span>
           </div>
 
@@ -83,7 +83,7 @@ const ScenesManagerTab = ({
               type="button"
               onClick={handleDeleteAll}
               className="vtt-icon-tool-btn"
-              style={{ padding: '4px 6px', color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.3)' }}
+              style={{ padding: '4px 6px', color: 'var(--vtt-accent-red)', borderColor: 'var(--vtt-danger-border)' }}
               title="Borrar todas las escenas"
             >
               <Trash2 size={13} strokeWidth={2.2} />
@@ -173,7 +173,7 @@ const ScenesManagerTab = ({
                 <div style={{ display: 'flex', alignItems: 'center', gap: '9px', overflow: 'hidden' }}>
                   <span
                     style={{
-                      color: isCurrent ? '#f59e0b' : '#64748b',
+                      color: isCurrent ? 'var(--vtt-accent-amber)' : 'var(--vtt-text-dim)',
                       display: 'inline-flex',
                       cursor: editingSceneId === sc.id ? 'default' : 'grab',
                       userSelect: 'none',
@@ -187,13 +187,13 @@ const ScenesManagerTab = ({
                   <span style={{
                     padding: '1px 6px',
                     borderRadius: '4px',
-                    background: isCurrent ? 'linear-gradient(135deg, #d4af37 0%, #854d0e 100%)' : '#171d29',
-                    color: isCurrent ? '#0f141f' : '#94a3b8',
+                    background: isCurrent ? 'var(--vtt-badge-active-bg)' : 'var(--vtt-bg-inset)',
+                    color: isCurrent ? 'var(--vtt-badge-active-text)' : 'var(--vtt-text-muted)',
                     fontWeight: 800,
                     fontSize: '11px',
                     fontFamily: 'ui-monospace, monospace',
-                    border: isCurrent ? '1px solid #fef08a' : '1px solid #2a3448',
-                    boxShadow: isCurrent ? '0 1px 4px rgba(0,0,0,0.4)' : 'none'
+                    border: isCurrent ? '1px solid var(--vtt-badge-active-border)' : '1px solid var(--vtt-border)',
+                    boxShadow: isCurrent ? '0 1px 4px rgba(0,0,0,0.25)' : 'none'
                   }}>
                     {idx + 1}
                   </span>
@@ -222,7 +222,7 @@ const ScenesManagerTab = ({
                             type="button"
                             onClick={() => handleSaveRename(sc.id)}
                             className="vtt-icon-tool-btn"
-                            style={{ color: '#10b981' }}
+                            style={{ color: 'var(--vtt-accent-green)' }}
                             title="Guardar nombre"
                           >
                             <Check size={12} strokeWidth={2.4} />
@@ -231,7 +231,7 @@ const ScenesManagerTab = ({
                             type="button"
                             onClick={() => setEditingSceneId(null)}
                             className="vtt-icon-tool-btn"
-                            style={{ color: '#94a3b8' }}
+                            style={{ color: 'var(--vtt-text-muted)' }}
                             title="Cancelar"
                           >
                             <X size={12} strokeWidth={2.4} />
@@ -244,7 +244,7 @@ const ScenesManagerTab = ({
                             style={{
                               fontWeight: 700,
                               fontFamily: "'Cinzel', Georgia, serif",
-                              color: isCurrent ? '#ffffff' : '#e2e8f0',
+                              color: isCurrent ? 'var(--vtt-text-strong)' : 'var(--vtt-text)',
                               whiteSpace: 'nowrap',
                               textOverflow: 'ellipsis',
                               overflow: 'hidden',
@@ -272,7 +272,7 @@ const ScenesManagerTab = ({
                         </>
                       )}
                     </div>
-                    <span style={{ fontSize: '10px', color: isCurrent ? '#fde68a' : '#8e9caa', marginTop: '1px' }}>
+                    <span style={{ fontSize: '10px', color: isCurrent ? 'var(--vtt-accent-amber-soft)' : 'var(--vtt-text-muted)', marginTop: '1px' }}>
                       {(sc.maps || []).length} elem. mapa • {(sc.tokens || []).length} fichas
                     </span>
                   </div>
@@ -319,7 +319,7 @@ const ScenesManagerTab = ({
                         openMapCreator(sc.id);
                       }}
                       className="vtt-icon-tool-btn"
-                      style={{ color: '#fbbf24', padding: '4px 6px' }}
+                      style={{ color: 'var(--vtt-accent-amber)', padding: '4px 6px' }}
                       title={`Editar plano de "${sc.name}" en el Creador de Mapas`}
                     >
                       <Map size={12} strokeWidth={2.2} />
@@ -331,14 +331,14 @@ const ScenesManagerTab = ({
                         display: 'flex',
                         alignItems: 'center',
                         gap: '4px',
-                        backgroundColor: 'rgba(127, 29, 29, 0.45)',
-                        border: '1px solid #ef4444',
+                        backgroundColor: 'var(--vtt-accent-red-bg)',
+                        border: '1px solid var(--vtt-danger-border)',
                         borderRadius: '5px',
                         padding: '2px 5px'
                       }}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <span style={{ fontSize: '9.5px', color: '#fca5a5', fontWeight: 700 }}>
+                      <span style={{ fontSize: '9.5px', color: 'var(--vtt-accent-red-soft)', fontWeight: 700 }}>
                         ¿Borrar?
                       </span>
                       <button
@@ -349,7 +349,7 @@ const ScenesManagerTab = ({
                           setConfirmDeleteSceneId(null);
                         }}
                         style={{
-                          background: '#ef4444',
+                          background: '#dc2626',
                           border: 'none',
                           color: '#ffffff',
                           borderRadius: '3px',
@@ -369,9 +369,9 @@ const ScenesManagerTab = ({
                           setConfirmDeleteSceneId(null);
                         }}
                         style={{
-                          background: '#334155',
-                          border: 'none',
-                          color: '#cbd5e1',
+                          background: 'var(--vtt-btn-bg)',
+                          border: '1px solid var(--vtt-btn-border)',
+                          color: 'var(--vtt-btn-text)',
                           borderRadius: '3px',
                           padding: '1px 5px',
                           fontSize: '9.5px',
@@ -392,7 +392,7 @@ const ScenesManagerTab = ({
                           setConfirmDeleteSceneId(sc.id);
                         }}
                         className="vtt-icon-tool-btn"
-                        style={{ color: '#f87171', padding: '4px 6px' }}
+                        style={{ color: 'var(--vtt-accent-red)', padding: '4px 6px' }}
                         title={`Eliminar escena "${sc.name}"`}
                       >
                         <Trash2 size={11} strokeWidth={2.2} />
@@ -405,7 +405,7 @@ const ScenesManagerTab = ({
           })}
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid rgba(255, 255, 255, 0.08)', marginTop: '6px', flexWrap: 'wrap', gap: '8px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--vtt-border-subtle)', marginTop: '6px', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             {onSaveAdventure && (
               <button

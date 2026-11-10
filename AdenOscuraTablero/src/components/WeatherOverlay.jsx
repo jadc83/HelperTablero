@@ -1,12 +1,15 @@
 import { useEffect, useRef } from 'react';
 import { AMBIENT_TINTS } from '../constants/gamePresets';
+import { useAppSettings } from '../hooks/useAppSettings';
 
 const WeatherOverlay = ({ weather = 'none', ambientTint = 'none' }) => {
+  const { settings } = useAppSettings();
+  const weatherEnabled = settings.weatherEffectsEnabled !== false;
   const canvasRef = useRef(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas || weather === 'none') return;
+    if (!canvas || weather === 'none' || !weatherEnabled) return;
 
     const ctx = canvas.getContext('2d');
     let animId;
@@ -136,7 +139,7 @@ const WeatherOverlay = ({ weather = 'none', ambientTint = 'none' }) => {
       cancelAnimationFrame(animId);
       window.removeEventListener('resize', handleResize);
     };
-  }, [weather]);
+  }, [weather, weatherEnabled]);
 
   const tintObj = AMBIENT_TINTS.find(t => t.id === ambientTint) || AMBIENT_TINTS[0];
 
@@ -158,7 +161,7 @@ const WeatherOverlay = ({ weather = 'none', ambientTint = 'none' }) => {
           }}
         />
       )}
-      {weather !== 'none' && (
+      {weather !== 'none' && weatherEnabled && (
         <canvas
           ref={canvasRef}
           style={{

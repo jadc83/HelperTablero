@@ -1,20 +1,33 @@
-import { Fragment, useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Sparkles, Dices, Grip, X, Eye, EyeOff, RotateCcw, Plus, Minus } from 'lucide-react';
+import { useAppSettings } from '../hooks/useAppSettings';
+import { useDraggablePanel } from '../hooks/useDraggablePanel';
 
 const DICE_TYPES = [4, 6, 8, 10, 12, 20, 100];
+const EMPTY_DICE_MAP = { 4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0, 100: 0 };
 const createRollId = () => Date.now() + Math.random();
 
+const formatGroupFormula = (group, compact = false) => {
+  const base = `${group.count}d${group.sides}`;
+  const mod = group.modifier || 0;
+  if (mod === 0) return base;
+  const sign = mod > 0 ? '+' : '-';
+  const absMod = Math.abs(mod);
+  return compact ? `${base}${sign}${absMod}` : `${base} ${sign} ${absMod}`;
+};
+
 const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResult, isSettingsOpen = false }) => {
-  const [dicePool, setDicePool] = useState({ 4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 1, 100: 0 });
-  const [modifier, setModifier] = useState(0);
+  const { settings } = useAppSettings();
+  const [dicePool, setDicePool] = useState({ ...EMPTY_DICE_MAP, 20: 1 });
+  const [diceModifiers, setDiceModifiers] = useState({ ...EMPTY_DICE_MAP });
   const [history, setHistory] = useState([]);
   const [screenRoll, setScreenRoll] = useState(null);
   const [prevIncomingResult, setPrevIncomingResult] = useState(incomingResult);
   const [isPublicRoll, setIsPublicRoll] = useState(true);
-  const [panelPos, setPanelPos] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const panelRef = useRef(null);
-  const dragStateRef = useRef(null);
+  const { panelRef, panelPos, isDragging, gripProps } = useDraggablePanel('diceRoller', {
+    fallbackWidth: 340,
+    fallbackHeight: 440
+  });
 
   if (incomingResult !== prevIncomingResult) {
     setPrevIncomingResult(incomingResult);
@@ -28,9 +41,9 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
     if (!screenRoll) return;
     const timer = setTimeout(() => {
       setScreenRoll(null);
-    }, 4500);
+    }, settings.diceResultDurationMs || 4500);
     return () => clearTimeout(timer);
-  }, [screenRoll]);
+  }, [screenRoll, settings.diceResultDurationMs]);
 
   useEffect(() => {
     if (!isOpen || !onClose) return;
@@ -44,68 +57,6 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  useEffect(() => {
-    if (!panelPos) return;
-    const handleResize = () => {
-      const rect = panelRef.current?.getBoundingClientRect();
-      const width = rect?.width || 340;
-      const height = rect?.height || 420;
-      setPanelPos(prev => {
-        if (!prev) return null;
-        const maxLeft = Math.max(8, window.innerWidth - width - 8);
-        const maxTop = Math.max(8, window.innerHeight - height - 8);
-        const nextX = Math.min(Math.max(8, prev.x), maxLeft);
-        const nextY = Math.min(Math.max(8, prev.y), maxTop);
-        return (nextX === prev.x && nextY === prev.y) ? prev : { x: nextX, y: nextY };
-      });
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [panelPos]);
-
-  const handleGripPointerDown = (e) => {
-    if (e.button !== undefined && e.button !== 0) return;
-    e.stopPropagation();
-    e.preventDefault();
-    const rect = panelRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    dragStateRef.current = {
-      pointerId: e.pointerId,
-      startX: e.clientX,
-      startY: e.clientY,
-      originLeft: rect.left,
-      originTop: rect.top,
-      width: rect.width,
-      height: rect.height
-    };
-    setIsDragging(true);
-    try {
-      e.currentTarget.setPointerCapture?.(e.pointerId);
-    } catch { /* ignore */ }
-  };
-
-  const handleGripPointerMove = (e) => {
-    const drag = dragStateRef.current;
-    if (!drag) return;
-    const rawLeft = drag.originLeft + (e.clientX - drag.startX);
-    const rawTop = drag.originTop + (e.clientY - drag.startY);
-    const maxLeft = Math.max(8, window.innerWidth - drag.width - 8);
-    const maxTop = Math.max(8, window.innerHeight - drag.height - 8);
-    setPanelPos({
-      x: Math.round(Math.min(Math.max(8, rawLeft), maxLeft)),
-      y: Math.round(Math.min(Math.max(8, rawTop), maxTop))
-    });
-  };
-
-  const handleGripPointerUp = (e) => {
-    if (!dragStateRef.current) return;
-    try {
-      e.currentTarget.releasePointerCapture?.(dragStateRef.current.pointerId);
-    } catch { /* ignore */ }
-    dragStateRef.current = null;
-    setIsDragging(false);
-  };
-
   const handleAddDie = (sides) => {
     setDicePool(prev => ({
       ...prev,
@@ -114,10 +65,11 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
   };
 
   const handleDecrementDie = (sides) => {
-    setDicePool(prev => {
-      const nextCount = Math.max(0, (prev[sides] || 0) - 1);
-      return { ...prev, [sides]: nextCount };
-    });
+    const nextCount = Math.max(0, (dicePool[sides] || 0) - 1);
+    setDicePool(prev => ({ ...prev, [sides]: nextCount }));
+    if (nextCount === 0) {
+      setDiceModifiers(prev => ({ ...prev, [sides]: 0 }));
+    }
   };
 
   const handleRemoveDieType = (sides) => {
@@ -125,22 +77,42 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
       ...prev,
       [sides]: 0
     }));
+    setDiceModifiers(prev => ({
+      ...prev,
+      [sides]: 0
+    }));
+  };
+
+  const handleAdjustModifier = (sides, delta) => {
+    setDiceModifiers(prev => ({
+      ...prev,
+      [sides]: Math.max(-99, Math.min(99, (prev[sides] || 0) + delta))
+    }));
+  };
+
+  const handleResetModifier = (sides) => {
+    setDiceModifiers(prev => ({
+      ...prev,
+      [sides]: 0
+    }));
   };
 
   const handleClearPool = () => {
-    setDicePool({ 4: 0, 6: 0, 8: 0, 10: 0, 12: 0, 20: 0, 100: 0 });
-    setModifier(0);
+    setDicePool({ ...EMPTY_DICE_MAP });
+    setDiceModifiers({ ...EMPTY_DICE_MAP });
   };
 
   const activeDiceGroups = DICE_TYPES
     .filter(sides => (dicePool[sides] || 0) > 0)
-    .map(sides => ({ count: dicePool[sides], sides }));
+    .map(sides => ({ count: dicePool[sides], sides, modifier: diceModifiers[sides] || 0 }));
 
   const totalDiceCount = activeDiceGroups.reduce((acc, g) => acc + g.count, 0);
+  const totalModifier = activeDiceGroups.reduce((acc, g) => acc + g.modifier, 0);
+  const isMultiGroup = activeDiceGroups.length > 1;
 
-  const diceFormulaStr = activeDiceGroups.map(g => `${g.count}d${g.sides}`).join(' + ');
-  const modStr = modifier > 0 ? ` + ${modifier}` : modifier < 0 ? ` - ${Math.abs(modifier)}` : '';
-  const currentFormula = totalDiceCount > 0 ? (diceFormulaStr + modStr) : (modifier !== 0 ? `${modifier}` : '0 dados');
+  const currentFormula = totalDiceCount > 0
+    ? activeDiceGroups.map(g => formatGroupFormula(g, isMultiGroup)).join(' + ')
+    : '0 dados';
 
   const handleRoll = () => {
     if (activeDiceGroups.length === 0) return;
@@ -152,7 +124,7 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
       diceNotation,
       diceGroups: activeDiceGroups,
       totalDiceCount,
-      modifier,
+      modifier: totalModifier,
       isPublic: isPublicRoll,
       diceCount: activeDiceGroups[0]?.count || 1,
       diceSides: activeDiceGroups[0]?.sides || 20
@@ -176,13 +148,13 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
             top: '75px',
             left: '50%',
             transform: 'translateX(-50%)',
-            background: 'linear-gradient(180deg, rgba(22, 27, 38, 0.98) 0%, rgba(12, 15, 22, 0.98) 100%)',
-            border: '2px solid #f59e0b',
+            background: 'var(--vtt-bg-panel-gradient)',
+            border: '2px solid var(--vtt-gold)',
             borderRadius: '10px',
             padding: '16px 32px',
-            color: '#f8fafc',
+            color: 'var(--vtt-text-strong)',
             zIndex: 110000,
-            boxShadow: '0 20px 45px rgba(0,0,0,0.95), 0 0 25px rgba(245, 158, 11, 0.25)',
+            boxShadow: 'var(--vtt-shadow-panel)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -193,7 +165,7 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
           }}
           title="Haz clic para cerrar"
         >
-          <div className="vtt-gothic-title" style={{ fontSize: '12px', color: '#fbbf24', fontWeight: 'bold' }}>
+          <div className="vtt-gothic-title" style={{ fontSize: '12px', color: 'var(--vtt-accent-amber)', fontWeight: 'bold' }}>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Sparkles size={13} strokeWidth={2.2} /> Destino: {screenRoll.formula}</span>
           </div>
           <div
@@ -203,29 +175,48 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
               fontWeight: '900',
               lineHeight: '1',
               color: (screenRoll.rolls?.length === 1 && screenRoll.diceSides === 20 && screenRoll.rolls[0] === 20)
-                ? '#4ade80'
+                ? 'var(--vtt-accent-green-strong)'
                 : (screenRoll.rolls?.length === 1 && screenRoll.diceSides === 20 && screenRoll.rolls[0] === 1)
-                ? '#f87171'
-                : '#f8fafc'
+                ? 'var(--vtt-accent-red)'
+                : 'var(--vtt-text-strong)'
             }}
           >
             {screenRoll.total}
           </div>
-          <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap', justifyContent: 'center' }}>
+          <div style={{ fontSize: '13px', color: 'var(--vtt-text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '5px', flexWrap: 'wrap', justifyContent: 'center' }}>
             <span>Dados:</span>
-            {screenRoll.detailedRolls && screenRoll.detailedRolls.length > 0 ? (
-              screenRoll.detailedRolls.map((r, i) => (
-                <span key={i} style={{ background: '#171c26', border: '1px solid #2b3345', padding: '1px 6px', borderRadius: '4px', fontSize: '12px', color: '#e2e8f0' }}>
-                  <strong style={{ color: '#fbbf24' }}>{r.dieType || `d${r.sides}`}:</strong> {r.value}
+            {screenRoll.groupResults && screenRoll.groupResults.length > 1 ? (
+              screenRoll.groupResults.map((g, i) => (
+                <span key={i} style={{ background: 'var(--vtt-bg-card)', border: '1px solid var(--vtt-border)', padding: '1px 7px', borderRadius: '4px', fontSize: '12px', color: 'var(--vtt-text)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                  <strong style={{ color: 'var(--vtt-accent-amber)' }}>{g.count}d{g.sides}:</strong>
+                  <span>{g.rolls.length === 1 ? g.rolls[0] : `[${g.rolls.join(', ')}]`}</span>
+                  {g.modifier !== 0 && (
+                    <span style={{ color: g.modifier > 0 ? 'var(--vtt-accent-green-strong)' : 'var(--vtt-accent-red)', fontWeight: 'bold' }}>
+                      {g.modifier > 0 ? `+${g.modifier}` : g.modifier}
+                    </span>
+                  )}
+                  {(g.modifier !== 0 || g.rolls.length > 1) && (
+                    <strong style={{ color: 'var(--vtt-text-strong)' }}>= {g.subtotal}</strong>
+                  )}
                 </span>
               ))
             ) : (
-              <span>[{screenRoll.rolls?.join(', ')}]</span>
-            )}
-            {screenRoll.modifier !== 0 && (
-              <span style={{ color: screenRoll.modifier > 0 ? '#4ade80' : '#f87171', fontWeight: 'bold' }}>
-                {screenRoll.modifier > 0 ? `+ ${screenRoll.modifier}` : `- ${Math.abs(screenRoll.modifier)}`}
-              </span>
+              <>
+                {screenRoll.detailedRolls && screenRoll.detailedRolls.length > 0 ? (
+                  screenRoll.detailedRolls.map((r, i) => (
+                    <span key={i} style={{ background: 'var(--vtt-bg-card)', border: '1px solid var(--vtt-border)', padding: '1px 6px', borderRadius: '4px', fontSize: '12px', color: 'var(--vtt-text)' }}>
+                      <strong style={{ color: 'var(--vtt-accent-amber)' }}>{r.dieType || `d${r.sides}`}:</strong> {r.value}
+                    </span>
+                  ))
+                ) : (
+                  <span>[{screenRoll.rolls?.join(', ')}]</span>
+                )}
+                {screenRoll.modifier !== 0 && (
+                  <span style={{ color: screenRoll.modifier > 0 ? 'var(--vtt-accent-green-strong)' : 'var(--vtt-accent-red)', fontWeight: 'bold' }}>
+                    {screenRoll.modifier > 0 ? `+ ${screenRoll.modifier}` : `- ${Math.abs(screenRoll.modifier)}`}
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -262,30 +253,26 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
               maxWidth: 'calc(100vw - 32px)',
               borderRadius: '10px',
               padding: '15px',
-              border: '1.5px solid #334155',
-              background: 'linear-gradient(180deg, #161b26 0%, #0d1017 100%)',
-              color: '#e2e8f0',
+              border: '1.5px solid var(--vtt-border-strong)',
+              background: 'var(--vtt-bg-panel-gradient)',
+              color: 'var(--vtt-text)',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
-              boxShadow: '0 16px 40px rgba(0,0,0,0.92)'
+              boxShadow: 'var(--vtt-shadow-panel)'
             }}
           >
             {/* Cabecera */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #242d3f', paddingBottom: '9px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--vtt-border-subtle)', paddingBottom: '9px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
                 <div
-                  onPointerDown={handleGripPointerDown}
-                  onPointerMove={handleGripPointerMove}
-                  onPointerUp={handleGripPointerUp}
-                  onPointerCancel={handleGripPointerUp}
-                  onDoubleClick={() => setPanelPos(null)}
+                  {...gripProps}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: isDragging ? 'grabbing' : 'grab',
-                    color: isDragging ? '#38bdf8' : '#64748b',
+                    color: isDragging ? 'var(--vtt-info)' : 'var(--vtt-text-dim)',
                     padding: '4px',
                     marginLeft: '-4px',
                     borderRadius: '4px',
@@ -299,8 +286,8 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                 >
                   <Grip size={14} strokeWidth={2.2} />
                 </div>
-                <Dices size={16} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
-                <span className="vtt-gothic-title" style={{ fontWeight: 'bold', fontSize: '14px', color: '#f8fafc' }}>
+                <Dices size={16} strokeWidth={2.2} style={{ color: 'var(--vtt-gold-light)' }} />
+                <span className="vtt-gothic-title" style={{ fontWeight: 'bold', fontSize: '14px', color: 'var(--vtt-text-strong)' }}>
                   Cubilete del Destino
                 </span>
               </div>
@@ -319,7 +306,7 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
             {/* Botonera de Dados */}
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                <span style={{ fontSize: '11px', color: '#94a3b8', fontWeight: 600 }}>Añadir dados al cubilete:</span>
+                <span style={{ fontSize: '11px', color: 'var(--vtt-text-muted)', fontWeight: 600 }}>Añadir dados al cubilete:</span>
                 <button
                   type="button"
                   onClick={handleClearPool}
@@ -330,7 +317,7 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                     fontSize: '10.5px',
                     cursor: 'pointer',
                     fontWeight: 600,
-                    color: '#fca5a5'
+                    color: 'var(--vtt-accent-red)'
                   }}
                   title="Vaciar todos los dados"
                 >
@@ -351,9 +338,9 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                       style={{
                         padding: '8px 4px',
                         borderRadius: '6px',
-                        border: isSelected ? '1px solid #f59e0b' : '1px solid #2b3345',
-                        background: isSelected ? 'rgba(245, 158, 11, 0.18)' : '#171c26',
-                        color: isSelected ? '#fef08a' : '#cbd5e1',
+                        border: isSelected ? '1px solid var(--vtt-gold)' : '1px solid var(--vtt-border)',
+                        background: isSelected ? 'var(--vtt-accent-amber-bg)' : 'var(--vtt-btn-bg)',
+                        color: isSelected ? 'var(--vtt-accent-amber)' : 'var(--vtt-btn-text)',
                         fontWeight: 'bold',
                         fontSize: '12px',
                         cursor: 'pointer',
@@ -369,8 +356,8 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                       <span>+ d{sides}</span>
                       {isSelected && (
                         <span style={{
-                          background: '#f59e0b',
-                          color: '#0b0d12',
+                          background: 'var(--vtt-gold)',
+                          color: 'var(--vtt-badge-active-text)',
                           borderRadius: '999px',
                           padding: '1px 5px',
                           fontSize: '9px',
@@ -388,8 +375,8 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
 
             {/* Reserva de Dados Seleccionados */}
             <div style={{
-              background: '#0f131c',
-              border: '1px solid #242c3d',
+              background: 'var(--vtt-bg-inset)',
+              border: '1px solid var(--vtt-border)',
               borderRadius: '7px',
               padding: '9px 10px',
               minHeight: '46px',
@@ -398,29 +385,35 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
               gap: '6px'
             }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '10px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <span style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Cubilete actual:
                 </span>
-                <span className="vtt-retro-badge" style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 800 }}>
+                <span className="vtt-retro-badge" style={{ fontSize: '11px', color: 'var(--vtt-accent-amber)', fontWeight: 800 }}>
                   {totalDiceCount} {totalDiceCount === 1 ? 'dado' : 'dados'}
                 </span>
               </div>
 
               {activeDiceGroups.length > 0 ? (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center' }}>
-                  {activeDiceGroups.map((group, idx) => (
-                    <Fragment key={group.sides}>
-                      {idx > 0 && <span style={{ color: '#64748b', fontWeight: 'bold', fontSize: '12px' }}>+</span>}
-                      <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        background: '#171c26',
-                        border: '1px solid #334155',
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: activeDiceGroups.length === 1 ? 'minmax(0, 1fr)' : 'repeat(2, minmax(0, 1fr))',
+                  gap: '7px'
+                }}>
+                  {activeDiceGroups.map((group) => (
+                    <div
+                      key={group.sides}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        background: 'var(--vtt-bg-card)',
+                        border: '1px solid var(--vtt-border)',
                         borderRadius: '6px',
-                        padding: '3px 5px 3px 7px',
+                        padding: '6px 7px',
                         gap: '5px'
-                      }}>
-                        <strong className="vtt-retro-badge" style={{ color: '#fbbf24', fontSize: '12px' }}>
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '4px' }}>
+                        <strong className="vtt-retro-badge" style={{ color: 'var(--vtt-accent-amber)', fontSize: '12px' }}>
                           {group.count}d{group.sides}
                         </strong>
                         <div style={{ display: 'flex', gap: '3px' }}>
@@ -428,8 +421,8 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                             type="button"
                             onClick={() => handleDecrementDie(group.sides)}
                             style={{
-                              width: '22px', height: '22px', borderRadius: '4px', background: '#1e2534',
-                              border: '1px solid #334155', color: '#cbd5e1', cursor: 'pointer',
+                              width: '21px', height: '21px', borderRadius: '4px', background: 'var(--vtt-btn-bg)',
+                              border: '1px solid var(--vtt-btn-border)', color: 'var(--vtt-btn-text)', cursor: 'pointer',
                               padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
                             }}
                             title="Restar 1 dado de este tipo"
@@ -440,8 +433,8 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                             type="button"
                             onClick={() => handleAddDie(group.sides)}
                             style={{
-                              width: '22px', height: '22px', borderRadius: '4px', background: '#1e2534',
-                              border: '1px solid #334155', color: '#cbd5e1', cursor: 'pointer',
+                              width: '21px', height: '21px', borderRadius: '4px', background: 'var(--vtt-btn-bg)',
+                              border: '1px solid var(--vtt-btn-border)', color: 'var(--vtt-btn-text)', cursor: 'pointer',
                               padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
                             }}
                             title="Añadir 1 dado más de este tipo"
@@ -452,8 +445,8 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                             type="button"
                             onClick={() => handleRemoveDieType(group.sides)}
                             style={{
-                              width: '22px', height: '22px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.14)',
-                              border: '1px solid rgba(239, 68, 68, 0.4)', color: '#fca5a5', cursor: 'pointer',
+                              width: '21px', height: '21px', borderRadius: '4px', background: 'var(--vtt-accent-red-bg)',
+                              border: '1px solid var(--vtt-danger-border)', color: 'var(--vtt-accent-red)', cursor: 'pointer',
                               padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
                             }}
                             title="Quitar este tipo de dado del cubilete"
@@ -462,73 +455,72 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                           </button>
                         </div>
                       </div>
-                    </Fragment>
+
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '4px',
+                        borderTop: '1px solid var(--vtt-border-subtle)',
+                        paddingTop: '5px'
+                      }}>
+                        <span style={{ fontSize: '10px', color: 'var(--vtt-text-muted)', fontWeight: 600 }}>
+                          {activeDiceGroups.length === 1 ? 'Modificador:' : 'Mod:'}
+                        </span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustModifier(group.sides, -1)}
+                            style={{
+                              width: '21px', height: '21px', borderRadius: '4px', background: 'var(--vtt-btn-bg)',
+                              border: '1px solid var(--vtt-btn-border)', color: 'var(--vtt-btn-text)', cursor: 'pointer',
+                              padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
+                            }}
+                            title={`Restar 1 al modificador de d${group.sides}`}
+                          >
+                            <Minus size={11} strokeWidth={2.4} />
+                          </button>
+                          <span
+                            onClick={() => group.modifier !== 0 && handleResetModifier(group.sides)}
+                            className="vtt-retro-badge"
+                            title={group.modifier !== 0 ? 'Haz clic para restablecer a 0' : `Modificador para d${group.sides}`}
+                            style={{
+                              minWidth: '24px',
+                              textAlign: 'center',
+                              fontWeight: 800,
+                              fontSize: '11.5px',
+                              cursor: group.modifier !== 0 ? 'pointer' : 'default',
+                              color: group.modifier > 0
+                                ? 'var(--vtt-accent-green-strong)'
+                                : group.modifier < 0
+                                ? 'var(--vtt-accent-red)'
+                                : 'var(--vtt-text-strong)'
+                            }}
+                          >
+                            {group.modifier > 0 ? `+${group.modifier}` : group.modifier}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleAdjustModifier(group.sides, 1)}
+                            style={{
+                              width: '21px', height: '21px', borderRadius: '4px', background: 'var(--vtt-btn-bg)',
+                              border: '1px solid var(--vtt-btn-border)', color: 'var(--vtt-btn-text)', cursor: 'pointer',
+                              padding: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center'
+                            }}
+                            title={`Sumar 1 al modificador de d${group.sides}`}
+                          >
+                            <Plus size={11} strokeWidth={2.4} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
                   ))}
-                  {modifier !== 0 && (
-                    <span className="vtt-retro-badge" style={{
-                      color: modifier > 0 ? '#4ade80' : '#f87171',
-                      fontWeight: 800,
-                      fontSize: '12px',
-                      background: '#171c26',
-                      padding: '2px 7px',
-                      borderRadius: '4px',
-                      border: '1px solid #2b3345'
-                    }}>
-                      {modifier > 0 ? `+ ${modifier}` : `- ${Math.abs(modifier)}`}
-                    </span>
-                  )}
                 </div>
               ) : (
-                <span style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic' }}>
+                <span style={{ fontSize: '11px', color: 'var(--vtt-text-dim)', fontStyle: 'italic' }}>
                   El cubilete está vacío. Pulsa los dados de arriba para añadirlos.
                 </span>
               )}
-            </div>
-
-            {/* Modificador numérico */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span style={{ fontSize: '12.5px', color: '#cbd5e1', fontWeight: 600 }}>Modificador numérico:</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <button
-                  type="button"
-                  onClick={() => setModifier(modifier - 1)}
-                  className="vtt-brass-btn"
-                  style={{ width: '28px', height: '28px', padding: 0, borderRadius: '5px', cursor: 'pointer' }}
-                >
-                  <Minus size={13} strokeWidth={2.4} />
-                </button>
-                <span
-                  className="vtt-retro-badge"
-                  style={{
-                    minWidth: '38px',
-                    textAlign: 'center',
-                    fontWeight: 'bold',
-                    fontSize: '14px',
-                    color: modifier > 0 ? '#4ade80' : modifier < 0 ? '#f87171' : '#f8fafc'
-                  }}
-                >
-                  {modifier > 0 ? `+${modifier}` : modifier}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setModifier(modifier + 1)}
-                  className="vtt-brass-btn"
-                  style={{ width: '28px', height: '28px', padding: 0, borderRadius: '5px', cursor: 'pointer' }}
-                >
-                  <Plus size={13} strokeWidth={2.4} />
-                </button>
-                {modifier !== 0 && (
-                  <button
-                    type="button"
-                    onClick={() => setModifier(0)}
-                    className="vtt-brass-btn"
-                    style={{ width: '26px', height: '26px', padding: 0, borderRadius: '5px', cursor: 'pointer', color: '#94a3b8' }}
-                    title="Restablecer a 0"
-                  >
-                    <RotateCcw size={12} strokeWidth={2.2} />
-                  </button>
-                )}
-              </div>
             </div>
 
             {/* Opciones de Visibilidad */}
@@ -538,9 +530,9 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                 onClick={() => setIsPublicRoll(true)}
                 style={{
                   flex: 1, padding: '7px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px', fontWeight: 700,
-                  background: isPublicRoll ? 'rgba(16, 185, 129, 0.16)' : '#171c26',
-                  color: isPublicRoll ? '#34d399' : '#94a3b8',
-                  border: isPublicRoll ? '1px solid #10b981' : '1px solid #2b3345'
+                  background: isPublicRoll ? 'var(--vtt-accent-green-bg)' : 'var(--vtt-btn-bg)',
+                  color: isPublicRoll ? 'var(--vtt-accent-green-strong)' : 'var(--vtt-text-muted)',
+                  border: isPublicRoll ? '1px solid var(--vtt-accent-green-border)' : '1px solid var(--vtt-btn-border)'
                 }}
                 title="Lanzamiento visible para todos los jugadores en la Pantalla 3D"
               >
@@ -551,9 +543,9 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                 onClick={() => setIsPublicRoll(false)}
                 style={{
                   flex: 1, padding: '7px 8px', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px', fontWeight: 700,
-                  background: !isPublicRoll ? 'rgba(239, 68, 68, 0.16)' : '#171c26',
-                  color: !isPublicRoll ? '#fca5a5' : '#94a3b8',
-                  border: !isPublicRoll ? '1px solid #ef4444' : '1px solid #2b3345'
+                  background: !isPublicRoll ? 'var(--vtt-accent-red-bg)' : 'var(--vtt-btn-bg)',
+                  color: !isPublicRoll ? 'var(--vtt-accent-red)' : 'var(--vtt-text-muted)',
+                  border: !isPublicRoll ? '1px solid var(--vtt-danger-border)' : '1px solid var(--vtt-btn-border)'
                 }}
                 title="Tirada oculta: solo el Máster ve el resultado en su pantalla"
               >
@@ -581,17 +573,19 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
 
             {/* Historial */}
             {history.length > 0 && (
-              <div style={{ borderTop: '1px solid #242c3d', paddingTop: '8px', maxHeight: '115px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ borderTop: '1px solid var(--vtt-border-subtle)', paddingTop: '8px', maxHeight: '115px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <span className="vtt-context-section-label">Historial</span>
                 {history.map(item => (
-                  <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', backgroundColor: '#10141e', border: '1px solid #232b3b', padding: '5px 8px', borderRadius: '5px' }}>
-                    <span style={{ color: '#cbd5e1', display: 'flex', gap: '5px', alignItems: 'center', minWidth: 0, overflow: 'hidden' }}>
+                  <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11.5px', backgroundColor: 'var(--vtt-bg-inset)', border: '1px solid var(--vtt-border-subtle)', padding: '5px 8px', borderRadius: '5px' }}>
+                    <span style={{ color: 'var(--vtt-text)', display: 'flex', gap: '5px', alignItems: 'center', minWidth: 0, overflow: 'hidden' }}>
                       <strong>{item.formula}</strong>
-                      <span style={{ color: '#64748b', fontSize: '10.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        [{item.detailedRolls ? item.detailedRolls.map(r => `${r.dieType || 'd' + r.sides}:${r.value}`).join(', ') : item.rolls?.join(', ')}]
+                      <span style={{ color: 'var(--vtt-text-dim)', fontSize: '10.5px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        [{item.groupResults && item.groupResults.length > 1
+                          ? item.groupResults.map(g => `${g.count}d${g.sides}:${g.rolls.join('+')}${g.modifier !== 0 ? (g.modifier > 0 ? `+${g.modifier}` : g.modifier) : ''}`).join(', ')
+                          : (item.detailedRolls ? item.detailedRolls.map(r => `${r.dieType || 'd' + r.sides}:${r.value}`).join(', ') : item.rolls?.join(', '))}]
                       </span>
                     </span>
-                    <strong className="vtt-retro-badge" style={{ color: '#fbbf24', flexShrink: 0 }}>= {item.total}</strong>
+                    <strong className="vtt-retro-badge" style={{ color: 'var(--vtt-accent-amber)', flexShrink: 0 }}>= {item.total}</strong>
                   </div>
                 ))}
               </div>

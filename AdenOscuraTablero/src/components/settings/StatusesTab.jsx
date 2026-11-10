@@ -62,10 +62,10 @@ const StatusesTab = ({ customStatuses = [], onAddCustomStatus, onRemoveCustomSta
     <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflow: 'hidden' }}>
       <div className="vtt-wood-panel" style={{ padding: '16px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, overflow: 'hidden' }}>
         <div>
-          <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f59e0b', fontWeight: 'bold' }}>
+          <div className="vtt-gothic-title" style={{ fontSize: '13px', color: 'var(--vtt-accent-amber)', fontWeight: 'bold' }}>
             Estados Alterados y Condiciones de Combate
           </div>
-          <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
+          <div style={{ fontSize: '11px', color: 'var(--vtt-text-muted)', marginTop: '2px' }}>
             Se asignan haciendo clic derecho sobre cualquier ficha en el tablero
           </div>
         </div>
@@ -77,8 +77,8 @@ const StatusesTab = ({ customStatuses = [], onAddCustomStatus, onRemoveCustomSta
               type="button"
               onClick={() => setStatusIcon(icon)}
               style={{
-                background: statusIcon === icon ? 'rgba(245, 158, 11, 0.25)' : '#12151e',
-                border: statusIcon === icon ? '1px solid #fbbf24' : '1px solid #2b3244',
+                background: statusIcon === icon ? 'var(--vtt-accent-amber-bg)' : 'var(--vtt-btn-bg)',
+                border: statusIcon === icon ? '1px solid var(--vtt-gold)' : '1px solid var(--vtt-btn-border)',
                 borderRadius: '6px',
                 padding: '5px 7px',
                 cursor: 'pointer',
@@ -107,8 +107,8 @@ const StatusesTab = ({ customStatuses = [], onAddCustomStatus, onRemoveCustomSta
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: '#12151e',
-            border: '1px solid #fbbf24',
+            background: 'var(--vtt-input-bg)',
+            border: '1px solid var(--vtt-gold)',
             borderRadius: '6px',
             flexShrink: 0
           }}>
@@ -123,12 +123,12 @@ const StatusesTab = ({ customStatuses = [], onAddCustomStatus, onRemoveCustomSta
             value={statusLabel}
             onChange={(e) => setStatusLabel(e.target.value)}
             placeholder="Nombre (ej. Envenenado, Aturdido)..."
-            style={{ flex: 1, padding: '8px', borderRadius: '6px', background: '#12151e', color: 'white', border: '1px solid #333a4d', fontSize: '12px' }}
+            style={{ flex: 1, padding: '8px', borderRadius: '6px', background: 'var(--vtt-input-bg)', color: 'var(--vtt-input-text)', border: '1px solid var(--vtt-input-border)', fontSize: '12px' }}
           />
           <select
             value={statusEffect}
             onChange={(e) => setStatusEffect(e.target.value)}
-            style={{ padding: '8px', borderRadius: '6px', background: '#12151e', color: '#e2e8f0', border: '1px solid #333a4d', fontSize: '11px' }}
+            style={{ padding: '8px', borderRadius: '6px', background: 'var(--vtt-input-bg)', color: 'var(--vtt-input-text)', border: '1px solid var(--vtt-input-border)', fontSize: '11px' }}
           >
             <option value="none">Visual</option>
             <option value="immobilize">Inmoviliza</option>
@@ -142,14 +142,14 @@ const StatusesTab = ({ customStatuses = [], onAddCustomStatus, onRemoveCustomSta
           {customStatuses.map(status => {
             const isImage = status.icon.startsWith('data:image');
             return (
-              <div key={status.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#141822', border: '1px solid #2e3546', padding: '6px 10px', borderRadius: '7px', fontSize: '12px' }}>
+              <div key={status.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--vtt-bg-card)', border: '1px solid var(--vtt-border)', color: 'var(--vtt-text)', padding: '6px 10px', borderRadius: '7px', fontSize: '12px' }}>
                 {isImage ? <img src={status.icon} style={{ width: '16px', height: '16px', borderRadius: '2px', objectFit: 'cover' }} alt="" /> : <span>{status.icon}</span>}
                 <span style={{ fontWeight: 600 }}>{status.label}</span>
-                {status.effect === 'immobilize' && <span style={{ fontSize: '10px', color: '#f87171' }}><Lock size={11} strokeWidth={2.2} /></span>}
+                {status.effect === 'immobilize' && <span style={{ fontSize: '10px', color: 'var(--vtt-accent-red)' }}><Lock size={11} strokeWidth={2.2} /></span>}
                 <button
                   type="button"
                   onClick={() => handleRemoveStatus(status)}
-                  style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '2px', display: 'inline-flex' }}
+                  style={{ background: 'none', border: 'none', color: 'var(--vtt-accent-red)', cursor: 'pointer', padding: '2px', display: 'inline-flex' }}
                   title={`Eliminar "${status.label}"`}
                 >
                   <X size={12} strokeWidth={2.5} />
