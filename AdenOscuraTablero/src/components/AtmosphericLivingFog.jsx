@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 const CANVAS_SIZE = 4000;
@@ -123,7 +123,8 @@ const AtmosphericLivingFog = ({
   const threeRefs = useRef(null);
 
   useEffect(() => {
-    if (!fowEnabled || !livingFogEnabled || !mountRef.current || !fowCanvasRef?.current) return;
+    const mountEl = mountRef.current;
+    if (!fowEnabled || !livingFogEnabled || !mountEl || !fowCanvasRef?.current) return;
 
     const width = CANVAS_SIZE;
     const height = CANVAS_SIZE;
@@ -140,7 +141,7 @@ const AtmosphericLivingFog = ({
     const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'low-power' });
     renderer.setSize(width, height);
     renderer.setPixelRatio(1); // 1 es ideal para mapas grandes de 4000px sin sobrecargar memoria
-    mountRef.current.appendChild(renderer.domElement);
+    mountEl.appendChild(renderer.domElement);
 
     // Textura desde el canvas 2D de FogLayer
     const maskTexture = new THREE.CanvasTexture(fowCanvasRef.current);
@@ -197,8 +198,8 @@ const AtmosphericLivingFog = ({
 
     return () => {
       cancelAnimationFrame(reqId);
-      if (renderer.domElement && mountRef.current) {
-        try { mountRef.current.removeChild(renderer.domElement); } catch (e) {}
+      if (renderer.domElement && mountEl) {
+        try { mountEl.removeChild(renderer.domElement); } catch { /* ya eliminado */ }
       }
       renderer.dispose();
       geometry.dispose();

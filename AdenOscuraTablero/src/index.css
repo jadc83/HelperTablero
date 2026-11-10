@@ -1,116 +1,296 @@
+/* ==========================================================================
+   GRIMORIO VTT — SISTEMA DE ESTILOS GLOBAL (OBSIDIANA, PIZARRA & LATÓN)
+   ========================================================================== */
+
 :root {
-  --text: #6b6375;
-  --text-h: #08060d;
-  --bg: #fff;
-  --border: #e5e4e7;
-  --code-bg: #f4f3ec;
-  --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --social-bg: rgba(244, 243, 236, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
+  color-scheme: dark;
+  --vtt-bg-deep: #0b0d12;
+  --vtt-bg-panel: #141822;
+  --vtt-bg-elevated: #171c26;
+  --vtt-border: #2b3345;
+  --vtt-border-strong: #3b4254;
+  --vtt-gold: #f59e0b;
+  --vtt-gold-light: #fbbf24;
+  --vtt-text: #e2e8f0;
+  --vtt-text-muted: #94a3b8;
+}
 
-  --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
-  --mono: ui-monospace, Consolas, monospace;
-
-  font: 18px/145% var(--sans);
-  letter-spacing: 0.18px;
-  color-scheme: light dark;
-  color: var(--text);
-  background: var(--bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--vtt-bg-deep);
+  font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--vtt-text);
+  box-sizing: border-box;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-
-  @media (max-width: 1024px) {
-    font-size: 16px;
-  }
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text: #9ca3af;
-    --text-h: #f3f4f6;
-    --bg: #16171d;
-    --border: #2e303a;
-    --code-bg: #1f2028;
-    --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --social-bg: rgba(47, 48, 58, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
-  }
-
-  #social .button-icon {
-    filter: invert(1) brightness(2);
-  }
-}
-
-body {
-  margin: 0;
-}
-
-#root {
-  width: 1126px;
-  max-width: 100%;
-  margin: 0 auto;
-  text-align: center;
-  border-inline: 1px solid var(--border);
-  min-height: 100svh;
-  display: flex;
-  flex-direction: column;
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
-h1,
-h2 {
-  font-family: var(--heading);
-  font-weight: 500;
-  color: var(--text-h);
-}
-
-h1 {
-  font-size: 56px;
-  letter-spacing: -1.68px;
-  margin: 32px 0;
-  @media (max-width: 1024px) {
-    font-size: 36px;
-    margin: 20px 0;
-  }
-}
-h2 {
-  font-size: 24px;
-  line-height: 118%;
-  letter-spacing: -0.24px;
-  margin: 0 0 8px;
-  @media (max-width: 1024px) {
-    font-size: 20px;
-  }
-}
 p {
   margin: 0;
 }
 
-code,
-.counter {
-  font-family: var(--mono);
+/* Tipografía e insignias */
+.vtt-gothic-title {
+  font-family: 'Cinzel', Georgia, serif;
+  letter-spacing: 0.05em;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.7);
+}
+
+.vtt-retro-badge {
+  font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, monospace;
+  letter-spacing: 0.04em;
+}
+
+.vtt-wood-panel {
+  background: var(--vtt-bg-panel);
+  border: 1px solid var(--vtt-border);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+/* Botones base */
+.vtt-brass-btn {
+  font-family: 'Inter', system-ui, sans-serif;
+  background: #161a24;
+  color: #cbd5e1;
+  border: 1px solid #2b3345;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition: all 0.15s ease;
+  white-space: nowrap;
   display: inline-flex;
-  border-radius: 4px;
-  color: var(--text-h);
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
 
-code {
-  font-size: 15px;
-  line-height: 135%;
-  padding: 4px 8px;
-  background: var(--code-bg);
+.vtt-brass-btn:hover:not(:disabled) {
+  background: #1e2433;
+  border-color: #3f4b64;
+  color: #f8fafc;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
 }
 
-/* Animaciones Ken Burns para fondos de botones en HomeScreen */
+.vtt-brass-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.vtt-primary-cta {
+  font-family: 'Inter', system-ui, sans-serif;
+  background-color: #2a1a08;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.32) 0%, rgba(180, 83, 9, 0.45) 100%);
+  color: #fbbf24;
+  border: 1.5px solid #f59e0b;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(245, 158, 11, 0.25), inset 0 0 8px rgba(245, 158, 11, 0.12);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.vtt-primary-cta:hover:not(:disabled) {
+  background-color: #38240c;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.45) 0%, rgba(180, 83, 9, 0.6) 100%);
+  border-color: #fbbf24;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(245, 158, 11, 0.35), inset 0 0 12px rgba(245, 158, 11, 0.18);
+}
+
+.vtt-primary-cta:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.vtt-btn-active {
+  background: rgba(245, 158, 11, 0.15) !important;
+  border-color: #f59e0b !important;
+  color: #fbbf24 !important;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.25) !important;
+}
+
+.vtt-btn-danger {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  transition: all 0.15s ease;
+}
+
+.vtt-btn-danger:hover:not(:disabled) {
+  background: #dc2626;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+/* Menús contextuales del tablero */
+.vtt-context-menu {
+  position: fixed;
+  background: linear-gradient(180deg, #1b202c 0%, #11141c 100%);
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #3b4254;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.95);
+  z-index: 95000;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 256px;
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  color: #e2e8f0;
+  scrollbar-width: thin;
+  scrollbar-color: #475569 transparent;
+}
+
+.vtt-context-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #283144;
+  padding-bottom: 8px;
+  gap: 8px;
+}
+
+.vtt-context-header-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #171c26;
+  border: 1px solid #2b3345;
+  color: #cbd5e1;
+  transition: all 0.15s ease;
+}
+
+.vtt-context-header-btn:hover {
+  border-color: #f59e0b;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.14);
+}
+
+.vtt-context-icon-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 5px;
+}
+
+.vtt-context-icon-btn {
+  flex: 1;
+  height: 34px;
+  padding: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #171c26;
+  border: 1px solid #2b3345;
+  color: #cbd5e1;
+  transition: all 0.15s ease;
+}
+
+.vtt-context-icon-btn:hover {
+  border-color: #64748b;
+  background: #1f2636;
+  color: #f8fafc;
+}
+
+.vtt-context-icon-btn-info:hover {
+  border-color: #0284c7;
+  color: #38bdf8;
+  background: rgba(14, 165, 233, 0.14);
+}
+
+.vtt-context-icon-btn-danger:hover {
+  border-color: #ef4444;
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.16);
+}
+
+.vtt-context-divider {
+  border-top: 1px solid #242c3d;
+  padding-top: 9px;
+}
+
+.vtt-context-section-label {
+  font-size: 9.5px;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* Formularios base */
+select,
+input[type="text"],
+input[type="number"],
+textarea {
+  font-family: inherit;
+  background-color: #121620;
+  color: #f1f5f9;
+  border: 1px solid #2b3345;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+select:focus,
+input[type="text"]:focus,
+input[type="number"]:focus,
+textarea:focus {
+  border-color: #f59e0b;
+}
+
+/* Scrollbars consistentes */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #2f384c transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0b0d13;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #242c3d;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3b465f;
+}
+
+/* Animaciones globales */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 @keyframes vttKenBurnsDiceLive {
   0% {
     transform: scale(1.05) translate(0%, 0%);
@@ -136,15 +316,40 @@ code {
 }
 
 .vtt-live-kenburns-dice {
-  animation: vttKenBurnsDiceLive 10s ease-in-out infinite alternate !important;
+  animation: vttKenBurnsDiceLive 10s ease-in-out infinite alternate;
   will-change: transform;
   transform-origin: center center;
 }
 
 .vtt-live-kenburns-projector {
-  animation: vttKenBurnsProjectorLive 12s ease-in-out infinite alternate !important;
+  animation: vttKenBurnsProjectorLive 12s ease-in-out infinite alternate;
   will-change: transform;
   transform-origin: center center;
+}
+
+.vtt-image-action-btn {
+  transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.16s ease, box-shadow 0.16s ease;
+  cursor: pointer;
+  outline: none;
+  user-select: none;
+}
+
+.vtt-image-action-btn:hover {
+  transform: translateY(-2px);
+}
+
+.vtt-image-action-btn:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.vtt-image-action-btn-amber:hover {
+  border-color: #fbbf24 !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(245, 158, 11, 0.3) !important;
+}
+
+.vtt-image-action-btn-emerald:hover {
+  border-color: #34d399 !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(16, 185, 129, 0.3) !important;
 }
 
 /* ==========================================================================
@@ -240,7 +445,6 @@ code {
   transform: translateY(1.5px);
 }
 
-/* Variante Concluir Aventura (Sello Lacre / Ámbar Solemne) */
 .vtt-conclude-plate-btn {
   font-family: 'Cinzel', Georgia, serif;
   background: linear-gradient(180deg, #4a1c0d 0%, #331107 50%, #1f0903 100%);
@@ -276,7 +480,6 @@ code {
   transform: translateY(1.5px);
 }
 
-/* Variante Peligro / Borrado (Hierro Forjado & Ceniza) */
 .vtt-danger-plate-btn {
   font-family: 'Cinzel', Georgia, serif;
   background: linear-gradient(180deg, #2a0f0f 0%, #1a0808 100%);
@@ -307,7 +510,6 @@ code {
   transform: translateY(1px);
 }
 
-/* Micro-botones de herramientas tácticas (subir, bajar, editar, borrar en listas) */
 .vtt-icon-tool-btn {
   background: #141824;
   border: 1px solid #283244;
@@ -377,16 +579,16 @@ code {
   box-shadow: 0 0 8px rgba(212, 175, 55, 0.25);
 }
 
-/* 5. SLIDER DE LATÓN (BRASS CALIBRATION SLIDER) */
+/* 5. SLIDER DE LATÓN UNIFICADO */
 .vtt-brass-slider {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 6px;
-  border-radius: 3px;
+  height: 5px;
+  border-radius: 999px;
   background: linear-gradient(180deg, #090c12 0%, #171d28 100%);
   border: 1px solid #2b3548;
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.85);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.85);
   outline: none;
   cursor: pointer;
 }
@@ -394,27 +596,31 @@ code {
 .vtt-brass-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #fef3c7 0%, #d4af37 55%, #78350f 100%);
   border: 1.5px solid #fef08a;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85), 0 0 5px rgba(212, 175, 55, 0.5);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.85), 0 0 6px rgba(212, 175, 55, 0.45);
   cursor: grab;
   transition: transform 0.1s ease;
 }
 
+.vtt-brass-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+
 .vtt-brass-slider::-webkit-slider-thumb:active {
   cursor: grabbing;
-  transform: scale(1.15);
+  transform: scale(1.18);
 }
 
 .vtt-brass-slider::-moz-range-thumb {
-  width: 18px;
-  height: 18px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 35%, #fef3c7 0%, #d4af37 55%, #78350f 100%);
   border: 1.5px solid #fef08a;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.85), 0 0 5px rgba(212, 175, 55, 0.5);
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.85), 0 0 6px rgba(212, 175, 55, 0.45);
   cursor: grab;
 }

@@ -1,12 +1,13 @@
-import React, { useState } from 'react';
-import { Map, Eye, BookOpen, Dices, Monitor, Save, X } from 'lucide-react';
+import { useState } from 'react';
+import { Map, Eye, BookOpen, Dices, Monitor, Save, ChevronLeft, ChevronRight } from 'lucide-react';
+import ModalShell from './ui/ModalShell';
 
 const TUTORIAL_STEPS = [
   {
     title: 'Mesa Táctica y Múltiples Escenarios',
     subtitle: 'Arquitectura del tablero y preparación de escenas',
     icon: <Map size={32} strokeWidth={1.8} />,
-    text: 'Prepara y organiza múltiples escenarios para tu crónica. Desde el Centro de Mando (pestaña Escenas) puedes pulsar "Editar Escena" para trazar muros infranqueables, puertas que se abren o cierran con clic derecho, ventanas que permiten la visión pero bloquean el paso, y mobiliario interactivo como cofres, antorchas y barricadas.'
+    text: 'Prepara y organiza múltiples escenarios para tu crónica. Desde el Centro de Mando (pestaña Escenas) puedes pulsar "Editar plano" para trazar muros infranqueables, puertas que se abren o cierran con clic derecho, ventanas que permiten la visión pero bloquean el paso, y mobiliario interactivo como cofres, antorchas y barricadas.'
   },
   {
     title: 'Niebla de Guerra y Visión Dinámica',
@@ -43,196 +44,137 @@ const TUTORIAL_STEPS = [
 const TutorialModal = ({ isOpen, onClose, onNeverShowAgain }) => {
   const [currentStep, setCurrentStep] = useState(0);
 
-  if (!isOpen) return null;
-
   const step = TUTORIAL_STEPS[currentStep];
   const isLast = currentStep === TUTORIAL_STEPS.length - 1;
 
   return (
-    <div style={{
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      backgroundColor: 'rgba(4, 7, 12, 0.88)',
-      backdropFilter: 'blur(8px)',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      zIndex: 999999,
-      padding: '20px'
-    }}>
-      <div 
-        className="vtt-wood-panel"
-        style={{
-          width: '600px',
-          maxWidth: '100%',
-          borderRadius: '14px',
-          border: '1.5px solid rgba(212, 175, 55, 0.5)',
-          backgroundColor: '#121622',
-          backgroundImage: 'linear-gradient(180deg, rgba(20, 26, 38, 0.95) 0%, rgba(13, 16, 24, 0.98) 100%), url("/assets/textures/parchment_dossier_texture.jpg")',
-          backgroundBlendMode: 'overlay',
-          display: 'flex',
-          flexDirection: 'column',
-          color: '#e2e8f0',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.95), 0 0 30px rgba(212, 175, 55, 0.15)',
-          overflow: 'hidden'
-        }}
-      >
-        {/* Cabecera Superior */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '16px 22px',
-          borderBottom: '1px solid rgba(212, 175, 55, 0.25)',
-          background: 'linear-gradient(180deg, rgba(212, 175, 55, 0.1) 0%, rgba(0, 0, 0, 0.25) 100%)'
-        }}>
-          <div>
-            <div className="vtt-gothic-title" style={{ fontSize: '16px', color: '#f3e8c8', letterSpacing: '0.05em', fontWeight: 'bold' }}>
-              GUÍA DE LA MESA DE JUEGO (VTT)
-            </div>
-            <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
-              Manual táctico para el Guardián de la mesa
+    <ModalShell
+      isOpen={isOpen}
+      onClose={onClose}
+      title="GUÍA DE LA MESA DE JUEGO (VTT)"
+      subtitle="Manual táctico para el Guardián de la mesa"
+      icon={<BookOpen size={17} strokeWidth={2.2} />}
+      width="600px"
+      zIndex={105000}
+      panelStyle={{
+        backgroundImage: 'linear-gradient(180deg, rgba(20, 26, 38, 0.96) 0%, rgba(13, 16, 24, 0.98) 100%), url("/assets/textures/parchment_dossier_texture.jpg")',
+        backgroundBlendMode: 'overlay'
+      }}
+      bodyStyle={{ padding: '14px 22px 22px 22px' }}
+      footer={
+        <div style={{ display: 'flex', flexDirection: 'column', width: '100%', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+            <span style={{ fontSize: '12px', color: '#8e9caa', fontWeight: 600 }}>
+              Paso {currentStep + 1} de {TUTORIAL_STEPS.length}
+            </span>
+
+            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+              {currentStep > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(currentStep - 1)}
+                  className="vtt-brass-btn"
+                  style={{ padding: '7px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
+                >
+                  <ChevronLeft size={14} strokeWidth={2.2} /> Anterior
+                </button>
+              )}
+
+              {!isLast ? (
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(currentStep + 1)}
+                  className="vtt-brass-btn"
+                  style={{ padding: '7px 16px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '12px', color: '#fef3c7', borderColor: '#d4af37' }}
+                >
+                  Siguiente <ChevronRight size={14} strokeWidth={2.2} />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="vtt-primary-cta"
+                  style={{ padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontSize: '13px' }}
+                >
+                  Comenzar Partida
+                </button>
+              )}
             </div>
           </div>
+
+          <div style={{ textAlign: 'center' }}>
+            <button
+              type="button"
+              onClick={() => {
+                if (onNeverShowAgain) onNeverShowAgain();
+                onClose();
+              }}
+              style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
+            >
+              No volver a mostrar automáticamente al iniciar
+            </button>
+          </div>
+        </div>
+      }
+    >
+      {/* Indicadores de pasos con área clicable cómoda */}
+      <div style={{ display: 'flex', gap: '6px', marginBottom: '18px' }}>
+        {TUTORIAL_STEPS.map((s, idx) => (
           <button
-            onClick={onClose}
+            type="button"
+            key={idx}
+            onClick={() => setCurrentStep(idx)}
             style={{
+              flex: 1,
+              padding: '7px 0',
               background: 'transparent',
               border: 'none',
-              color: '#94a3b8',
-              cursor: 'pointer',
-              fontSize: '18px',
-              padding: '4px 8px',
-              lineHeight: 1
+              cursor: 'pointer'
             }}
-            title="Cerrar guía"
+            title={`Paso ${idx + 1}: ${s.title}`}
+            aria-label={`Paso ${idx + 1}: ${s.title}`}
           >
-            <X size={16} strokeWidth={2.4} />
+            <div style={{
+              height: '5px',
+              borderRadius: '3px',
+              backgroundColor: idx === currentStep ? '#f59e0b' : idx < currentStep ? 'rgba(245, 158, 11, 0.45)' : 'rgba(255, 255, 255, 0.12)',
+              transition: 'all 0.2s ease'
+            }} />
           </button>
-        </div>
+        ))}
+      </div>
 
-        {/* Indicador de pasos sutil */}
+      {/* Contenido Principal del Paso */}
+      <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-start' }}>
         <div style={{
+          width: '64px',
+          height: '64px',
+          borderRadius: '14px',
+          background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(180, 83, 9, 0.45) 100%)',
+          border: '1.5px solid #f59e0b',
           display: 'flex',
-          gap: '6px',
-          padding: '12px 22px 0 22px'
-        }}>
-          {TUTORIAL_STEPS.map((s, idx) => (
-            <div
-              key={idx}
-              onClick={() => setCurrentStep(idx)}
-              style={{
-                flex: 1,
-                height: '4px',
-                borderRadius: '2px',
-                backgroundColor: idx === currentStep ? '#f59e0b' : idx < currentStep ? 'rgba(245, 158, 11, 0.4)' : 'rgba(255, 255, 255, 0.1)',
-                cursor: 'pointer',
-                transition: 'all 0.2s ease'
-              }}
-              title={`Paso ${idx + 1}: ${s.title}`}
-            />
-          ))}
-        </div>
-
-        {/* Contenido Principal del Paso */}
-        <div style={{ padding: '24px 22px', display: 'flex', gap: '22px', alignItems: 'flex-start' }}>
-          {/* Contenedor del Icono Táctico Dorado */}
-          <div style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '14px',
-            background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.25) 0%, rgba(180, 83, 9, 0.45) 100%)',
-            border: '1.5px solid #f59e0b',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            flexShrink: 0,
-            boxShadow: '0 6px 18px rgba(245, 158, 11, 0.25)',
-            color: '#fbbf24'
-          }}>
-            {step.icon}
-          </div>
-
-          <div style={{ flex: 1 }}>
-            <h3 className="vtt-gothic-title" style={{ margin: '0 0 3px 0', fontSize: '18px', color: '#ffffff', letterSpacing: '0.03em' }}>
-              {step.title}
-            </h3>
-            <div style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
-              {step.subtitle}
-            </div>
-            <p style={{ fontSize: '13px', lineHeight: '1.6', margin: 0, color: '#cbd5e1' }}>
-              {step.text}
-            </p>
-          </div>
-        </div>
-
-        {/* Barra de Navegación Inferior */}
-        <div style={{
-          display: 'flex',
-          justifyContent: 'space-between',
           alignItems: 'center',
-          borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '14px 22px',
-          background: 'rgba(10, 13, 20, 0.6)'
+          justifyContent: 'center',
+          flexShrink: 0,
+          boxShadow: '0 6px 18px rgba(245, 158, 11, 0.25)',
+          color: '#fbbf24'
         }}>
-          <span style={{ fontSize: '12px', color: '#8e9caa', fontWeight: 600 }}>
-            Paso {currentStep + 1} de {TUTORIAL_STEPS.length}
-          </span>
-
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-            {currentStep > 0 && (
-              <button
-                onClick={() => setCurrentStep(currentStep - 1)}
-                className="vtt-brass-btn"
-                style={{ padding: '7px 14px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '12px' }}
-              >
-                ← Anterior
-              </button>
-            )}
-
-            {!isLast ? (
-              <button
-                onClick={() => setCurrentStep(currentStep + 1)}
-                className="vtt-brass-btn"
-                style={{ padding: '7px 18px', borderRadius: '6px', cursor: 'pointer', fontWeight: 600, fontSize: '12px', color: '#fef3c7', borderColor: '#d4af37' }}
-              >
-                Siguiente →
-              </button>
-            ) : (
-              <button
-                onClick={onClose}
-                className="vtt-primary-cta"
-                style={{
-                  padding: '8px 22px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontWeight: 700,
-                  fontSize: '13px'
-                }}
-              >
-                Comenzar Partida
-              </button>
-            )}
-          </div>
+          {step.icon}
         </div>
 
-        {/* Opción de no volver a mostrar */}
-        <div style={{ textAlign: 'center', padding: '8px 22px 14px 22px', background: 'rgba(10, 13, 20, 0.6)' }}>
-          <button
-            onClick={() => {
-              if (onNeverShowAgain) onNeverShowAgain();
-              onClose();
-            }}
-            style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '11px', textDecoration: 'underline' }}
-          >
-            No volver a mostrar automáticamente al iniciar
-          </button>
+        <div style={{ flex: 1 }}>
+          <h3 className="vtt-gothic-title" style={{ margin: '0 0 4px 0', fontSize: '18px', color: '#ffffff', letterSpacing: '0.03em' }}>
+            {step.title}
+          </h3>
+          <div style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '10px' }}>
+            {step.subtitle}
+          </div>
+          <p style={{ fontSize: '13px', lineHeight: '1.6', margin: 0, color: '#cbd5e1' }}>
+            {step.text}
+          </p>
         </div>
       </div>
-    </div>
+    </ModalShell>
   );
 };
 

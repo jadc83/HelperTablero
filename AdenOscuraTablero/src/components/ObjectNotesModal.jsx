@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { X, FileText, Lock, AlertTriangle } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { useConfirm } from '../hooks/useConfirm';
 
 const ObjectNotesModal = ({
   isOpen,
@@ -11,17 +12,20 @@ const ObjectNotesModal = ({
   onProjectHandout,
   onRemoveObject
 }) => {
-  const [name, setName] = useState('');
-  const [notes, setNotes] = useState('');
-  const [isLockedWithKey, setIsLockedWithKey] = useState(false);
-  const [lockDifficulty, setLockDifficulty] = useState('40');
-  const [isTrapped, setIsTrapped] = useState(false);
-  const [trapDetails, setTrapDetails] = useState('');
-  const [selectedHandoutId, setSelectedHandoutId] = useState('');
-  const [customClueText, setCustomClueText] = useState('');
+  const [name, setName] = useState(objectItem?.name || 'Objeto');
+  const [notes, setNotes] = useState(objectItem?.notes || '');
+  const [isLockedWithKey, setIsLockedWithKey] = useState(Boolean(objectItem?.isLockedWithKey));
+  const [lockDifficulty, setLockDifficulty] = useState(objectItem?.lockDifficulty || '40');
+  const [isTrapped, setIsTrapped] = useState(Boolean(objectItem?.isTrapped));
+  const [trapDetails, setTrapDetails] = useState(objectItem?.trapDetails || '');
+  const [selectedHandoutId, setSelectedHandoutId] = useState(objectItem?.linkedHandoutId || '');
+  const [customClueText, setCustomClueText] = useState(objectItem?.customClueText || '');
   const [activeTab, setActiveTab] = useState('notes'); // 'notes' | 'clue'
+  const [prevObjectItem, setPrevObjectItem] = useState(objectItem);
+  const confirm = useConfirm();
 
-  useEffect(() => {
+  if (objectItem !== prevObjectItem) {
+    setPrevObjectItem(objectItem);
     if (objectItem) {
       setName(objectItem.name || 'Objeto');
       setNotes(objectItem.notes || '');
@@ -32,7 +36,43 @@ const ObjectNotesModal = ({
       setSelectedHandoutId(objectItem.linkedHandoutId || '');
       setCustomClueText(objectItem.customClueText || '');
     }
-  }, [objectItem]);
+  }
+
+  const isDirty = Boolean(objectItem) && (
+    name !== (objectItem.name || 'Objeto') ||
+    notes !== (objectItem.notes || '') ||
+    isLockedWithKey !== Boolean(objectItem.isLockedWithKey) ||
+    lockDifficulty !== (objectItem.lockDifficulty || '40') ||
+    isTrapped !== Boolean(objectItem.isTrapped) ||
+    trapDetails !== (objectItem.trapDetails || '') ||
+    selectedHandoutId !== (objectItem.linkedHandoutId || '') ||
+    customClueText !== (objectItem.customClueText || '')
+  );
+
+  const handleAttemptClose = useCallback(async () => {
+    if (isDirty) {
+      const ok = await confirm({
+        title: 'Descartar cambios',
+        message: 'Tienes cambios sin guardar en las notas de este objeto. ¿Salir sin guardar?',
+        confirmLabel: 'Descartar',
+        tone: 'warning'
+      });
+      if (!ok) return;
+    }
+    onClose();
+  }, [isDirty, confirm, onClose]);
+
+  useEffect(() => {
+    if (!isOpen || !objectItem) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        handleAttemptClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [isOpen, objectItem, handleAttemptClose]);
 
   if (!isOpen || !objectItem) return null;
 
@@ -76,7 +116,7 @@ const ObjectNotesModal = ({
   return createPortal(
     <div
       onPointerDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) handleAttemptClose();
       }}
       onWheel={(e) => e.stopPropagation()}
       style={{
@@ -84,7 +124,7 @@ const ObjectNotesModal = ({
         inset: 0,
         backgroundColor: 'rgba(0, 0, 0, 0.75)',
         backdropFilter: 'blur(3px)',
-        zIndex: 999999,
+        zIndex: 105000,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -141,17 +181,13 @@ const ObjectNotesModal = ({
             </div>
           </div>
           <button
-            onClick={onClose}
-            style={{
-              background: 'transparent',
-              border: 'none',
-              color: '#94a3b8',
-              fontSize: '18px',
-              cursor: 'pointer',
-              padding: '4px 8px'
-            }}
+            type="button"
+            onClick={handleAttemptClose}
+            className="vtt-brass-btn"
+            style={{ width: '30px', height: '30px', padding: 0, borderRadius: '6px', cursor: 'pointer' }}
+            title="Cerrar (Esc)"
           >
-            <X size={16} strokeWidth={2.4} />
+            <X size={15} strokeWidth={2.4} />
           </button>
         </div>
 
@@ -405,16 +441,20 @@ const ObjectNotesModal = ({
           {onRemoveObject && (
             <button
               type="button"
-              onClick={() => {
-                if (window.confirm(`¿Eliminar "${name}" de la mesa?`)) {
+              onClick={async () => {
+                const ok = await confirm({
+                  title: 'Retirar objeto de la mesa',
+                  message: `¿Eliminar "${name}" de la mesa?`,
+                  confirmLabel: 'Retirar',
+                  tone: 'danger'
+                });
+                if (ok) {
                   onRemoveObject(objectItem.id);
                   onClose();
                 }
               }}
+              className="vtt-btn-danger"
               style={{
-                backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                border: '1px solid rgba(239, 68, 68, 0.35)',
-                color: '#fca5a5',
                 borderRadius: '6px',
                 padding: '6px 12px',
                 fontSize: '11px',
@@ -429,7 +469,7 @@ const ObjectNotesModal = ({
           <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleAttemptClose}
               className="vtt-brass-btn"
               style={{ padding: '6px 14px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
             >

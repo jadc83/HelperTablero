@@ -1,5 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { exportJSON, importJSON } from '../utils/fileDialog';
+import MapElementModals from './map-creator/MapElementModals';
 import {
   MousePointer2,
   BrickWall,
@@ -25,29 +26,28 @@ import {
   Copy,
   Trash2
 } from 'lucide-react';
-
-export const OBJECT_PRESETS = [
-  { presetId: 'chest', label: 'Cofre del Tesoro', icon: '📦', openIcon: '🪙', blocksMovement: true, blocksVision: false, interactable: true },
-  { presetId: 'lever', label: 'Palanca / Mecanismo', icon: '🕹️', openIcon: '⚙️', blocksMovement: false, blocksVision: false, interactable: true },
-  { presetId: 'barricade', label: 'Barricada Pesada', icon: '🚧', openIcon: '🪵', blocksMovement: true, blocksVision: true, interactable: true },
-  { presetId: 'altar', label: 'Altar Arcano', icon: '⛩️', openIcon: '✨', blocksMovement: true, blocksVision: false, interactable: true },
-  { presetId: 'trap', label: 'Trampa de Suelo', icon: '🕸️', openIcon: '💥', blocksMovement: false, blocksVision: false, interactable: true }
-];
-
-export const LIGHT_PRESETS = [
-  { presetId: 'torch', label: 'Antorcha de Pared', icon: '🔥', radius: 210, color: 'rgba(251, 146, 60, 0.22)' },
-  { presetId: 'brazier', label: 'Brasero Real', icon: '🏮', radius: 300, color: 'rgba(245, 158, 11, 0.26)' },
-  { presetId: 'arcane_lantern', label: 'Farol Espectral', icon: '🔮', radius: 240, color: 'rgba(56, 189, 248, 0.24)' }
-];
+import { OBJECT_PRESETS, LIGHT_PRESETS } from '../constants/gamePresets';
+import {
+  getStructureOrientationSizes,
+  getStructureRenderBox,
+  resizeStructureCentered,
+  rotateStructureCentered,
+  setStructureRotationCentered
+} from '../utils/fogGeometry';
+import MapStructureGraphic from './map-layer/MapStructureGraphic';
 
 const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSettings, sceneName, sceneId }) => {
   const [elements, setElements] = useState(initialElements || []);
+  const [prevInitEls, setPrevInitEls] = useState(initialElements);
+  const [prevSceneId, setPrevSceneId] = useState(sceneId);
 
-  useEffect(() => {
+  if (initialElements !== prevInitEls || sceneId !== prevSceneId) {
+    setPrevInitEls(initialElements);
+    setPrevSceneId(sceneId);
     if (initialElements) {
       setElements(initialElements);
     }
-  }, [initialElements, sceneId]);
+  }
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [scale, setScale] = useState(0.85);
   
@@ -61,14 +61,16 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
   const [editingLight, setEditingLight] = useState(null);
   const [toolMode, setToolMode] = useState('select'); // 'select' | 'wall'
   const [drawingWall, setDrawingWall] = useState(null);
+  const [importError, setImportError] = useState(null);
 
   const boardRef = useRef(null);
   const fileInputRef = useRef(null);
-  const importRef = useRef(null);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (editingNote || editingObject || editingLight) return; 
+      if (editingNote || editingObject || editingLight) return;
+      const target = e.target;
+      if (target?.tagName === 'INPUT' || target?.tagName === 'TEXTAREA' || target?.tagName === 'SELECT') return;
 
       if (e.key === 'Delete' || e.key === 'Backspace') {
         setElements(prev => prev.filter(el => !selectedIds.includes(el.id)));
@@ -80,20 +82,32 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
         setDrawingWall(null);
         setSelectedIds([]);
       }
-      
-      if (e.ctrlKey && e.key === 'c') {
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'c') {
         const copied = elements.filter(el => selectedIds.includes(el.id));
         setClipboard(copied);
       }
-      
-      if (e.ctrlKey && e.key === 'v') {
+
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'v') {
         if (clipboard.length > 0) {
-          const newElements = clipboard.map(el => ({
-            ...el,
-            id: Date.now() + Math.random(), 
-            x: el.x + 50, 
-            y: el.y + 50
-          }));
+          const newElements = clipboard.map(el => {
+            if (el.type === 'wall' && el.x1 !== undefined) {
+              return {
+                ...el,
+                id: Date.now() + Math.random(),
+                x1: el.x1 + 50,
+                y1: el.y1 + 50,
+                x2: el.x2 + 50,
+                y2: el.y2 + 50
+              };
+            }
+            return {
+              ...el,
+              id: Date.now() + Math.random(),
+              x: (el.x || 0) + 50,
+              y: (el.y || 0) + 50
+            };
+          });
           setElements(prev => [...prev, ...newElements]);
           setSelectedIds(newElements.map(el => el.id));
         }
@@ -143,34 +157,21 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
     }
   };
 
-  const handleImportMapConfig = async (e) => {
-    if (e && e.target && e.target.files) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        try { 
-          const importedData = JSON.parse(evt.target.result);
-          if (Array.isArray(importedData)) {
-            setElements(importedData);
-          }
-        } catch (err) {}
-        e.target.value = '';
-      };
-      reader.readAsText(file);
-      return;
-    }
-
+  const handleImportMapConfig = async () => {
+    setImportError(null);
     try {
       const res = await importJSON({ accept: '.json', description: 'Diseño de Escenario (*.json)' });
       if (res?.success && res.text) {
         const importedData = JSON.parse(res.text);
         if (Array.isArray(importedData)) {
           setElements(importedData);
+        } else {
+          setImportError('El archivo JSON no contiene un diseño de escenario válido.');
         }
       }
     } catch (err) {
       console.error('Error al importar mapa:', err);
+      setImportError('Archivo JSON inválido al importar escenario.');
     }
   };
 
@@ -191,10 +192,10 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
     const newDoor = {
       id: Date.now(),
       type: 'door',
-      x: Math.round(center.x - 30),
-      y: Math.round(center.y - 8),
-      width: 60,
-      height: 16,
+      x: Math.round(center.x - 18),
+      y: Math.round(center.y - 5),
+      width: 36,
+      height: 10,
       isOpen: false,
       zIndex: elements.length + 10
     };
@@ -207,10 +208,10 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
     const newWindow = {
       id: Date.now(),
       type: 'window',
-      x: Math.round(center.x - 30),
-      y: Math.round(center.y - 7),
-      width: 60,
-      height: 14,
+      x: Math.round(center.x - 18),
+      y: Math.round(center.y - 4),
+      width: 36,
+      height: 8,
       isOpen: false,
       isBroken: false,
       zIndex: elements.length + 10
@@ -417,7 +418,25 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
     if (!selectedElement) return;
     setElements(prev => prev.map(item =>
       item.id === selectedElement.id
-        ? { ...item, width: item.height || 60, height: item.width || 60 }
+        ? { ...item, ...rotateStructureCentered(item) }
+        : item
+    ));
+  };
+
+  const handleRotateSelectedBy = (deltaDeg) => {
+    if (!selectedElement) return;
+    setElements(prev => prev.map(item => {
+      if (item.id !== selectedElement.id) return item;
+      const { angleDeg } = getStructureOrientationSizes(item);
+      return { ...item, ...setStructureRotationCentered(item, angleDeg + deltaDeg) };
+    }));
+  };
+
+  const handleResizeSelectedStructure = (nextLength, nextThickness) => {
+    if (!selectedElement) return;
+    setElements(prev => prev.map(item =>
+      item.id === selectedElement.id
+        ? { ...item, ...resizeStructureCentered(item, nextLength, nextThickness) }
         : item
     ));
   };
@@ -440,7 +459,6 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
       
       {/* Inputs de Archivo Ocultos */}
       <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageUpload} style={{ display: 'none' }} />
-      <input type="file" accept=".json" ref={importRef} onChange={handleImportMapConfig} style={{ display: 'none' }} />
 
       {/* 1. CABECERA SUPERIOR LIMPIA Y ENFOCADA */}
       <div style={{
@@ -506,6 +524,11 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
               <Crosshair size={13} strokeWidth={2.2} /> Centrar Lienzo
             </button>
           </div>
+          {importError && (
+            <span style={{ fontSize: '11px', color: '#fca5a5', backgroundColor: 'rgba(127, 29, 29, 0.35)', border: '1px solid #ef4444', padding: '4px 8px', borderRadius: '6px' }}>
+              {importError}
+            </span>
+          )}
         </div>
 
         {/* Derecha: Botones de Guardado y Salida con Jerarquía Clara */}
@@ -882,11 +905,63 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
                       </>
                     )}
 
-                    {selectedElement && (selectedElement.type === 'door' || selectedElement.type === 'window') && (
-                      <button onClick={handleRotateSelected} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><RotateCw size={12} strokeWidth={2.2} /> Rotar 90º</span>
-                      </button>
-                    )}
+                    {selectedElement && (selectedElement.type === 'door' || selectedElement.type === 'window') && (() => {
+                      const { length, thickness, angleDeg } = getStructureOrientationSizes(selectedElement);
+                      return (
+                        <>
+                          <button onClick={handleRotateSelected} className="vtt-brass-btn" style={{ padding: '4px 9px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }} title="Rotar +90º">
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><RotateCw size={12} strokeWidth={2.2} /> 90º</span>
+                          </button>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '2px 7px', backgroundColor: '#121620', border: '1px solid #2b3548', borderRadius: '6px', fontSize: '11px', color: '#cbd5e1' }}>
+                            <button type="button" onClick={() => handleRotateSelectedBy(-15)} className="vtt-brass-btn" style={{ padding: '1px 5px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px', cursor: 'pointer' }} title="Girar -15°">-15°</button>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#38bdf8', minWidth: '30px', textAlign: 'center' }}>{angleDeg}°</span>
+                            <button type="button" onClick={() => handleRotateSelectedBy(15)} className="vtt-brass-btn" style={{ padding: '1px 5px', fontSize: '10.5px', fontWeight: 700, borderRadius: '4px', cursor: 'pointer' }} title="Girar +15°">+15°</button>
+                          </div>
+                          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '2px 8px', backgroundColor: '#121620', border: '1px solid #2b3548', borderRadius: '6px', fontSize: '11px', color: '#cbd5e1' }}>
+                            <span style={{ color: '#94a3b8' }}>Largo:</span>
+                            <button
+                              type="button"
+                              onClick={() => handleResizeSelectedStructure(length - 4, thickness)}
+                              className="vtt-brass-btn"
+                              style={{ padding: '1px 6px', fontSize: '11px', fontWeight: 700, borderRadius: '4px', cursor: 'pointer' }}
+                              title="Reducir largo"
+                            >
+                              -
+                            </button>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#fbbf24', minWidth: '34px', textAlign: 'center' }}>{length}px</span>
+                            <button
+                              type="button"
+                              onClick={() => handleResizeSelectedStructure(length + 4, thickness)}
+                              className="vtt-brass-btn"
+                              style={{ padding: '1px 6px', fontSize: '11px', fontWeight: 700, borderRadius: '4px', cursor: 'pointer' }}
+                              title="Aumentar largo"
+                            >
+                              +
+                            </button>
+                            <span style={{ color: '#94a3b8', marginLeft: '4px' }}>Grosor:</span>
+                            <button
+                              type="button"
+                              onClick={() => handleResizeSelectedStructure(length, thickness - 2)}
+                              className="vtt-brass-btn"
+                              style={{ padding: '1px 6px', fontSize: '11px', fontWeight: 700, borderRadius: '4px', cursor: 'pointer' }}
+                              title="Reducir grosor"
+                            >
+                              -
+                            </button>
+                            <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#93c5fd', minWidth: '28px', textAlign: 'center' }}>{thickness}px</span>
+                            <button
+                              type="button"
+                              onClick={() => handleResizeSelectedStructure(length, thickness + 2)}
+                              className="vtt-brass-btn"
+                              style={{ padding: '1px 6px', fontSize: '11px', fontWeight: 700, borderRadius: '4px', cursor: 'pointer' }}
+                              title="Aumentar grosor"
+                            >
+                              +
+                            </button>
+                          </div>
+                        </>
+                      );
+                    })()}
 
                     {selectedElement && selectedElement.type === 'object' && (
                       <button onClick={() => setEditingObject(selectedElement)} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, gap: '5px' }}>
@@ -1074,68 +1149,38 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
                 );
               }
 
-              if (el.type === 'door') {
+              if (el.type === 'door' || el.type === 'window') {
+                const { x: boxX, y: boxY, width: boxW, height: boxH, angleDeg } = getStructureRenderBox(el);
                 return (
                   <div
                     key={el.id}
                     onPointerDown={(e) => handleElementPointerDown(e, el)}
                     onDoubleClick={(e) => {
                       e.stopPropagation();
-                      setElements(prev => prev.map(item => item.id === el.id ? { ...item, width: item.height, height: item.width } : item));
+                      setElements(prev => prev.map(item => item.id === el.id ? { ...item, ...rotateStructureCentered(item) } : item));
                     }}
                     style={{
                       position: 'absolute',
-                      left: `${el.x}px`,
-                      top: `${el.y}px`,
-                      width: `${el.width || 60}px`,
-                      height: `${el.height || 16}px`,
-                      backgroundColor: '#5c2d0c',
-                      border: isSelected ? '3px solid #fbbf24' : '2px solid #d4af37',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
+                      left: `${boxX}px`,
+                      top: `${boxY}px`,
+                      width: `${boxW}px`,
+                      height: `${boxH}px`,
+                      transform: angleDeg ? `rotate(${angleDeg}deg)` : undefined,
+                      transformOrigin: 'center center',
                       cursor: 'grab',
                       zIndex: 110,
-                      boxShadow: '0 4px 8px rgba(0,0,0,0.75)',
-                      fontSize: '12px'
+                      filter: isSelected ? 'drop-shadow(0 0 6px rgba(251, 191, 36, 0.9))' : undefined
                     }}
-                    title="Puerta (Doble clic para rotar Horizontal/Vertical)"
+                    title={`${el.type === 'door' ? 'Puerta' : 'Ventana'} (${boxW}×${boxH}px • ${angleDeg}° — Doble clic para rotar 90°)`}
                   >
-                    🚪
-                  </div>
-                );
-              }
-
-              if (el.type === 'window') {
-                return (
-                  <div
-                    key={el.id}
-                    onPointerDown={(e) => handleElementPointerDown(e, el)}
-                    onDoubleClick={(e) => {
-                      e.stopPropagation();
-                      setElements(prev => prev.map(item => item.id === el.id ? { ...item, width: item.height, height: item.width } : item));
-                    }}
-                    style={{
-                      position: 'absolute',
-                      left: `${el.x}px`,
-                      top: `${el.y}px`,
-                      width: `${el.width || 60}px`,
-                      height: `${el.height || 14}px`,
-                      background: 'linear-gradient(90deg, rgba(56, 189, 248, 0.45), rgba(186, 230, 253, 0.75), rgba(56, 189, 248, 0.45))',
-                      border: isSelected ? '3px solid #fbbf24' : '2px solid #7dd3fc',
-                      borderRadius: '4px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'grab',
-                      zIndex: 110,
-                      boxShadow: '0 0 10px rgba(56, 189, 248, 0.4)',
-                      fontSize: '11px'
-                    }}
-                    title="Ventana (Deja pasar la visión. Doble clic para rotar Horizontal/Vertical)"
-                  >
-                    🪟
+                    <MapStructureGraphic
+                      type={el.type}
+                      width={boxW}
+                      height={boxH}
+                      isOpen={Boolean(el.isOpen)}
+                      isBroken={Boolean(el.isBroken)}
+                      isSelected={isSelected}
+                    />
                   </div>
                 );
               }
@@ -1176,268 +1221,17 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
         </div>
       </div>
 
-      {/* Modal Editor de Objetos Interactivos */}
-      {editingObject && (
-        <div
-          onClick={() => setEditingObject(null)}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="vtt-wood-panel"
-            style={{ padding: '26px', borderRadius: '12px', width: '480px', display: 'flex', flexDirection: 'column', gap: '14px', border: '1px solid #475569', color: '#e2e8f0' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="vtt-gothic-title" style={{ margin: 0, color: '#f59e0b' }}>Configurar Objeto Interactivo</h3>
-              <button onClick={() => setEditingObject(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '16px' }}>✕</button>
-            </div>
-            
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {OBJECT_PRESETS.map(p => (
-                <button
-                  key={p.presetId}
-                  onClick={() => setEditingObject({
-                    ...editingObject,
-                    name: p.label,
-                    icon: p.icon,
-                    openIcon: p.openIcon,
-                    blocksMovement: p.blocksMovement,
-                    blocksVision: p.blocksVision
-                  })}
-                  className="vtt-brass-btn"
-                  style={{ padding: '6px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
-                >
-                  {p.icon} {p.label}
-                </button>
-              ))}
-            </div>
-
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <div style={{ flex: 1 }}>
-                <label style={{ fontSize: '12px', color: '#94a3b8' }}>Nombre</label>
-                <input
-                  type="text"
-                  value={editingObject.name}
-                  onChange={(e) => setEditingObject({ ...editingObject, name: e.target.value })}
-                  style={{ width: '100%', padding: '8px', backgroundColor: '#12151c', color: '#f8fafc', border: '1px solid #334155', borderRadius: '6px' }}
-                />
-              </div>
-              <div style={{ width: '70px' }}>
-                <label style={{ fontSize: '12px', color: '#94a3b8' }}>Cerrado</label>
-                <input
-                  type="text"
-                  value={editingObject.icon}
-                  onChange={(e) => setEditingObject({ ...editingObject, icon: e.target.value })}
-                  style={{ width: '100%', padding: '8px', backgroundColor: '#12151c', color: '#f8fafc', border: '1px solid #334155', borderRadius: '6px', textAlign: 'center' }}
-                />
-              </div>
-              <div style={{ width: '70px' }}>
-                <label style={{ fontSize: '12px', color: '#94a3b8' }}>Abierto</label>
-                <input
-                  type="text"
-                  value={editingObject.openIcon}
-                  onChange={(e) => setEditingObject({ ...editingObject, openIcon: e.target.value })}
-                  style={{ width: '100%', padding: '8px', backgroundColor: '#12151c', color: '#f8fafc', border: '1px solid #334155', borderRadius: '6px', textAlign: 'center' }}
-                />
-              </div>
-            </div>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px' }}>
-              <input
-                type="checkbox"
-                checked={Boolean(editingObject.blocksMovement)}
-                onChange={(e) => setEditingObject({ ...editingObject, blocksMovement: e.target.checked })}
-              />
-              <span>Bloquea el paso mientras esté cerrado/activo</span>
-            </label>
-
-            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '13px' }}>
-              <input
-                type="checkbox"
-                checked={Boolean(editingObject.blocksVision)}
-                onChange={(e) => setEditingObject({ ...editingObject, blocksVision: e.target.checked })}
-              />
-              <span>Bloquea el cono de visión (proyecta sombra) mientras esté cerrado</span>
-            </label>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '8px' }}>
-              <button
-                onClick={() => {
-                  setElements(elements.filter(el => el.id !== editingObject.id));
-                  setSelectedIds([]);
-                  setEditingObject(null);
-                }}
-                style={{ padding: '8px 14px', background: '#7f1d1d', color: '#fecaca', border: '1px solid #f87171', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-              >
-                Eliminar Objeto
-              </button>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => setEditingObject(null)}
-                  className="vtt-brass-btn"
-                  style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => {
-                    setElements(elements.map(el => el.id === editingObject.id ? editingObject : el));
-                    setEditingObject(null);
-                  }}
-                  className="vtt-primary-cta"
-                  style={{ padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
-                >
-                  Guardar Objeto
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Editor de Fuentes de Luz */}
-      {editingLight && (
-        <div
-          onClick={() => setEditingLight(null)}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="vtt-wood-panel"
-            style={{ padding: '26px', borderRadius: '12px', width: '440px', display: 'flex', flexDirection: 'column', gap: '14px', border: '1px solid #f59e0b', color: '#e2e8f0' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="vtt-gothic-title" style={{ margin: 0, color: '#fbbf24' }}>Configurar Fuente de Luz</h3>
-              <button onClick={() => setEditingLight(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '16px' }}>✕</button>
-            </div>
-
-            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-              {LIGHT_PRESETS.map(p => (
-                <button
-                  key={p.presetId}
-                  onClick={() => setEditingLight({
-                    ...editingLight,
-                    name: p.label,
-                    icon: p.icon,
-                    radius: p.radius,
-                    color: p.color
-                  })}
-                  className="vtt-brass-btn"
-                  style={{ padding: '6px 10px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer' }}
-                >
-                  {p.icon} {p.label}
-                </button>
-              ))}
-            </div>
-
-            <div>
-              <label style={{ display: 'block', marginBottom: '6px', color: '#cbd5e1', fontSize: '13px' }}>
-                Radio de Iluminación en la Niebla: <strong style={{ color: '#fbbf24' }}>{editingLight.radius || 220}px</strong>
-              </label>
-              <input
-                type="range"
-                min="80"
-                max="550"
-                value={editingLight.radius || 220}
-                onChange={(e) => setEditingLight({ ...editingLight, radius: Number(e.target.value) })}
-                style={{ width: '100%', accentColor: '#fbbf24' }}
-              />
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginTop: '8px' }}>
-              <button
-                onClick={() => {
-                  setElements(elements.filter(el => el.id !== editingLight.id));
-                  setSelectedIds([]);
-                  setEditingLight(null);
-                }}
-                style={{ padding: '8px 14px', background: '#7f1d1d', color: '#fecaca', border: '1px solid #f87171', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-              >
-                Eliminar Luz
-              </button>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => setEditingLight(null)}
-                  className="vtt-brass-btn"
-                  style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={() => {
-                    setElements(elements.map(el => el.id === editingLight.id ? editingLight : el));
-                    setEditingLight(null);
-                  }}
-                  className="vtt-primary-cta"
-                  style={{ padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
-                >
-                  Guardar Luz
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal Editor de Notas estilo Grimorio */}
-      {editingNote && (
-        <div
-          onClick={() => setEditingNote(null)}
-          style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="vtt-wood-panel"
-            style={{ padding: '26px', borderRadius: '12px', width: '500px', display: 'flex', flexDirection: 'column', gap: '15px', border: '1px solid #475569' }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 className="vtt-gothic-title" style={{ margin: 0, color: '#f59e0b' }}>Redactar Pergamino</h3>
-              <button onClick={() => setEditingNote(null)} style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '16px' }}>✕</button>
-            </div>
-            <input 
-              type="text" value={editingNote.title} 
-              onChange={(e) => setEditingNote({...editingNote, title: e.target.value})}
-              style={{ padding: '10px', fontSize: '16px', fontWeight: 'bold', backgroundColor: '#12151c', color: '#f8fafc', border: '1px solid #334155', borderRadius: '6px' }}
-            />
-            <textarea 
-              value={editingNote.content}
-              onChange={(e) => setEditingNote({...editingNote, content: e.target.value})}
-              style={{ padding: '12px', height: '200px', backgroundColor: '#12151c', color: '#e2e8f0', border: '1px solid #334155', borderRadius: '6px', resize: 'none', fontSize: '15px', lineHeight: '1.5' }}
-            />
-            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}>
-              <button
-                onClick={() => {
-                  setElements(elements.filter(el => el.id !== editingNote.id));
-                  setSelectedIds([]);
-                  setEditingNote(null);
-                }}
-                style={{ padding: '8px 14px', background: '#7f1d1d', color: '#fecaca', border: '1px solid #f87171', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '12px' }}
-              >
-                Eliminar Nota
-              </button>
-              <div style={{ display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={() => setEditingNote(null)}
-                  className="vtt-brass-btn"
-                  style={{ padding: '8px 16px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={() => {
-                    setElements(elements.map(el => el.id === editingNote.id ? editingNote : el));
-                    setEditingNote(null);
-                  }} 
-                  className="vtt-primary-cta"
-                  style={{ padding: '8px 20px', borderRadius: '6px', cursor: 'pointer', fontSize: '12px' }}
-                >
-                  Guardar Pergamino
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <MapElementModals
+        editingObject={editingObject}
+        setEditingObject={setEditingObject}
+        editingLight={editingLight}
+        setEditingLight={setEditingLight}
+        editingNote={editingNote}
+        setEditingNote={setEditingNote}
+        elements={elements}
+        setElements={setElements}
+        setSelectedIds={setSelectedIds}
+      />
     </div>
   );
 };

@@ -1,24 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
-
-export const ENTITY_CLASSIFICATIONS = [
-  { id: 'human', label: 'Humano / Investigador', group: 'character', badgeColor: '#3b82f6' },
-  { id: 'npc', label: 'Aliado / PNJ', group: 'character', badgeColor: '#10b981' },
-  { id: 'cultist', label: 'Cultista / Sectario', group: 'character', badgeColor: '#a855f7' },
-  { id: 'mythos_creature', label: 'Criatura de los Mitos', group: 'monster', badgeColor: '#ec4899' },
-  { id: 'great_old_one', label: 'Dios Primigenio', group: 'monster', badgeColor: '#ef4444' },
-  { id: 'outer_god', label: 'Dios Exterior', group: 'monster', badgeColor: '#8b5cf6' },
-  { id: 'animal', label: 'Animal / Fauna', group: 'monster', badgeColor: '#eab308' },
-  { id: 'undead', label: 'No-Muerto / Horror', group: 'monster', badgeColor: '#64748b' },
-  { id: 'aberration', label: 'Aberración Arcana', group: 'monster', badgeColor: '#06b6d4' }
-];
-
-export const getClassificationMeta = (entityType, faction = 'ally') => {
-  const found = ENTITY_CLASSIFICATIONS.find(c => c.id === entityType);
-  if (found) return found;
-  return faction === 'enemy'
-    ? ENTITY_CLASSIFICATIONS.find(c => c.id === 'mythos_creature')
-    : ENTITY_CLASSIFICATIONS.find(c => c.id === 'human');
-};
+import { useState, useRef, useEffect } from 'react';
+import {
+  BookOpen,
+  Skull,
+  Plus,
+  Upload,
+  Download,
+  Trash2,
+  ArrowLeft,
+  Pencil,
+  Crosshair,
+  RotateCcw,
+  AlertTriangle
+} from 'lucide-react';
+import { ENTITY_CLASSIFICATIONS, getClassificationMeta } from '../constants/gamePresets';
+import { useConfirm } from '../hooks/useConfirm';
+import SearchInput from './ui/SearchInput';
 
 const EncyclopediaView = ({
   isOpen,
@@ -33,7 +29,6 @@ const EncyclopediaView = ({
   onImportCharacters,
   onExportCharacters,
   onClearCategory,
-  onLoadStarterPack,
   onReviveCharacter,
   onDeleteFromGraveyard,
   onClearGraveyard,
@@ -43,13 +38,30 @@ const EncyclopediaView = ({
   const [selectedFilter, setSelectedFilter] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedId, setSelectedId] = useState(null);
-  const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const [importError, setImportError] = useState(null);
+  const [prevSyncKey, setPrevSyncKey] = useState(`${isOpen}-${initialCategory}`);
   const fileInputRef = useRef(null);
+  const confirm = useConfirm();
 
-  useEffect(() => {
+  const syncKey = `${isOpen}-${initialCategory}`;
+  if (syncKey !== prevSyncKey) {
+    setPrevSyncKey(syncKey);
     setActiveCategory(initialCategory);
     setSelectedFilter('all');
-  }, [initialCategory, isOpen]);
+    setImportError(null);
+  }
+
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   const isGraveyard = activeCategory === 'graveyard';
 
@@ -99,16 +111,6 @@ const EncyclopediaView = ({
     return matchesFilter && matchesSearch;
   });
 
-  useEffect(() => {
-    if (filteredEntries.length > 0) {
-      if (!selectedId || !filteredEntries.some(e => getEntryId(e) === selectedId)) {
-        setSelectedId(getEntryId(filteredEntries[0]));
-      }
-    } else {
-      setSelectedId(null);
-    }
-  }, [activeCategory, selectedFilter, searchQuery, characters, graveyard]);
-
   if (!isOpen) return null;
 
   const selectedEntity = filteredEntries.find(e => getEntryId(e) === selectedId) || filteredEntries[0] || null;
@@ -123,6 +125,7 @@ const EncyclopediaView = ({
   const handleImportFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    setImportError(null);
     const reader = new FileReader();
     reader.onload = (ev) => {
       try {
@@ -137,7 +140,10 @@ const EncyclopediaView = ({
             }))
           );
         }
-      } catch (err) {}
+      } catch (err) {
+        console.error('Error al importar fichas:', err);
+        setImportError('El archivo seleccionado no es un JSON válido de fichas.');
+      }
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -198,15 +204,11 @@ const EncyclopediaView = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontFamily: "'Cinzel', Georgia, serif",
-              fontSize: '13px',
-              fontWeight: 800,
               color: '#fbbf24',
-              letterSpacing: '0.08em',
               border: '1.5px solid #7c5826',
               boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5)'
             }}>
-              {isGraveyard ? 'RIP' : activeCategory === 'character' ? 'ARC' : 'COD'}
+              {isGraveyard ? <Skull size={20} strokeWidth={2.1} /> : <BookOpen size={20} strokeWidth={2.1} />}
             </div>
             <div>
               <div className="vtt-gothic-title" style={{ fontSize: '17px', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '0.06em' }}>
@@ -292,11 +294,12 @@ const EncyclopediaView = ({
           </div>
         </div>
 
-        {/* Acciones superiores sin iconos */}
+        {/* Acciones superiores */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
           {isGraveyard ? (
             <>
               <button
+                type="button"
                 onClick={() => {
                   if (onExportGraveyard) onExportGraveyard(graveyard);
                   else if (onExportCharacters) onExportCharacters(graveyard, 'graveyard');
@@ -305,19 +308,20 @@ const EncyclopediaView = ({
                 style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
                 title="Exportar bajas registradas en formato .json"
               >
-                Exportar Bajas
+                <Download size={13} strokeWidth={2.2} /> Exportar Bajas
               </button>
 
               {graveyard.length > 0 && onClearGraveyard && (
                 <button
-                  onClick={() => {
-                    if (confirmClearAll) {
-                      onClearGraveyard();
-                      setConfirmClearAll(false);
-                    } else {
-                      setConfirmClearAll(true);
-                      setTimeout(() => setConfirmClearAll(false), 3000);
-                    }
+                  type="button"
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: 'Vaciar cripta y cementerio',
+                      message: `Se eliminarán permanentemente los ${graveyard.length} registros de caídos de la cripta.`,
+                      confirmLabel: 'Vaciar Cripta',
+                      tone: 'danger'
+                    });
+                    if (ok) onClearGraveyard();
                   }}
                   className="vtt-btn-danger"
                   style={{
@@ -325,63 +329,59 @@ const EncyclopediaView = ({
                     borderRadius: '7px',
                     fontSize: '12px',
                     fontWeight: 700,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                   title="Vaciar todos los registros del cementerio"
                 >
-                  {confirmClearAll ? 'Confirmar Vaciar Cripta' : 'Vaciar Cementerio'}
+                  <Trash2 size={13} strokeWidth={2.2} /> Vaciar Cementerio
                 </button>
               )}
             </>
           ) : (
             <>
               <button
+                type="button"
                 onClick={() => onCreateNew && onCreateNew(activeCategory === 'monster' ? 'mythos_creature' : 'human')}
                 className="vtt-primary-cta"
                 style={{ padding: '8px 18px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
               >
-                {activeCategory === 'character' ? 'Inscribir Personaje' : 'Registrar Criatura'}
+                <Plus size={14} strokeWidth={2.4} /> {activeCategory === 'character' ? 'Inscribir Personaje' : 'Registrar Criatura'}
               </button>
 
               <button
+                type="button"
                 onClick={() => fileInputRef.current.click()}
                 className="vtt-brass-btn"
                 style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
                 title="Importar fichas desde un archivo .json"
               >
-                Importar JSON
+                <Upload size={13} strokeWidth={2.2} /> Importar JSON
               </button>
 
               <button
+                type="button"
                 onClick={() => onExportCharacters && onExportCharacters(categoryEntries, activeCategory)}
                 className="vtt-brass-btn"
                 style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
                 title="Exportar esta biblioteca a un archivo .json"
               >
-                Exportar
+                <Download size={13} strokeWidth={2.2} /> Exportar
               </button>
-
-              {onLoadStarterPack && (
-                <button
-                  onClick={() => onLoadStarterPack(activeCategory)}
-                  className="vtt-brass-btn"
-                  style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer', color: '#fbbf24', borderColor: '#7c5826' }}
-                  title="Añade fichas de muestra listas para usar"
-                >
-                  Cargar Ejemplos
-                </button>
-              )}
 
               {categoryEntries.length > 0 && onClearCategory && (
                 <button
-                  onClick={() => {
-                    if (confirmClearAll) {
-                      onClearCategory(activeCategory);
-                      setConfirmClearAll(false);
-                    } else {
-                      setConfirmClearAll(true);
-                      setTimeout(() => setConfirmClearAll(false), 3000);
-                    }
+                  type="button"
+                  onClick={async () => {
+                    const ok = await confirm({
+                      title: activeCategory === 'monster' ? 'Vaciar bestiario' : 'Vaciar archivo de personajes',
+                      message: `Se eliminarán permanentemente los ${categoryEntries.length} registros de esta sección.`,
+                      confirmLabel: 'Limpiar todos',
+                      tone: 'danger'
+                    });
+                    if (ok) onClearCategory(activeCategory);
                   }}
                   className="vtt-btn-danger"
                   style={{
@@ -389,11 +389,14 @@ const EncyclopediaView = ({
                     borderRadius: '7px',
                     fontSize: '12px',
                     fontWeight: 700,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px'
                   }}
                   title="Elimina todas las entradas de esta biblioteca para empezar desde cero"
                 >
-                  {confirmClearAll ? 'Confirmar vaciar' : 'Limpiar todos'}
+                  <Trash2 size={13} strokeWidth={2.2} /> Limpiar todos
                 </button>
               )}
             </>
@@ -402,11 +405,13 @@ const EncyclopediaView = ({
           <div style={{ width: '1px', height: '24px', backgroundColor: '#34291c', margin: '0 4px' }} />
 
           <button
+            type="button"
             onClick={onClose}
             className="vtt-brass-btn"
             style={{ padding: '8px 18px', borderRadius: '7px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
+            title="Volver (Esc)"
           >
-            Volver
+            <ArrowLeft size={13} strokeWidth={2.2} /> Volver
           </button>
         </div>
       </div>
@@ -426,22 +431,17 @@ const EncyclopediaView = ({
         }}>
           {/* Cabecera del buscador y filtros */}
           <div style={{ padding: '16px', borderBottom: '1px solid #1c2331', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <input
-              type="text"
+            <SearchInput
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={setSearchQuery}
               placeholder={isGraveyard ? 'Buscar caído por nombre, escena o notas...' : activeCategory === 'character' ? 'Buscar investigador o personaje...' : 'Buscar criatura o entidad...'}
-              style={{
-                width: '100%',
-                padding: '9px 12px',
-                backgroundColor: '#121622',
-                border: '1px solid #2a3447',
-                borderRadius: '7px',
-                color: '#f8fafc',
-                fontSize: '12px',
-                boxSizing: 'border-box'
-              }}
             />
+            {importError && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '7px 10px', borderRadius: '6px', backgroundColor: 'rgba(127, 29, 29, 0.35)', border: '1px solid #ef4444', fontSize: '11px', color: '#fca5a5' }}>
+                <AlertTriangle size={13} strokeWidth={2.2} style={{ flexShrink: 0 }} />
+                <span>{importError}</span>
+              </div>
+            )}
 
             {/* Filtros estructurados sin pastillas redondeadas */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
@@ -593,20 +593,11 @@ const EncyclopediaView = ({
                 }}>
                   {isGraveyard ? 'La Cripta Descansa en Silencio' : 'No Hay Registros Disponibles'}
                 </div>
-                <div style={{ fontSize: '12px', lineHeight: 1.6, marginBottom: '16px' }}>
+                <div style={{ fontSize: '12px', lineHeight: 1.6, marginBottom: '4px' }}>
                   {isGraveyard
                     ? 'Aún no ha caído ningún combatiente. Cuando un personaje caiga o se traslade a la cripta, reposará aquí con su botín para saquearlo o devolverlo a la vida.'
-                    : 'Puedes crear uno nuevo desde la barra superior, importar un archivo JSON o cargar ejemplos predefinidos.'}
+                    : 'Puedes crear un registro nuevo desde la barra superior o importar un archivo JSON.'}
                 </div>
-                {!isGraveyard && onLoadStarterPack && (
-                  <button
-                    onClick={() => onLoadStarterPack(activeCategory)}
-                    className="vtt-brass-btn"
-                    style={{ padding: '7px 16px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', color: '#fbbf24', borderColor: '#7c5826' }}
-                  >
-                    Cargar Ejemplos Iniciales
-                  </button>
-                )}
               </div>
             )}
           </div>
@@ -754,77 +745,105 @@ const EncyclopediaView = ({
                           )}
                         </div>
 
-                        {/* Botones de acción sin iconos */}
+                        {/* Botones de acción */}
                         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                           {isGraveyard ? (
                             <>
                               {onReviveCharacter && (
                                 <button
+                                  type="button"
                                   onClick={() => onReviveCharacter(selectedEntity)}
                                   className="vtt-primary-cta"
                                   style={{ padding: '8px 16px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
                                   title="Revive al personaje y lo devuelve al centro del tablero de juego"
                                 >
-                                  Resucitar al Tablero
+                                  <RotateCcw size={13} strokeWidth={2.2} /> Resucitar al Tablero
                                 </button>
                               )}
                               <button
+                                type="button"
                                 onClick={() => onEditCharacter && onEditCharacter(selectedEntity)}
                                 className="vtt-brass-btn"
                                 style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                                 title="Ver ficha completa y saquear objetos"
                               >
-                                Ver Ficha
+                                <Pencil size={13} strokeWidth={2.2} /> Ver Ficha
                               </button>
                               {onDeleteFromGraveyard && (
                                 <button
-                                  onClick={() => onDeleteFromGraveyard(selectedEntity.graveyardId || selectedEntity.id)}
+                                  type="button"
+                                  onClick={async () => {
+                                    const ok = await confirm({
+                                      title: 'Purgar registro de la cripta',
+                                      message: `¿Eliminar permanentemente a "${selectedEntity.name}" de la cripta y perder su inventario?`,
+                                      confirmLabel: 'Purgar',
+                                      tone: 'danger'
+                                    });
+                                    if (ok) onDeleteFromGraveyard(selectedEntity.graveyardId || selectedEntity.id);
+                                  }}
                                   className="vtt-btn-danger"
                                   style={{
                                     padding: '8px 14px',
                                     borderRadius: '7px',
                                     cursor: 'pointer',
                                     fontSize: '12px',
-                                    fontWeight: 700
+                                    fontWeight: 700,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
                                   }}
                                   title="Eliminar permanentemente de la cripta"
                                 >
-                                  Purgar
+                                  <Trash2 size={13} strokeWidth={2.2} /> Purgar
                                 </button>
                               )}
                             </>
                           ) : (
                             <>
                               <button
+                                type="button"
                                 onClick={() => onEditCharacter && onEditCharacter(selectedEntity)}
                                 className="vtt-brass-btn"
                                 style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
                               >
-                                Editar Ficha
+                                <Pencil size={13} strokeWidth={2.2} /> Editar Ficha
                               </button>
                               {onSpawnOnBoard && (
                                 <button
+                                  type="button"
                                   onClick={() => onSpawnOnBoard(selectedEntity)}
                                   className="vtt-primary-cta"
                                   style={{ padding: '8px 16px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
                                 >
-                                  Invocar en el Tablero
+                                  <Crosshair size={13} strokeWidth={2.2} /> Invocar en el Tablero
                                 </button>
                               )}
                               {onDeleteCharacter && (
                                 <button
-                                  onClick={() => onDeleteCharacter(selectedEntity.id)}
+                                  type="button"
+                                  onClick={async () => {
+                                    const ok = await confirm({
+                                      title: 'Eliminar expediente',
+                                      message: `¿Eliminar permanentemente a "${selectedEntity.name}" de la enciclopedia?`,
+                                      confirmLabel: 'Eliminar',
+                                      tone: 'danger'
+                                    });
+                                    if (ok) onDeleteCharacter(selectedEntity.id);
+                                  }}
                                   className="vtt-btn-danger"
                                   style={{
                                     padding: '8px 14px',
                                     borderRadius: '7px',
                                     cursor: 'pointer',
                                     fontSize: '12px',
-                                    fontWeight: 700
+                                    fontWeight: 700,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
                                   }}
                                   title="Eliminar permanentemente de la enciclopedia"
                                 >
-                                  Eliminar
+                                  <Trash2 size={13} strokeWidth={2.2} /> Eliminar
                                 </button>
                               )}
                             </>

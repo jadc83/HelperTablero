@@ -1,38 +1,18 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { createPortal } from 'react-dom';
-import { isPointVisibleToPlayers } from './FogLayer';
-import {
-  Eye,
-  EyeOff,
-  Captions,
-  CaptionsOff,
-  Lock,
-  Unlock,
-  Copy,
-  Projector,
-  Trash2,
-  Pencil,
-  Hand,
-  RotateCw,
-  Flame,
-  Moon,
-  FileText,
-  Zap,
-  Package,
-  DoorClosed,
-  AppWindow
-} from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { isPointVisibleToPlayers, getStructureRenderBox } from '../utils/fogGeometry';
+import { EyeOff, Lock, Package } from 'lucide-react';
+import MapElementContextMenu from './map-layer/MapElementContextMenu';
+import NoteParchmentModal from './map-layer/NoteParchmentModal';
+import MapStructureGraphic from './map-layer/MapStructureGraphic';
 
 const MapLayer = ({
   maps,
   tokens = [],
-  fowCanvasRef,
   fowEnabled = false,
   fowVisionRadius = 180,
   isPlayerView = false,
   draggedMapElement = null,
   onMapElementPointerDown,
-  onRotateMapElement,
   onToggleMapElementLock,
   onUpdateMapElement,
   onDuplicateMapElement,
@@ -42,6 +22,7 @@ const MapLayer = ({
   onToggleWindow,
   onToggleObject,
   onToggleLight,
+  handouts = [],
   onProjectHandout,
   activeTurnTokenId = null,
   onPickUpItem
@@ -51,19 +32,6 @@ const MapLayer = ({
   const [isEditingMenu, setIsEditingMenu] = useState(false);
   const [editName, setEditName] = useState('');
   const [editNotes, setEditNotes] = useState('');
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setContextMenu(prev => ({ ...prev, visible: false }));
-      }
-    };
-    if (contextMenu.visible) {
-      document.addEventListener('pointerdown', handleClickOutside, true);
-    }
-    return () => document.removeEventListener('pointerdown', handleClickOutside, true);
-  }, [contextMenu.visible]);
 
   // RADAR DE NIEBLA: Comprobación geométrica ultra-rápida (CPU pura, sin lecturas lentas de textura GPU)
   const visibleElements = useMemo(() => {
@@ -377,12 +345,18 @@ const MapLayer = ({
           );
         }
 
-        if (element.type === 'door') {
+        if (element.type === 'door' || element.type === 'window') {
           if (isPlayerView && fowEnabled && !visibleElements[element.id]) {
             return null;
           }
 
           const isDragging = draggedMapElement === element.id;
+          const isDoor = element.type === 'door';
+          const { x: boxX, y: boxY, width: boxW, height: boxH, angleDeg } = getStructureRenderBox(element);
+
+          const statusLabel = isDoor
+            ? `Puerta ${element.isOpen ? 'Abierta' : 'Cerrada'}`
+            : `Ventana ${element.isBroken ? 'Rota' : element.isOpen ? 'Abierta' : 'Cerrada'}`;
 
           return (
             <div
@@ -404,90 +378,44 @@ const MapLayer = ({
               }}
               style={{
                 position: 'absolute',
-                left: `${element.x}px`,
-                top: `${element.y}px`,
-                width: `${element.width || 60}px`,
-                height: `${element.height || 16}px`,
-                background: element.isOpen
-                  ? 'rgba(16, 185, 129, 0.22)'
-                  : 'linear-gradient(90deg, #451a03 0%, #78350f 50%, #451a03 100%)',
-                border: isDragging
-                  ? '2px dashed #fbbf24'
-                  : (element.isOpen ? '2px dashed #34d399' : '2px solid #d4af37'),
-                borderRadius: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
+                left: `${boxX}px`,
+                top: `${boxY}px`,
+                width: `${boxW}px`,
+                height: `${boxH}px`,
+                transform: angleDeg ? `rotate(${angleDeg}deg)` : undefined,
+                transformOrigin: 'center center',
                 cursor: isPlayerView ? 'default' : (element.isLocked ? 'pointer' : (isDragging ? 'grabbing' : 'grab')),
-                boxShadow: isDragging ? '0 10px 25px rgba(245, 158, 11, 0.6)' : (element.isOpen ? 'none' : '0 4px 12px rgba(0,0,0,0.85)'),
+                filter: isDragging ? 'drop-shadow(0 0 8px rgba(245, 158, 11, 0.85))' : undefined,
                 zIndex: isDragging ? 1000 : 6,
-                fontSize: '12px',
-                userSelect: 'none',
-                transition: isDragging ? 'none' : 'all 0.2s'
+                userSelect: 'none'
               }}
-              title={element.isOpen ? 'Puerta Abierta (Arrastra para mover o clic derecho)' : 'Puerta Cerrada (Arrastra para mover o clic derecho)'}
+              title={`${statusLabel} (${boxW}×${boxH}px • ${angleDeg}° — Clic derecho para abrir, girar o redimensionar)`}
             >
-              {element.isOpen ? '🔓' : '🚪'}
+              <MapStructureGraphic
+                type={element.type}
+                width={boxW}
+                height={boxH}
+                isOpen={Boolean(element.isOpen)}
+                isBroken={Boolean(element.isBroken)}
+                isDragging={isDragging}
+              />
               {!isPlayerView && element.isLocked && (
-                <span style={{ position: 'absolute', top: -3, right: -3, fontSize: '9px' }}>🔒</span>
-              )}
-            </div>
-          );
-        }
-
-        if (element.type === 'window') {
-          if (isPlayerView && fowEnabled && !visibleElements[element.id]) {
-            return null;
-          }
-
-          const isDragging = draggedMapElement === element.id;
-
-          return (
-            <div
-              key={element.id}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (isPlayerView) return;
-                setIsEditingMenu(false); setContextMenu({ visible: true, x: e.clientX, y: e.clientY, item: element });
-              }}
-              onPointerDown={(e) => {
-                if (isPlayerView) return;
-                if (e.button === 0 && !element.isLocked) {
-                  e.stopPropagation();
-                  if (onMapElementPointerDown) onMapElementPointerDown(e, element);
-                } else if (e.button === 2) {
-                  e.stopPropagation();
-                }
-              }}
-              style={{
-                position: 'absolute',
-                left: `${element.x}px`,
-                top: `${element.y}px`,
-                width: `${element.width || 60}px`,
-                height: `${element.height || 14}px`,
-                background: element.isOpen
-                  ? 'rgba(56, 189, 248, 0.15)'
-                  : 'linear-gradient(90deg, rgba(14, 116, 144, 0.75) 0%, rgba(186, 230, 253, 0.85) 50%, rgba(14, 116, 144, 0.75) 100%)',
-                border: isDragging
-                  ? '2px dashed #fbbf24'
-                  : (element.isOpen ? '2px dashed #7dd3fc' : '2px solid #38bdf8'),
-                borderRadius: '4px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: isPlayerView ? 'default' : (element.isLocked ? 'pointer' : (isDragging ? 'grabbing' : 'grab')),
-                boxShadow: isDragging ? '0 10px 25px rgba(245, 158, 11, 0.6)' : (element.isOpen ? 'none' : '0 0 10px rgba(56, 189, 248, 0.45)'),
-                zIndex: isDragging ? 1000 : 6,
-                fontSize: '11px',
-                userSelect: 'none',
-                transition: isDragging ? 'none' : 'all 0.2s'
-              }}
-              title={element.isOpen ? 'Ventana Abierta / Rota (Arrastra para mover o clic derecho)' : 'Ventana Cerrada (Arrastra para mover o clic derecho)'}
-            >
-              {element.isBroken ? '💥' : (element.isOpen ? '🌬️' : '🪟')}
-              {!isPlayerView && element.isLocked && (
-                <span style={{ position: 'absolute', top: -3, right: -3, fontSize: '9px' }}>🔒</span>
+                <span style={{
+                  position: 'absolute',
+                  top: '-6px',
+                  right: '-6px',
+                  backgroundColor: '#0b0d12',
+                  border: '1px solid #f59e0b',
+                  borderRadius: '50%',
+                  width: '12px',
+                  height: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fbbf24'
+                }}>
+                  <Lock size={7} strokeWidth={2.4} />
+                </span>
               )}
             </div>
           );
@@ -512,625 +440,38 @@ const MapLayer = ({
         </svg>
       )}
 
-      {contextMenu.visible && contextMenu.item && createPortal(
-        (() => {
-          const activeItem = maps.find(m => m.id === contextMenu.item.id) || contextMenu.item;
-          const isHidden = Boolean(activeItem.isHidden);
-          const isLocked = Boolean(activeItem.isLocked);
-          const isNameVisible = activeItem.type === 'item'
-            ? activeItem.showName !== false
-            : activeItem.showName === true;
-          const supportsVisibilityAndName = activeItem.type === 'item' || activeItem.type === 'object' || activeItem.type === 'light';
+      <MapElementContextMenu
+        contextMenu={contextMenu}
+        maps={maps}
+        tokens={tokens}
+        handouts={handouts}
+        activeTurnTokenId={activeTurnTokenId}
+        isEditingMenu={isEditingMenu}
+        setIsEditingMenu={setIsEditingMenu}
+        editName={editName}
+        setEditName={setEditName}
+        editNotes={editNotes}
+        setEditNotes={setEditNotes}
+        onClose={() => setContextMenu({ visible: false, x: 0, y: 0, item: null })}
+        onToggleMapElementLock={onToggleMapElementLock}
+        onUpdateMapElement={onUpdateMapElement}
+        onDuplicateMapElement={onDuplicateMapElement}
+        onInspectObject={onInspectObject}
+        onRemoveMapElement={onRemoveMapElement}
+        onToggleDoor={onToggleDoor}
+        onToggleWindow={onToggleWindow}
+        onToggleObject={onToggleObject}
+        onToggleLight={onToggleLight}
+        onProjectHandout={onProjectHandout}
+        onPickUpItem={onPickUpItem}
+      />
 
-          const headerIcon = activeItem.type === 'door'
-            ? <DoorClosed size={15} strokeWidth={2.2} style={{ color: '#d4af37' }} />
-            : activeItem.type === 'window'
-            ? <AppWindow size={15} strokeWidth={2.2} style={{ color: '#38bdf8' }} />
-            : activeItem.type === 'light'
-            ? <Flame size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
-            : <Package size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />;
-
-          const headerTitle = activeItem.type === 'door'
-            ? 'Control de Puerta'
-            : activeItem.type === 'window'
-            ? 'Control de Ventana'
-            : activeItem.type === 'light'
-            ? (activeItem.name || 'Fuente de Luz')
-            : activeItem.type === 'item'
-            ? (activeItem.name || 'Objeto en el Suelo')
-            : (activeItem.name || 'Objeto / Decorado');
-
-          const activeTurnToken = tokens.find(t => t.id === activeTurnTokenId) || null;
-          const recipientToken = activeTurnToken || (tokens.length === 1 ? tokens[0] : null);
-
-          return (
-            <div
-              ref={menuRef}
-              onPointerDown={(e) => e.stopPropagation()}
-              className="vtt-context-menu"
-              style={{
-                top: `${Math.max(12, Math.min(contextMenu.y, window.innerHeight - 430))}px`,
-                left: `${Math.max(12, Math.min(contextMenu.x, window.innerWidth - 275))}px`
-              }}
-            >
-              {/* CABECERA */}
-              <div className="vtt-context-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, flex: 1 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>{headerIcon}</span>
-                  <span
-                    className="vtt-gothic-title"
-                    style={{ fontSize: '13px', lineHeight: 1.2, color: '#f8fafc', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                    title={activeItem.category ? `${headerTitle} (${activeItem.category})` : headerTitle}
-                  >
-                    {headerTitle}
-                  </span>
-                </div>
-
-                {supportsVisibilityAndName && onUpdateMapElement && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (!isEditingMenu) {
-                        setEditName(activeItem.name || '');
-                        setEditNotes(activeItem.notes || '');
-                        setIsEditingMenu(true);
-                      } else {
-                        setIsEditingMenu(false);
-                      }
-                    }}
-                    className="vtt-context-header-btn"
-                    style={isEditingMenu ? {
-                      borderColor: '#f59e0b',
-                      color: '#fbbf24',
-                      background: 'rgba(245, 158, 11, 0.14)'
-                    } : undefined}
-                    title="Renombrar o editar descripción del objeto"
-                  >
-                    <Pencil size={13} strokeWidth={2.2} />
-                  </button>
-                )}
-              </div>
-
-              {/* BARRA COMPACTA DE ICONOS DE ACCIÓN (Misma posición y estilo que el menú de tokens) */}
-              <div className="vtt-context-icon-bar">
-                {/* 1. Visibilidad para Jugadores */}
-                {supportsVisibilityAndName && onUpdateMapElement && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onUpdateMapElement(
-                        activeItem.id,
-                        { isHidden: !isHidden },
-                        !isHidden ? 'Elemento oculto a jugadores' : 'Elemento visible a jugadores',
-                        !isHidden ? '👁️‍🗨️' : '👁️'
-                      );
-                    }}
-                    className="vtt-context-icon-btn"
-                    style={isHidden ? {
-                      background: 'rgba(139, 92, 246, 0.22)',
-                      borderColor: '#c084fc',
-                      color: '#e9d5ff'
-                    } : undefined}
-                    title={isHidden ? 'Oculto a jugadores (clic para mostrar)' : 'Visible a jugadores (clic para ocultar)'}
-                  >
-                    {isHidden ? <EyeOff size={16} strokeWidth={2.2} /> : <Eye size={16} strokeWidth={2.2} />}
-                  </button>
-                )}
-
-                {/* 2. Mostrar / Ocultar Nombre */}
-                {supportsVisibilityAndName && onUpdateMapElement && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onUpdateMapElement(
-                        activeItem.id,
-                        { showName: !isNameVisible },
-                        !isNameVisible ? 'Nombre visible en el tablero' : 'Nombre oculto en el tablero',
-                        '🏷️'
-                      );
-                    }}
-                    className="vtt-context-icon-btn"
-                    style={isNameVisible ? {
-                      background: 'rgba(245, 158, 11, 0.14)',
-                      borderColor: '#f59e0b',
-                      color: '#fbbf24'
-                    } : { color: '#64748b' }}
-                    title={isNameVisible ? 'Ocultar etiqueta con el nombre en el tablero' : 'Mostrar etiqueta con el nombre en el tablero'}
-                  >
-                    {isNameVisible ? <Captions size={16} strokeWidth={2.2} /> : <CaptionsOff size={16} strokeWidth={2.2} />}
-                  </button>
-                )}
-
-                {/* 3. Bloquear / Desbloquear Posición */}
-                {onToggleMapElementLock && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onToggleMapElementLock(activeItem.id);
-                    }}
-                    className="vtt-context-icon-btn"
-                    style={isLocked ? {
-                      background: 'rgba(245, 158, 11, 0.14)',
-                      borderColor: '#f59e0b',
-                      color: '#fbbf24'
-                    } : undefined}
-                    title={isLocked ? 'Posición bloqueada (clic para desbloquear)' : 'Bloquear posición en el tablero'}
-                  >
-                    {isLocked ? <Lock size={16} strokeWidth={2.2} /> : <Unlock size={16} strokeWidth={2.2} />}
-                  </button>
-                )}
-
-                {/* 4. Duplicar */}
-                {onDuplicateMapElement && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onDuplicateMapElement(activeItem);
-                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                    }}
-                    className="vtt-context-icon-btn"
-                    title="Duplicar elemento en la escena"
-                  >
-                    <Copy size={16} strokeWidth={2.2} />
-                  </button>
-                )}
-
-                {/* 5. Proyectar a Jugadores */}
-                {activeItem.type === 'item' && onProjectHandout && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onProjectHandout({
-                        type: 'note',
-                        title: `${activeItem.icon || '📦'} ${activeItem.name || 'Objeto'}`,
-                        content: activeItem.notes || 'Objeto encontrado sobre el terreno.'
-                      });
-                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                    }}
-                    className="vtt-context-icon-btn vtt-context-icon-btn-info"
-                    title="Proyectar este objeto y sus notas en la pantalla de jugadores"
-                  >
-                    <Projector size={16} strokeWidth={2.2} />
-                  </button>
-                )}
-
-                {/* 6. Retirar de la Escena */}
-                {onRemoveMapElement && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onRemoveMapElement(activeItem.id);
-                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                    }}
-                    className="vtt-context-icon-btn vtt-context-icon-btn-danger"
-                    title="Retirar elemento de la escena"
-                  >
-                    <Trash2 size={16} strokeWidth={2.2} />
-                  </button>
-                )}
-              </div>
-
-              {(isEditingMenu || activeItem.type === 'item' || activeItem.type === 'door' || activeItem.type === 'window' || activeItem.type === 'object' || activeItem.type === 'light') && (
-              <div className="vtt-context-divider" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {/* MODO EDICIÓN RÁPIDA EN LÍNEA */}
-              {isEditingMenu && onUpdateMapElement && (
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '6px',
-                  backgroundColor: '#0e1118',
-                  border: '1px solid #2d3748',
-                  borderRadius: '7px',
-                  padding: '8px'
-                }}>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    placeholder="Nombre..."
-                    style={{
-                      backgroundColor: '#161b26',
-                      border: '1px solid #334155',
-                      borderRadius: '5px',
-                      padding: '5px 7px',
-                      color: '#f8fafc',
-                      fontSize: '11.5px',
-                      outline: 'none'
-                    }}
-                  />
-                  <textarea
-                    value={editNotes}
-                    onChange={(e) => setEditNotes(e.target.value)}
-                    placeholder="Descripción o notas..."
-                    rows={2}
-                    style={{
-                      backgroundColor: '#161b26',
-                      border: '1px solid #334155',
-                      borderRadius: '5px',
-                      padding: '5px 7px',
-                      color: '#cbd5e1',
-                      fontSize: '11px',
-                      outline: 'none',
-                      resize: 'vertical'
-                    }}
-                  />
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onUpdateMapElement(activeItem.id, {
-                          name: editName.trim() || activeItem.name,
-                          notes: editNotes.trim()
-                        }, 'Objeto actualizado', '💾');
-                        setIsEditingMenu(false);
-                      }}
-                      className="vtt-primary-cta"
-                      style={{ flex: 1, padding: '4px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}
-                    >
-                      Guardar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingMenu(false)}
-                      className="vtt-brass-btn"
-                      style={{ padding: '4px 8px', borderRadius: '5px', fontSize: '11px', cursor: 'pointer' }}
-                    >
-                      Cancelar
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* BLOQUE 1: ACCIÓN PRINCIPAL (Según tipo de elemento) */}
-              {activeItem.type === 'item' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {activeItem.notes && !isEditingMenu && (
-                    <div style={{
-                      fontSize: '11px',
-                      color: '#cbd5e1',
-                      backgroundColor: '#0e1118',
-                      padding: '7px 9px',
-                      borderRadius: '6px',
-                      borderLeft: '2px solid #f59e0b',
-                      lineHeight: 1.4
-                    }}>
-                      {activeItem.notes}
-                    </div>
-                  )}
-
-                  {tokens.length === 0 ? (
-                    <div style={{ fontSize: '11px', color: '#64748b', fontStyle: 'italic', textAlign: 'center', padding: '4px 0' }}>
-                      Sin fichas en la escena para recogerlo
-                    </div>
-                  ) : recipientToken ? (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (onPickUpItem) onPickUpItem(activeItem, recipientToken.id);
-                          setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                        }}
-                        className="vtt-primary-cta"
-                        style={{
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          fontWeight: 'bold',
-                          fontSize: '12px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px'
-                        }}
-                      >
-                        <Hand size={14} strokeWidth={2.2} />
-                        <span>Coger ➔ {recipientToken.name}</span>
-                      </button>
-
-                      {tokens.length > 1 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span className="vtt-context-section-label">
-                            O entregar a otro:
-                          </span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '110px', overflowY: 'auto' }}>
-                            {tokens.filter(t => t.id !== recipientToken.id).map(tok => (
-                              <button
-                                key={tok.id}
-                                type="button"
-                                onClick={() => {
-                                  if (onPickUpItem) onPickUpItem(activeItem, tok.id);
-                                  setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                                }}
-                                style={{
-                                  padding: '6px 9px',
-                                  fontSize: '11px',
-                                  fontWeight: 600,
-                                  borderRadius: '6px',
-                                  textAlign: 'left',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  background: '#171c26',
-                                  border: '1px solid #2b3345',
-                                  color: '#e2e8f0',
-                                  transition: 'all 0.15s ease'
-                                }}
-                              >
-                                <Hand size={12} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
-                                <span>{tok.name}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span className="vtt-context-section-label">
-                        Entregar a personaje:
-                      </span>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '130px', overflowY: 'auto' }}>
-                        {tokens.map(tok => (
-                          <button
-                            key={tok.id}
-                            type="button"
-                            onClick={() => {
-                              if (onPickUpItem) onPickUpItem(activeItem, tok.id);
-                              setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                            }}
-                            style={{
-                              padding: '6px 9px',
-                              fontSize: '11.5px',
-                              fontWeight: 600,
-                              borderRadius: '6px',
-                              textAlign: 'left',
-                              cursor: 'pointer',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              background: '#171c26',
-                              border: '1px solid #2b3345',
-                              color: '#e2e8f0',
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            <Hand size={13} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
-                            <span>{tok.name}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {activeItem.type === 'door' && (
-                <div style={{ display: 'flex', gap: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onToggleDoor) onToggleDoor(activeItem.id);
-                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                    }}
-                    className="vtt-primary-cta"
-                    style={{ flex: 1, padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px' }}
-                  >
-                    {activeItem.isOpen ? 'Cerrar Puerta' : 'Abrir Puerta'}
-                  </button>
-                  {onRotateMapElement && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onRotateMapElement(activeItem.id);
-                        setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                      }}
-                      className="vtt-brass-btn"
-                      style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px', color: '#38bdf8' }}
-                      title="Girar 90 grados"
-                    >
-                      <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><RotateCw size={13} strokeWidth={2.2} /> 90º</span>
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {activeItem.type === 'window' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (onToggleWindow) onToggleWindow(activeItem.id, false);
-                        setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                      }}
-                      className="vtt-primary-cta"
-                      style={{ flex: 1, padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px' }}
-                    >
-                      {activeItem.isOpen ? 'Cerrar Ventana' : 'Abrir Ventana'}
-                    </button>
-                    {onRotateMapElement && (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          onRotateMapElement(activeItem.id);
-                          setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                        }}
-                        className="vtt-brass-btn"
-                        style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px', color: '#38bdf8' }}
-                        title="Girar 90 grados"
-                      >
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "4px" }}><RotateCw size={13} strokeWidth={2.2} /> 90º</span>
-                      </button>
-                    )}
-                  </div>
-                  {!activeItem.isOpen && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (onToggleWindow) onToggleWindow(activeItem.id, true);
-                        setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                      }}
-                      style={{
-                        padding: '7px 10px',
-                        background: 'linear-gradient(180deg, #991b1b 0%, #450a0a 100%)',
-                        color: '#fecaca',
-                        border: '1px solid #f87171',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontWeight: 'bold',
-                        fontSize: '11.5px'
-                      }}
-                    >
-                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}><Zap size={13} strokeWidth={2.2} /> Romper Cristal</span>
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {activeItem.type === 'object' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (onToggleObject) onToggleObject(activeItem.id);
-                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                    }}
-                    className="vtt-primary-cta"
-                    style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px' }}
-                  >
-                    {activeItem.isOpen ? 'Cerrar / Reiniciar' : 'Abrir / Activar'}
-                  </button>
-
-                  {onInspectObject && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onInspectObject(activeItem);
-                        setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                      }}
-                      className="vtt-brass-btn"
-                      style={{ padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px', borderColor: '#f59e0b', color: '#fbbf24' }}
-                    >
-                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}><FileText size={13} strokeWidth={2.2} /> Notas & Pistas</span>
-                    </button>
-                  )}
-
-                  {(activeItem.customClueText || activeItem.linkedHandoutId) && onProjectHandout && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (activeItem.linkedHandoutId) {
-                          onProjectHandout({ id: activeItem.linkedHandoutId });
-                        } else if (activeItem.customClueText) {
-                          onProjectHandout({
-                            type: 'note',
-                            title: `Pista: ${activeItem.name || 'Objeto'}`,
-                            content: activeItem.customClueText
-                          });
-                        }
-                        setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                      }}
-                      className="vtt-brass-btn"
-                      style={{ padding: '6px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11.5px', color: '#38bdf8', borderColor: '#0284c7' }}
-                    >
-                      <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: "6px" }}><Projector size={13} strokeWidth={2.2} /> Desvelar Pista</span>
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {activeItem.type === 'light' && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (onToggleLight) onToggleLight(activeItem.id);
-                    setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                  }}
-                  className="vtt-primary-cta"
-                  style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px' }}
-                >
-                  {activeItem.isOn !== false ? <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Moon size={13} strokeWidth={2.2} /> Apagar Luz</span> : <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Flame size={13} strokeWidth={2.2} /> Encender Luz</span>}
-                </button>
-              )}
-              </div>
-              )}
-            </div>
-          );
-        })(),
-        document.body
-      )}
-
-      {/* MODAL DE LECTURA DE PERGAMINO ANTIGUO */}
-      {readingNote && createPortal(
-        <div 
-          onPointerDown={(e) => {
-             e.stopPropagation(); 
-             setReadingNote(null);
-          }}
-          onWheel={(e) => e.stopPropagation()} 
-          style={{ 
-            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', 
-            backgroundColor: 'rgba(0,0,0,0.8)', zIndex: 999999, 
-            display: 'flex', justifyContent: 'center', alignItems: 'center' 
-          }}
-        >
-          <div 
-            onPointerDown={(e) => e.stopPropagation()} 
-            style={{ 
-              background: 'radial-gradient(circle, #f7ebd2 0%, #dcc196 100%)',
-              padding: '34px',
-              borderRadius: '8px', 
-              width: '480px', maxWidth: '90%', maxHeight: '80vh', overflowY: 'auto',
-              color: '#3b2314',
-              boxShadow: '0 25px 50px rgba(0,0,0,0.95), inset 0 0 35px rgba(120, 53, 15, 0.35)', 
-              border: '4px double #5c3a21' 
-            }}
-          >
-            <h2 className="vtt-gothic-title" style={{ margin: '0 0 15px 0', borderBottom: '2px solid #8a6d3b', paddingBottom: '10px', fontSize: '24px', color: '#451a03', textShadow: 'none' }}>
-              {readingNote.title}
-            </h2>
-            <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.7', margin: 0, fontSize: '18px', fontFamily: "'Crimson Text', Georgia, serif" }}>
-              {readingNote.content}
-            </p>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', gap: '10px' }}>
-              {!isPlayerView && onProjectHandout && (
-                <button
-                  onClick={() => {
-                    onProjectHandout({
-                      type: 'note',
-                      title: readingNote.title,
-                      content: readingNote.content
-                    });
-                    setReadingNote(null);
-                  }}
-                  className="vtt-gothic-title"
-                  style={{
-                    padding: '10px 16px',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    fontSize: '12px',
-                    background: 'linear-gradient(180deg, #b45309 0%, #78350f 100%)',
-                    color: '#fffbeb',
-                    border: '1px solid #fbbf24'
-                  }}
-                >
-                  Proyectar en Pantalla de Jugadores
-                </button>
-              )}
-              <button 
-                onClick={() => setReadingNote(null)} 
-                className="vtt-brass-btn"
-                style={{ padding: '10px 22px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', marginLeft: 'auto' }}
-              >
-                Cerrar Pergamino
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body 
-      )}
+      <NoteParchmentModal
+        note={readingNote}
+        isPlayerView={isPlayerView}
+        onProjectHandout={onProjectHandout}
+        onClose={() => setReadingNote(null)}
+      />
     </>
   );
 };

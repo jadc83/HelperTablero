@@ -1,11 +1,19 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import DiceBox from '@3d-dice/dice-box';
+import { Dices, X } from 'lucide-react';
 
-const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayerView = false }) => {
+const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded }) => {
   const diceBoxRef = useRef(null);
   const [result, setResult] = useState(() => resultData || null);
-  const containerId = useRef(`dice-canvas-${Math.random().toString(36).substring(2, 9)}`).current;
+  const [prevResultData, setPrevResultData] = useState(resultData);
+  const rawReactId = useId();
+  const containerId = `dice-canvas-${rawReactId.replace(/[^a-zA-Z0-9_-]/g, '')}`;
+
+  if (resultData !== prevResultData) {
+    setPrevResultData(resultData);
+    setResult(resultData || null);
+  }
 
   const onCompleteRef = useRef(onComplete);
   useEffect(() => {
@@ -17,16 +25,21 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
     onRollLandedRef.current = onRollLanded;
   }, [onRollLanded]);
 
+  const rollReqRef = useRef(rollReq);
+  useEffect(() => {
+    rollReqRef.current = rollReq;
+  }, [rollReq]);
+
   useEffect(() => {
     // Si ya recibimos datos de resultado (modo visualización en espejo), no iniciamos el motor 3D
     if (resultData) {
-      setResult(resultData);
-      // Limpiar de inmediato cualquier lienzo 3D residual huérfano en segundo plano
       document.querySelectorAll('.dice-box-canvas').forEach(canvas => {
-        try { canvas.remove(); } catch (e) {}
+        try { canvas.remove(); } catch { /* ignore */ }
       });
       return;
     }
+
+    const reqSnapshot = rollReqRef.current;
 
     const containerEl = document.getElementById(containerId);
     if (!containerEl) return;
@@ -52,7 +65,7 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
 
         if (isCancelled) {
           if (typeof box.clear === 'function') {
-            try { box.clear(); } catch (e) {}
+            try { box.clear(); } catch { /* ignore */ }
           }
           return;
         }
@@ -60,13 +73,13 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
         diceBoxRef.current = box;
 
         // Extraer notaciones: soporte para dados mixtos (ej: ['1d6', '1d4']) o dado único ('1d20')
-        let notation = rollReq?.diceNotation;
+        let notation = reqSnapshot?.diceNotation;
         if (!notation || (Array.isArray(notation) && notation.length === 0)) {
-          if (Array.isArray(rollReq?.diceGroups) && rollReq.diceGroups.length > 0) {
-            notation = rollReq.diceGroups.map(g => `${g.count}d${g.sides}`);
+          if (Array.isArray(reqSnapshot?.diceGroups) && reqSnapshot.diceGroups.length > 0) {
+            notation = reqSnapshot.diceGroups.map(g => `${g.count}d${g.sides}`);
           } else {
-            const count = Number(rollReq?.diceCount) || 1;
-            const sides = Number(rollReq?.diceSides) || 20;
+            const count = Number(reqSnapshot?.diceCount) || 1;
+            const sides = Number(reqSnapshot?.diceSides) || 20;
             notation = [`${count}d${sides}`];
           }
         }
@@ -109,8 +122,8 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
 
         // Si por alguna razón la física no devuelve tiradas, generamos valores coherentes para cada grupo
         if (rolls.length === 0) {
-          const groups = Array.isArray(rollReq?.diceGroups) && rollReq.diceGroups.length > 0
-            ? rollReq.diceGroups
+          const groups = Array.isArray(reqSnapshot?.diceGroups) && reqSnapshot.diceGroups.length > 0
+            ? reqSnapshot.diceGroups
             : (Array.isArray(notation) ? notation : [notation]).map(n => {
                 const m = String(n).match(/(\d+)\s*d\s*(\d+)/i);
                 return m ? { count: parseInt(m[1], 10), sides: parseInt(m[2], 10) } : { count: 1, sides: 20 };
@@ -128,14 +141,14 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
           diceSum = rolls.reduce((acc, v) => acc + v, 0);
         }
 
-        const mod = Number(rollReq?.modifier) || 0;
+        const mod = Number(reqSnapshot?.modifier) || 0;
         const total = diceSum + mod;
 
         const finalObj = {
-          id: rollReq?.id || (Date.now() + Math.random()),
-          formula: rollReq?.formula || (Array.isArray(notation) ? notation.join(' + ') : notation),
+          id: reqSnapshot?.id || (Date.now() + Math.random()),
+          formula: reqSnapshot?.formula || (Array.isArray(notation) ? notation.join(' + ') : notation),
           modifier: mod,
-          diceSides: rollReq?.diceSides || (detailedRolls[0]?.sides) || 20,
+          diceSides: reqSnapshot?.diceSides || (detailedRolls[0]?.sides) || 20,
           rolls,
           detailedRolls,
           total,
@@ -149,9 +162,9 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
       } catch (err) {
         console.error('Error en el motor 3D:', err);
         if (!isCancelled) {
-          const groups = Array.isArray(rollReq?.diceGroups) && rollReq.diceGroups.length > 0
-            ? rollReq.diceGroups
-            : [{ count: Number(rollReq?.diceCount) || 1, sides: Number(rollReq?.diceSides) || 20 }];
+          const groups = Array.isArray(reqSnapshot?.diceGroups) && reqSnapshot.diceGroups.length > 0
+            ? reqSnapshot.diceGroups
+            : [{ count: Number(reqSnapshot?.diceCount) || 1, sides: Number(reqSnapshot?.diceSides) || 20 }];
 
           const rolls = [];
           const detailedRolls = [];
@@ -164,11 +177,11 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
               detailedRolls.push({ sides: sds, dieType: `d${sds}`, value: val });
             }
           });
-          const mod = Number(rollReq?.modifier) || 0;
+          const mod = Number(reqSnapshot?.modifier) || 0;
           const total = rolls.reduce((a, b) => a + b, 0) + mod;
           const fallback = {
-            id: rollReq?.id || Date.now(),
-            formula: rollReq?.formula || groups.map(g => `${g.count}d${g.sides}`).join(' + '),
+            id: reqSnapshot?.id || Date.now(),
+            formula: reqSnapshot?.formula || groups.map(g => `${g.count}d${g.sides}`).join(' + '),
             modifier: mod,
             diceSides: groups[0]?.sides || 20,
             rolls,
@@ -192,10 +205,10 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
         try {
           if (typeof diceBoxRef.current.clear === 'function') diceBoxRef.current.clear();
           if (typeof diceBoxRef.current.hide === 'function') diceBoxRef.current.hide();
-        } catch (e) {}
+        } catch { /* ignore */ }
       }
       document.querySelectorAll('.dice-box-canvas').forEach(c => {
-        try { c.remove(); } catch (e) {}
+        try { c.remove(); } catch { /* ignore */ }
       });
       if (containerEl) {
         containerEl.innerHTML = '';
@@ -205,7 +218,7 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
 
   const handleCloseRoll = (finalVal = null) => {
     document.querySelectorAll('.dice-box-canvas').forEach(c => {
-      try { c.remove(); } catch (e) {}
+      try { c.remove(); } catch { /* ignore */ }
     });
     if (onCompleteRef.current) {
       onCompleteRef.current(finalVal);
@@ -314,7 +327,7 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
           zIndex: 1000000,
           animation: 'vttPulse 1s infinite alternate'
         }}>
-          <span>🎲 Los dados giran... ({rollReq?.formula})</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><Dices size={18} strokeWidth={2.2} /> Los dados giran... ({rollReq?.formula})</span>
           <button
             onClick={() => handleCloseRoll(null)}
             className="vtt-brass-btn"
@@ -328,7 +341,7 @@ const Dice3D = ({ rollReq, resultData = null, onComplete, onRollLanded, isPlayer
             }}
             title="Cerrar"
           >
-            ✕ Cerrar
+            <X size={13} strokeWidth={2.4} /> Cerrar
           </button>
         </div>
       ) : (

@@ -137,7 +137,9 @@ export const getRecentCampaigns = async () => {
           let parsedData = null;
           try {
             parsedData = JSON.parse(file.content);
-          } catch (e) {}
+          } catch {
+            // Ignorar archivos JSON corruptos
+          }
 
           const advTitle = parsedData?.adventureName;
           const activeScene = parsedData?.scenes?.find(sc => sc.id === parsedData?.activeSceneId) || parsedData?.scenes?.[0];
@@ -183,7 +185,7 @@ export const getRecentCampaigns = async () => {
         data: s.data
       };
     });
-  } catch (e) {
+  } catch {
     return [];
   }
 };
@@ -197,7 +199,7 @@ export const loadCampaignFromDB = async () => {
       req.onsuccess = () => resolve(req.result || null);
       req.onerror = () => resolve(null);
     });
-  } catch (e) {
+  } catch {
     return null;
   }
 };
@@ -211,7 +213,7 @@ export const getCampaignSnapshots = async () => {
       req.onsuccess = () => resolve((req.result || []).reverse());
       req.onerror = () => resolve([]);
     });
-  } catch (e) {
+  } catch {
     return [];
   }
 };
@@ -229,7 +231,9 @@ export const exportCampaignJSON = async (stateData) => {
   // Registrar copia en el historial de campañas recientes
   try {
     await saveCampaignSnapshot(cleanPayload, `Copia Exportada: ${activeScene?.name || 'Mesa'}`);
-  } catch (err) {}
+  } catch {
+    // Continuar con descarga aunque falle el historial local
+  }
 
   return await exportJSON(filename, cleanPayload);
 };

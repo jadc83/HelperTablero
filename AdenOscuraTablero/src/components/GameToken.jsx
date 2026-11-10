@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useEffect, useRef } from 'react';
 import {
   Eye,
   EyeOff,
@@ -14,6 +13,7 @@ import {
   UserCheck,
   Swords
 } from 'lucide-react';
+import ContextMenu from './ui/ContextMenu';
 
 const GameToken = ({
   token,
@@ -27,10 +27,8 @@ const GameToken = ({
   onToggleBars,
   onToggleHidden,
   onToggleFaction,
-  onUpdateSize,
   onUpdateRotation,
   onToggleStatus,
-  onUpdateStats,
   onOpenSheet,
   customStatuses,
   isActiveTurn = false,
@@ -38,8 +36,6 @@ const GameToken = ({
 }) => {
   const [menuState, setMenuState] = useState({ visible: false, x: 0, y: 0 });
   const [isHovered, setIsHovered] = useState(false);
-  const [isRotatingLocally, setIsRotatingLocally] = useState(false);
-  const menuRef = useRef(null);
   const tokenRef = useRef(null);
   const currentSize = token.size || 50;
   const rotation = token.rotation || 0;
@@ -54,43 +50,6 @@ const GameToken = ({
   const san = token.san ?? 60;
   const maxSan = Math.max(1, token.maxSan ?? 60);
   const isGraveWound = Boolean(token.isGraveWound);
-
-  useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuState(prev => ({ ...prev, visible: false }));
-      }
-    };
-
-    if (menuState.visible) {
-      document.addEventListener('pointerdown', handleClickOutside, true);
-    }
-    return () => {
-      document.removeEventListener('pointerdown', handleClickOutside, true);
-    };
-  }, [menuState.visible]);
-
-  // Reposicionamiento inteligente para que el menú nunca se salga de la pantalla (evita cortes si el token está abajo o a los bordes)
-  useEffect(() => {
-    if (menuState.visible && menuRef.current) {
-      const rect = menuRef.current.getBoundingClientRect();
-      const margin = 12;
-      let x = menuState.x;
-      let y = menuState.y;
-
-      if (x + rect.width > window.innerWidth - margin) {
-        x = Math.max(margin, window.innerWidth - rect.width - margin);
-      }
-      if (y + rect.height > window.innerHeight - margin) {
-        y = Math.max(margin, window.innerHeight - rect.height - margin);
-      }
-      if (y < margin) y = margin;
-      if (x < margin) x = margin;
-
-      menuRef.current.style.left = `${Math.round(x)}px`;
-      menuRef.current.style.top = `${Math.round(y)}px`;
-    }
-  }, [menuState.visible, menuState.x, menuState.y]);
 
   // Listener nativo no-pasivo para que Shift+Rueda gire el cono con suavidad sin activar navegación del navegador
   useEffect(() => {
@@ -269,8 +228,8 @@ const GameToken = ({
             top: '50%',
             left: '50%',
             transform: `translate(${currentSize / 2 + 2}px, -50%)`,
-            width: '18px',
-            height: '18px',
+            width: '24px',
+            height: '24px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -396,54 +355,42 @@ const GameToken = ({
         </div>
       )}
 
-      {menuState.visible && createPortal(
-        <div 
-          ref={menuRef}
-          onPointerDown={(e) => e.stopPropagation()}
-          className="vtt-context-menu"
-          style={{
-            top: `${Math.max(12, Math.min(menuState.y, window.innerHeight - 320))}px`, 
-            left: `${Math.max(12, Math.min(menuState.x, window.innerWidth - 275))}px`
-          }}
-        >
-          {/* CABECERA */}
-          <div className="vtt-context-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, flex: 1 }}>
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                flexShrink: 0,
-                color: faction === 'enemy' ? '#f87171' : faction === 'player' ? '#34d399' : '#60a5fa'
-              }}>
-                {faction === 'enemy'
-                  ? <Swords size={15} strokeWidth={2.2} />
-                  : faction === 'player'
-                  ? <UserCheck size={15} strokeWidth={2.2} />
-                  : <Shield size={15} strokeWidth={2.2} />}
-              </span>
-              <span
-                className="vtt-gothic-title"
-                style={{ fontSize: '13px', lineHeight: 1.2, color: '#f8fafc', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                title={token.name}
-              >
-                {token.name}
-              </span>
-            </div>
-            {onOpenSheet && (
-              <button
-                type="button"
-                onPointerDown={(e) => {
-                  e.stopPropagation();
-                  setMenuState({ visible: false, x: 0, y: 0 });
-                  onOpenSheet(token);
-                }}
-                className="vtt-context-header-btn"
-                title="Abrir Ficha del Personaje"
-              >
-                <FileText size={13} strokeWidth={2.2} />
-              </button>
-            )}
-          </div>
+      <ContextMenu
+        isOpen={menuState.visible}
+        x={menuState.x}
+        y={menuState.y}
+        onClose={() => setMenuState(prev => ({ ...prev, visible: false }))}
+        headerIcon={
+          <span style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            color: faction === 'enemy' ? '#f87171' : faction === 'player' ? '#34d399' : '#60a5fa'
+          }}>
+            {faction === 'enemy'
+              ? <Swords size={15} strokeWidth={2.2} />
+              : faction === 'player'
+              ? <UserCheck size={15} strokeWidth={2.2} />
+              : <Shield size={15} strokeWidth={2.2} />}
+          </span>
+        }
+        headerTitle={token.name}
+        headerAction={
+          onOpenSheet && (
+            <button
+              type="button"
+              onPointerDown={(e) => {
+                e.stopPropagation();
+                setMenuState({ visible: false, x: 0, y: 0 });
+                onOpenSheet(token);
+              }}
+              className="vtt-context-header-btn"
+              title="Abrir Ficha del Personaje"
+            >
+              <FileText size={13} strokeWidth={2.2} />
+            </button>
+          )
+        }
+      >
 
           {/* BARRA COMPACTA DE ICONOS DE ACCIÓN */}
           <div className="vtt-context-icon-bar">
@@ -591,9 +538,7 @@ const GameToken = ({
               </div>
             </div>
           )}
-        </div>,
-        document.body
-      )}
+      </ContextMenu>
     </div>
   );
 };

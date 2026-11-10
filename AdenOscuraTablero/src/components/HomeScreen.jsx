@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { BookOpen, Scroll } from 'lucide-react';
-import { getClassificationMeta } from './EncyclopediaView';
+import { useState, useEffect } from 'react';
+import { BookOpen, Scroll, ArrowRight, ArrowLeft } from 'lucide-react';
+import { getClassificationMeta } from '../constants/gamePresets';
 import { getRecentCampaigns } from '../utils/campaignStorage';
 
 const HomeScreen = ({
@@ -8,15 +8,12 @@ const HomeScreen = ({
   onResumeGame,
   scenes = [],
   activeSceneId,
-  onSelectScene,
   characters = [],
   graveyard = [],
   onOpenGraveyard,
   onOpenEncyclopedia,
   onCreateCharacter,
-  onOpenMapCreator,
   onImportCampaign,
-  onExportCampaign,
   onLoadRecentCampaign,
   onOpenPlayerView,
   onOpenTutorial
@@ -25,9 +22,24 @@ const HomeScreen = ({
   const [recentCampaigns, setRecentCampaigns] = useState([]);
   const [selectedCampaignId, setSelectedCampaignId] = useState(null);
 
-  const activeScene = scenes.find(s => s.id === activeSceneId) || scenes[0];
   const characterEntries = characters.filter(c => getClassificationMeta(c.entityType, c.faction).group === 'character');
   const monsterEntries = characters.filter(c => getClassificationMeta(c.entityType, c.faction).group === 'monster');
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        if (isArchivesOpen) {
+          setIsArchivesOpen(false);
+        } else if (onResumeGame) {
+          onResumeGame();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isArchivesOpen, onResumeGame]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -77,65 +89,6 @@ const HomeScreen = ({
         overflowY: 'auto'
       }}
     >
-      <style>{`
-        @keyframes vttKenBurnsDiceLive {
-          0% {
-            transform: scale(1.05) translate(0%, 0%);
-          }
-          50% {
-            transform: scale(1.18) translate(-3%, -2%);
-          }
-          100% {
-            transform: scale(1.05) translate(0%, 0%);
-          }
-        }
-
-        @keyframes vttKenBurnsProjectorLive {
-          0% {
-            transform: scale(1.18) translate(-2%, 0%);
-          }
-          50% {
-            transform: scale(1.05) translate(2%, -2%);
-          }
-          100% {
-            transform: scale(1.18) translate(-2%, 0%);
-          }
-        }
-
-        .vtt-live-kenburns-dice {
-          animation: vttKenBurnsDiceLive 10s ease-in-out infinite alternate !important;
-          will-change: transform;
-          transform-origin: center center;
-        }
-
-        .vtt-live-kenburns-projector {
-          animation: vttKenBurnsProjectorLive 12s ease-in-out infinite alternate !important;
-          will-change: transform;
-          transform-origin: center center;
-        }
-
-        .vtt-image-action-btn {
-          transition: transform 0.16s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.16s ease, box-shadow 0.16s ease;
-          cursor: pointer;
-          outline: none;
-          user-select: none;
-        }
-        .vtt-image-action-btn:hover {
-          transform: translateY(-2px);
-        }
-        .vtt-image-action-btn:active {
-          transform: translateY(1px) scale(0.99);
-        }
-        .vtt-image-action-btn-amber:hover {
-          border-color: #fbbf24 !important;
-          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(245, 158, 11, 0.3) !important;
-        }
-        .vtt-image-action-btn-emerald:hover {
-          border-color: #34d399 !important;
-          box-shadow: 0 16px 36px rgba(0, 0, 0, 0.7), 0 0 20px rgba(16, 185, 129, 0.3) !important;
-        }
-      `}</style>
-
       {/* Cabecera Superior del Hub */}
       <div style={{
         padding: '22px 44px',
@@ -281,7 +234,7 @@ const HomeScreen = ({
                   textShadow: '0 1px 8px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.9)'
                 }}>
                   <span>Reanudar partida</span>
-                  <span style={{ fontSize: '14px' }}>→</span>
+                  <ArrowRight size={14} strokeWidth={2.2} />
                 </div>
               </div>
             </button>
@@ -470,7 +423,7 @@ const HomeScreen = ({
                   textShadow: '0 1px 8px rgba(0, 0, 0, 0.95), 0 0 6px rgba(0, 0, 0, 0.9)'
                 }}>
                   <span>Lanzar ventana sincronizada</span>
-                  <span style={{ fontSize: '14px' }}>→</span>
+                  <ArrowRight size={14} strokeWidth={2.2} />
                 </div>
               </div>
             </button>
@@ -577,7 +530,7 @@ const HomeScreen = ({
                 className="vtt-primary-cta"
                 style={{ padding: '14px 28px', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: 700, whiteSpace: 'nowrap' }}
               >
-                Abrir Archivos →
+                Abrir Archivos <ArrowRight size={13} strokeWidth={2.2} />
               </button>
             </div>
           </div>
@@ -624,15 +577,11 @@ const HomeScreen = ({
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontFamily: "'Cinzel', Georgia, serif",
-                fontSize: '13px',
-                fontWeight: 800,
                 color: '#fbbf24',
-                letterSpacing: '0.08em',
                 border: '1.5px solid #7c5826',
                 boxShadow: 'inset 0 0 10px rgba(0, 0, 0, 0.7), 0 2px 6px rgba(0, 0, 0, 0.5)'
               }}>
-                ARC
+                <BookOpen size={20} strokeWidth={2.1} />
               </div>
               <div>
                 <div className="vtt-gothic-title" style={{ fontSize: '18px', fontWeight: 'bold', color: '#f8fafc', letterSpacing: '0.06em' }}>
@@ -645,11 +594,12 @@ const HomeScreen = ({
             </div>
 
             <button
+              type="button"
               onClick={() => setIsArchivesOpen(false)}
               className="vtt-brass-btn"
               style={{ padding: '8px 18px', borderRadius: '7px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
             >
-              Volver al Inicio
+              <ArrowLeft size={13} strokeWidth={2.2} /> Volver al Inicio
             </button>
           </div>
 

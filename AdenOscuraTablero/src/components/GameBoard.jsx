@@ -1,57 +1,64 @@
-import React from 'react';
-import { Ruler, Bell, Package } from 'lucide-react';
+import { useState } from 'react';
+import { Ruler, X, Package } from 'lucide-react';
 import GridLayer from './GridLayer';
 import MapLayer from './MapLayer';
-import FogLayer, { isPointVisibleToPlayers } from './FogLayer';
+import FogLayer from './FogLayer';
 import AtmosphericLivingFog from './AtmosphericLivingFog';
 import GameToken from './GameToken';
 import WeatherOverlay from './WeatherOverlay';
-import { SOUND_CATALOG } from './Soundboard';
+import MapStructureGraphic from './map-layer/MapStructureGraphic';
+import { SOUND_CATALOG } from '../constants/gamePresets';
 
 const BASE_QUICK_SOUNDS = SOUND_CATALOG.filter(s => !s.loop).slice(0, 6);
 
 const GameBoard = ({
   boardRef, scale, pan = { x: 0, y: 0 }, isDraggingPan = false, isPlayerView = false,
-  fowEnabled, fowMode = 'none', fowVisionRadius = 180, fowMemoryEnabled = true, fowAutoHideEnemies = true,
+  fowEnabled, fowMode = 'none', fowVisionRadius = 180, fowMemoryEnabled = true,
   livingFogEnabled = true,
   weatherEffect = 'none', ambientTint = 'none',
-  rulerActive = false, pingActive = false, pendingTokenSpawn = null, pendingMapSpawn = null,
+  rulerActive = false, pendingTokenSpawn = null, pendingMapSpawn = null,
   handlePointerDown, handlePointerMove, handlePointerUp, handleWheel,
   snapToGrid, gridSize, maps, activeSceneId,
   fowCanvasRef, fowActions,
   tokens, draggedToken, rotatingToken, onTokenPointerDown, onStartTokenRotate,
   onToggleTokenLock, onToggleTokenName, onToggleTokenBars, onToggleTokenHidden, onToggleTokenFaction,
-  onUpdateTokenSize, onUpdateTokenRotation, onUpdateTokenVisionMode, onToggleTokenStatus,
-  onUpdateTokenStats, onOpenTokenSheet, customStatuses,
-  rulerMeasure, pings = [], holdProgress = null, radialMenu = null, onCloseRadialMenu, onSelectSpatialSound,
+  onUpdateTokenRotation, onToggleTokenStatus,
+  onOpenTokenSheet, customStatuses,
+  rulerMeasure, holdProgress = null, radialMenu = null, onSelectSpatialSound,
   customSounds = [],
-  draggedMapElement = null, onMapElementPointerDown, onRotateMapElement, onToggleMapElementLock, onUpdateMapElement, onDuplicateMapElement, onInspectObject, onRemoveMapElement,
+  draggedMapElement = null, onMapElementPointerDown, onToggleMapElementLock, onUpdateMapElement, onDuplicateMapElement, onInspectObject, onRemoveMapElement,
   onToggleDoor, onToggleWindow, onToggleObject, onToggleLight,
-  onProjectHandout,
+  handouts = [], onProjectHandout,
   activeTurnTokenId = null,
   onPickUpItem,
   isCombatActive = false,
   movementLimitsEnabled = true,
   combatGroups = [],
-  tokenDragOriginRef = null,
   tokenDragMeasurement = null,
   handleDropOnBoard = null
 }) => {
-  const [spawnHoverPos, setSpawnHoverPos] = React.useState(null);
-  const isToolActive = rulerActive || pingActive || Boolean(pendingTokenSpawn) || Boolean(pendingMapSpawn) || (!isPlayerView && fowEnabled && fowMode !== 'none');
+  const [spawnHoverPos, setSpawnHoverPos] = useState(null);
+  const isToolActive = rulerActive || Boolean(pendingTokenSpawn) || Boolean(pendingMapSpawn) || (!isPlayerView && fowEnabled && fowMode !== 'none');
   const boardCursor = isDraggingPan ? 'grabbing' : (isToolActive ? 'crosshair' : 'grab');
 
+  const computeSpawnHoverPos = (clientX, clientY) => {
+    if (!boardRef.current) return null;
+    const rect = boardRef.current.getBoundingClientRect();
+    const rawX = (clientX - rect.left - pan.x) / scale;
+    const rawY = (clientY - rect.top - pan.y) / scale;
+    const w = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.width || gridSize || 48)) : (gridSize || 50);
+    const h = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.height || gridSize || 48)) : (gridSize || 50);
+    const isDirectCenter = Boolean(pendingMapSpawn);
+    const shouldSnap = snapToGrid && !isDirectCenter;
+    const x = shouldSnap ? Math.floor(rawX / (gridSize || 50)) * (gridSize || 50) : rawX - w / 2;
+    const y = shouldSnap ? Math.floor(rawY / (gridSize || 50)) * (gridSize || 50) : rawY - h / 2;
+    return { x, y, w, h };
+  };
+
   const onBoardPointerMove = (e) => {
-    if ((pendingTokenSpawn || pendingMapSpawn) && boardRef.current) {
-      const rect = boardRef.current.getBoundingClientRect();
-      const rawX = (e.clientX - rect.left - pan.x) / scale;
-      const rawY = (e.clientY - rect.top - pan.y) / scale;
-      const w = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.width || gridSize || 48)) : (gridSize || 50);
-      const h = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.height || gridSize || 48)) : (gridSize || 50);
-      const shouldSnap = snapToGrid && pendingMapSpawn?.type !== 'item';
-      const x = shouldSnap ? Math.floor(rawX / (gridSize || 50)) * (gridSize || 50) : rawX - w / 2;
-      const y = shouldSnap ? Math.floor(rawY / (gridSize || 50)) * (gridSize || 50) : rawY - h / 2;
-      setSpawnHoverPos({ x, y, w, h });
+    if (pendingTokenSpawn || pendingMapSpawn) {
+      const next = computeSpawnHoverPos(e.clientX, e.clientY);
+      if (next) setSpawnHoverPos(next);
     } else if (spawnHoverPos) {
       setSpawnHoverPos(null);
     }
@@ -62,16 +69,9 @@ const GameBoard = ({
     if (isPlayerView) return;
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
-    if ((pendingTokenSpawn || pendingMapSpawn) && boardRef.current) {
-      const rect = boardRef.current.getBoundingClientRect();
-      const rawX = (e.clientX - rect.left - pan.x) / scale;
-      const rawY = (e.clientY - rect.top - pan.y) / scale;
-      const w = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.width || gridSize || 48)) : (gridSize || 50);
-      const h = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.height || gridSize || 48)) : (gridSize || 50);
-      const shouldSnap = snapToGrid && pendingMapSpawn?.type !== 'item';
-      const x = shouldSnap ? Math.floor(rawX / (gridSize || 50)) * (gridSize || 50) : rawX - w / 2;
-      const y = shouldSnap ? Math.floor(rawY / (gridSize || 50)) * (gridSize || 50) : rawY - h / 2;
-      setSpawnHoverPos({ x, y, w, h });
+    if (pendingTokenSpawn || pendingMapSpawn) {
+      const next = computeSpawnHoverPos(e.clientX, e.clientY);
+      if (next) setSpawnHoverPos(next);
     }
   };
 
@@ -152,11 +152,11 @@ const GameBoard = ({
     const remaining = Math.max(0, maxSpeed - used);
 
     const tokenSize = activeToken.size || gridSize || 50;
-    const originX = (draggedToken === activeToken.id && tokenDragOriginRef?.current)
-      ? tokenDragOriginRef.current.x + tokenSize / 2
+    const originX = (draggedToken === activeToken.id && tokenDragMeasurement)
+      ? tokenDragMeasurement.startX
       : activeToken.x + tokenSize / 2;
-    const originY = (draggedToken === activeToken.id && tokenDragOriginRef?.current)
-      ? tokenDragOriginRef.current.y + tokenSize / 2
+    const originY = (draggedToken === activeToken.id && tokenDragMeasurement)
+      ? tokenDragMeasurement.startY
       : activeToken.y + tokenSize / 2;
 
     const radius = remaining * (gridSize || 50);
@@ -313,13 +313,11 @@ const GameBoard = ({
         <MapLayer
           maps={maps}
           tokens={tokens}
-          fowCanvasRef={fowCanvasRef}
           fowEnabled={fowEnabled}
           fowVisionRadius={fowVisionRadius}
           isPlayerView={isPlayerView}
           draggedMapElement={draggedMapElement}
           onMapElementPointerDown={onMapElementPointerDown}
-          onRotateMapElement={onRotateMapElement}
           onToggleMapElementLock={onToggleMapElementLock}
           onUpdateMapElement={onUpdateMapElement}
           onDuplicateMapElement={onDuplicateMapElement}
@@ -329,6 +327,7 @@ const GameBoard = ({
           onToggleWindow={onToggleWindow}
           onToggleObject={onToggleObject}
           onToggleLight={onToggleLight}
+          handouts={handouts}
           onProjectHandout={onProjectHandout}
           activeTurnTokenId={activeTurnTokenId}
           onPickUpItem={onPickUpItem}
@@ -359,16 +358,7 @@ const GameBoard = ({
         {renderMovementFloorRing()}
 
         {tokens.map((token) => {
-          if (isPlayerView) {
-            if (token.isHidden) return null;
-            if (fowEnabled && fowAutoHideEnemies && token.faction === 'enemy') {
-              const size = token.size || 50;
-              const tx = token.x + size / 2;
-              const ty = token.y + size / 2;
-              const seen = isPointVisibleToPlayers(tx, ty, tokens, maps, fowVisionRadius);
-              if (!seen) return null;
-            }
-          }
+          if (isPlayerView && token.isHidden) return null;
 
           const myGroup = combatGroups.find(g => g.id === token.combatGroupId);
           const isTokenActiveTurn = combatGroups.length > 0
@@ -390,11 +380,8 @@ const GameBoard = ({
               onToggleBars={onToggleTokenBars}
               onToggleHidden={onToggleTokenHidden}
               onToggleFaction={onToggleTokenFaction}
-              onUpdateSize={onUpdateTokenSize}
               onUpdateRotation={onUpdateTokenRotation}
-              onUpdateVisionMode={onUpdateTokenVisionMode}
               onToggleStatus={onToggleTokenStatus}
-              onUpdateStats={onUpdateTokenStats}
               onOpenSheet={onOpenTokenSheet}
               customStatuses={customStatuses}
             />
@@ -433,7 +420,7 @@ const GameBoard = ({
           </div>
         )}
 
-        {/* Previsualización Fantasma al Colocar un Objeto / Estructura */}
+        {/* Previsualización Fantasma al Arrastrar o Colocar un Objeto / Estructura */}
         {!isPlayerView && pendingMapSpawn && spawnHoverPos && (
           <div
             style={{
@@ -442,22 +429,37 @@ const GameBoard = ({
               top: `${spawnHoverPos.y}px`,
               width: `${pendingMapSpawn.type === 'item' ? 18 : (spawnHoverPos.w || 48)}px`,
               height: `${pendingMapSpawn.type === 'item' ? 18 : (spawnHoverPos.h || 48)}px`,
-              borderRadius: pendingMapSpawn.type === 'light' ? '50%' : '4px',
-              backgroundColor: 'rgba(245, 158, 11, 0.22)',
-              border: '2px dashed #fbbf24',
-              boxShadow: '0 0 16px rgba(245, 158, 11, 0.65)',
-              opacity: 0.85,
+              borderRadius: pendingMapSpawn.type === 'light' ? '50%' : '3px',
+              backgroundColor: (pendingMapSpawn.type === 'door' || pendingMapSpawn.type === 'window')
+                ? 'transparent'
+                : 'rgba(245, 158, 11, 0.22)',
+              border: (pendingMapSpawn.type === 'door' || pendingMapSpawn.type === 'window')
+                ? 'none'
+                : '1.5px dashed #fbbf24',
+              boxShadow: (pendingMapSpawn.type === 'door' || pendingMapSpawn.type === 'window')
+                ? 'none'
+                : '0 0 16px rgba(245, 158, 11, 0.65)',
+              opacity: 0.9,
               pointerEvents: 'none',
               zIndex: 450,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '20px'
+              fontSize: '18px'
             }}
           >
-            {pendingMapSpawn.type === 'item'
-              ? <Package size={11} strokeWidth={2.3} style={{ color: '#fbbf24' }} />
-              : (pendingMapSpawn.icon || <Package size={18} strokeWidth={2.2} style={{ color: '#fbbf24' }} />)}
+            {pendingMapSpawn.type === 'item' ? (
+              <Package size={11} strokeWidth={2.3} style={{ color: '#fbbf24' }} />
+            ) : (pendingMapSpawn.type === 'door' || pendingMapSpawn.type === 'window') ? (
+              <MapStructureGraphic
+                type={pendingMapSpawn.type}
+                width={spawnHoverPos.w || 36}
+                height={spawnHoverPos.h || (pendingMapSpawn.type === 'door' ? 10 : 8)}
+                isDragging={true}
+              />
+            ) : (
+              pendingMapSpawn.icon || <Package size={18} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
+            )}
           </div>
         )}
 
@@ -481,69 +483,6 @@ const GameBoard = ({
             }}
           />
         )}
-
-        {pings.map((ping) => (
-          <div
-            key={ping.id}
-            style={{
-              position: 'absolute',
-              left: `${ping.x}px`,
-              top: `${ping.y}px`,
-              pointerEvents: 'none',
-              zIndex: 600
-            }}
-          >
-            <div style={{
-              position: 'absolute', width: '76px', height: '76px', borderRadius: '50%',
-              border: `3px solid ${ping.color || '#d4af37'}`, boxShadow: `0 0 22px ${ping.color || '#d4af37'}`,
-              animation: 'vttPingWave 1.8s cubic-bezier(0, 0.2, 0.8, 1) infinite'
-            }} />
-            <div style={{
-              position: 'absolute', width: '76px', height: '76px', borderRadius: '50%',
-              border: `3px solid ${ping.isSoundWave ? '#fbbf24' : '#dc2626'}`,
-              boxShadow: `0 0 16px ${ping.isSoundWave ? '#fbbf24' : '#dc2626'}`,
-              animation: 'vttPingWave 1.8s cubic-bezier(0, 0.2, 0.8, 1) 0.45s infinite'
-            }} />
-            <div style={{
-              position: 'absolute',
-              width: '38px',
-              height: '38px',
-              borderRadius: '50%',
-              backgroundColor: 'rgba(26, 15, 10, 0.94)',
-              border: '2px solid #d4af37',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '18px',
-              boxShadow: '0 0 18px rgba(212, 175, 55, 0.95)',
-              animation: 'vttSoundPulse 0.8s ease-in-out infinite'
-            }}>
-              {ping.icon || <Bell size={18} strokeWidth={2.2} style={{ color: '#fbbf24' }} />}
-            </div>
-            {ping.label && (
-              <div
-                className="vtt-gothic-title"
-                style={{
-                  position: 'absolute',
-                  top: '26px',
-                  left: '0px',
-                  transform: 'translateX(-50%)',
-                  backgroundColor: 'rgba(18, 11, 7, 0.95)',
-                  border: '1px solid #d4af37',
-                  color: '#fef3c7',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  fontSize: '11px',
-                  fontWeight: 'bold',
-                  whiteSpace: 'nowrap',
-                  boxShadow: '0 4px 10px rgba(0,0,0,0.9)'
-                }}
-              >
-                {ping.label}
-              </div>
-            )}
-          </div>
-        ))}
       </div>
 
       {radialMenu && !isPlayerView && (
@@ -573,9 +512,9 @@ const GameBoard = ({
               justifyContent: 'center',
               boxShadow: '0 0 25px rgba(0,0,0,0.95)'
             }}
-            title="Emitir Señal Visual (Ping)"
+            title="Cerrar menú"
           >
-            <Bell size={20} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
+            <X size={20} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
           </button>
 
           {radialSounds.map((snd, idx) => {

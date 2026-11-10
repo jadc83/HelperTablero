@@ -1,22 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-
-export const WEATHER_TYPES = [
-  { id: 'none', label: 'Despejado', icon: '☀️' },
-  { id: 'rain', label: 'Lluvia', icon: '🌧️' },
-  { id: 'storm', label: 'Tormenta Eléctrica', icon: '⛈️' },
-  { id: 'snow', label: 'Ventisca / Nieve', icon: '❄️' },
-  { id: 'ash', label: 'Ceniza y Brasas', icon: '🌋' },
-  { id: 'spores', label: 'Esporas Arcanas', icon: '✨' },
-  { id: 'mist', label: 'Niebla Rastrera', icon: '🌫️' }
-];
-
-export const AMBIENT_TINTS = [
-  { id: 'none', label: 'Luz Natural', color: 'transparent', blend: 'normal' },
-  { id: 'torch', label: 'Antorcha Cálida', color: 'rgba(217, 119, 6, 0.18)', blend: 'multiply' },
-  { id: 'night', label: 'Noche Cerrada', color: 'rgba(15, 23, 42, 0.48)', blend: 'multiply' },
-  { id: 'blood', label: 'Ritual Carmesí', color: 'rgba(127, 29, 29, 0.34)', blend: 'multiply' },
-  { id: 'crypt', label: 'Cripta Espectral', color: 'rgba(6, 78, 59, 0.28)', blend: 'multiply' }
-];
+import { useEffect, useRef } from 'react';
+import { AMBIENT_TINTS } from '../constants/gamePresets';
 
 const WeatherOverlay = ({ weather = 'none', ambientTint = 'none' }) => {
   const canvasRef = useRef(null);

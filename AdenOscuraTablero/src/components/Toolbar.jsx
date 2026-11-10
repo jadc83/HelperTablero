@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   BookOpen,
   Map,
@@ -18,7 +17,6 @@ const Toolbar = ({
   onOpenHandouts,
   handoutsCount = 0,
   hasActiveHandout = false,
-  onOpenMasterNotes,
   scenes = [],
   activeSceneId = null,
   onSelectScene,

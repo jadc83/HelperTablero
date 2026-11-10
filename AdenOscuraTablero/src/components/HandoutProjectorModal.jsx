@@ -1,5 +1,7 @@
-import React, { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Monitor, X, Square, Upload, Eye, EyeOff, Trash2, Scroll } from 'lucide-react';
+import { useConfirm } from '../hooks/useConfirm';
+import EmptyState from './ui/EmptyState';
 
 const HandoutProjectorModal = ({
   isOpen,
@@ -12,6 +14,19 @@ const HandoutProjectorModal = ({
 }) => {
   const [handoutTitle, setHandoutTitle] = useState('');
   const fileInputRef = useRef(null);
+  const confirm = useConfirm();
+
+  useEffect(() => {
+    if (!isOpen || !onClose) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -36,11 +51,14 @@ const HandoutProjectorModal = ({
 
   return (
     <div
-      onPointerDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+        if (e.target === e.currentTarget && onClose) onClose();
+      }}
       style={{
         position: 'fixed',
         inset: 0,
-        zIndex: 99999,
+        zIndex: 100000,
         backgroundColor: 'rgba(5, 7, 12, 0.85)',
         backdropFilter: 'blur(8px)',
         display: 'flex',
@@ -50,6 +68,7 @@ const HandoutProjectorModal = ({
       }}
     >
       <div
+        onPointerDown={(e) => e.stopPropagation()}
         className="vtt-wood-panel"
         style={{
           width: '740px',
@@ -282,7 +301,16 @@ const HandoutProjectorModal = ({
 
                     {onRemoveHandout && (
                       <button
-                        onClick={() => onRemoveHandout(h.id)}
+                        type="button"
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: 'Eliminar documento',
+                            message: `¿Eliminar "${h.title}" de la galería de proyecciones?`,
+                            confirmLabel: 'Eliminar',
+                            tone: 'danger'
+                          });
+                          if (ok) onRemoveHandout(h.id);
+                        }}
                         className="vtt-icon-tool-btn"
                         style={{ color: '#f87171', padding: '5px 7px' }}
                         title="Eliminar de la galería"
@@ -297,21 +325,13 @@ const HandoutProjectorModal = ({
           })}
 
           {handouts.length === 0 && (
-            <div style={{
-              gridColumn: '1 / -1',
-              padding: '40px 20px',
-              textAlign: 'center',
-              color: '#8e9caa',
-              fontSize: '13px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '12px'
-            }}>
-              <Scroll size={36} strokeWidth={1.75} style={{ opacity: 0.6, color: '#d4af37' }} />
-              <div style={{ maxWidth: '420px', lineHeight: 1.6 }}>
-                Aún no has añadido pistas a la crónica. Usa el campo superior para subir cartas, retratos o mapas de investigación y mostrárselos a tus jugadores en tiempo real.
-              </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <EmptyState
+                icon={<Scroll size={32} strokeWidth={1.75} style={{ color: '#d4af37' }} />}
+                title="Galería de pistas vacía"
+                description="Usa el campo superior para subir cartas, retratos o mapas de investigación y mostrárselos a tus jugadores en tiempo real."
+                style={{ padding: '36px 20px' }}
+              />
             </div>
           )}
         </div>

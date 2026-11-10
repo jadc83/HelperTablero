@@ -1,5 +1,3 @@
-import React from 'react';
-
 const GridLayer = ({ snapToGrid, gridSize }) => {
   if (!snapToGrid) return null;
 
