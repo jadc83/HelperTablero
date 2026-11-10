@@ -38,7 +38,8 @@ import {
   Eye,
   EyeOff,
   Sparkles,
-  X
+  X,
+  Package
 } from 'lucide-react';
 
 const isTauriDesktop = () => Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
@@ -155,6 +156,98 @@ const GLOBAL_VTT_STYLES = `
     background: #dc2626;
     border-color: #ef4444;
     color: #ffffff;
+  }
+  .vtt-context-menu {
+    position: fixed;
+    background: linear-gradient(180deg, #1b202c 0%, #11141c 100%);
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid #3b4254;
+    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.95);
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    width: 256px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+    color: #e2e8f0;
+    scrollbar-width: thin;
+    scrollbar-color: #475569 transparent;
+  }
+  .vtt-context-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #283144;
+    padding-bottom: 8px;
+    gap: 8px;
+  }
+  .vtt-context-header-btn {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    background: #171c26;
+    border: 1px solid #2b3345;
+    color: #cbd5e1;
+    transition: all 0.15s ease;
+  }
+  .vtt-context-header-btn:hover {
+    border-color: #f59e0b;
+    color: #fbbf24;
+    background: rgba(245, 158, 11, 0.14);
+  }
+  .vtt-context-icon-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 5px;
+  }
+  .vtt-context-icon-btn {
+    flex: 1;
+    height: 34px;
+    padding: 0;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #171c26;
+    border: 1px solid #2b3345;
+    color: #cbd5e1;
+    transition: all 0.15s ease;
+  }
+  .vtt-context-icon-btn:hover {
+    border-color: #64748b;
+    background: #1f2636;
+    color: #f8fafc;
+  }
+  .vtt-context-icon-btn-info:hover {
+    border-color: #0284c7;
+    color: #38bdf8;
+    background: rgba(14, 165, 233, 0.14);
+  }
+  .vtt-context-icon-btn-danger:hover {
+    border-color: #ef4444;
+    color: #fca5a5;
+    background: rgba(239, 68, 68, 0.16);
+  }
+  .vtt-context-divider {
+    border-top: 1px solid #242c3d;
+    padding-top: 9px;
+  }
+  .vtt-context-section-label {
+    font-size: 9.5px;
+    color: #94a3b8;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
   .vtt-brass-slider {
     -webkit-appearance: none;
@@ -431,6 +524,7 @@ function App() {
   const [pendingTokenSpawn, setPendingTokenSpawn] = useState(null);
   const [isDraggingCharacter, setIsDraggingCharacter] = useState(false);
   const draggedCharacterRef = useRef(null);
+  const draggedItemRef = useRef(null);
   const [pendingMapSpawn, setPendingMapSpawn] = useState(null);
   const [draggedMapElement, setDraggedMapElement] = useState(null);
   const [objectNotesModalState, setObjectNotesModalState] = useState({ isOpen: false, objectItem: null });
@@ -1330,10 +1424,74 @@ function App() {
     setPendingTokenSpawn(null);
   };
 
+  const handleStartDragItem = (itemData) => {
+    const mapItem = {
+      type: 'item',
+      name: itemData.name,
+      icon: itemData.icon || '📦',
+      category: itemData.category || 'Herramienta',
+      notes: itemData.notes || '',
+      state: itemData.state || 'equipped',
+      width: 18,
+      height: 18,
+      isLocked: false
+    };
+    draggedItemRef.current = mapItem;
+    setPendingMapSpawn(mapItem);
+  };
+
+  const handleEndDragItem = () => {
+    draggedItemRef.current = null;
+    setPendingMapSpawn(null);
+  };
+
   const handleDropOnBoard = (e) => {
-    const char = draggedCharacterRef.current || pendingTokenSpawn;
-    if (!char || isPlayerView) return;
+    if (isPlayerView) return;
     const coords = getLogicalCoords(e);
+
+    // 1. Verificar si es un objeto arrastrado desde el buscador
+    let droppedItem = draggedItemRef.current || (pendingMapSpawn && pendingMapSpawn.type === 'item' ? pendingMapSpawn : null);
+    if (!droppedItem && e.dataTransfer) {
+      try {
+        const raw = e.dataTransfer.getData('text/plain');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.type === 'ground_item' && parsed.item) {
+            droppedItem = {
+              type: 'item',
+              name: parsed.item.name,
+              icon: parsed.item.icon || '📦',
+              category: parsed.item.category || 'Herramienta',
+              notes: parsed.item.notes || '',
+              state: parsed.item.state || 'equipped',
+              width: 18,
+              height: 18,
+              isLocked: false
+            };
+          }
+        }
+      } catch {
+        // Ignorar si no es JSON
+      }
+    }
+
+    if (droppedItem) {
+      const newElement = {
+        ...droppedItem,
+        id: Date.now() + Math.random(),
+        x: Math.round(coords.x - (droppedItem.width || 18) / 2),
+        y: Math.round(coords.y - (droppedItem.height || 18) / 2)
+      };
+      setMaps(prev => [...prev, newElement]);
+      showMasterFeedback(`"${newElement.name || 'Objeto'}" colocado en el tablero`, '📦');
+      draggedItemRef.current = null;
+      setPendingMapSpawn(null);
+      return;
+    }
+
+    // 2. Si es un personaje arrastrado
+    const char = draggedCharacterRef.current || pendingTokenSpawn;
+    if (!char) return;
     const spawnX = snapToGrid
       ? Math.floor(coords.x / gridSize) * gridSize
       : coords.x - gridSize / 2;
@@ -2011,8 +2169,8 @@ function App() {
       state: itemToDrop.state || 'equipped',
       x: dropX,
       y: dropY,
-      width: 38,
-      height: 38,
+      width: 18,
+      height: 18,
       isLocked: false
     };
 
@@ -2075,8 +2233,8 @@ function App() {
       category: itemData.category || 'Herramienta',
       notes: itemData.notes || '',
       state: itemData.state || 'equipped',
-      width: 38,
-      height: 38,
+      width: 18,
+      height: 18,
       isLocked: false
     });
   };
@@ -3183,6 +3341,8 @@ function App() {
           onAddToken={handleAddToken}
           onStartDragCharacter={handleStartDragCharacter}
           onEndDragCharacter={handleEndDragCharacter}
+          onStartDragItem={handleStartDragItem}
+          onEndDragItem={handleEndDragItem}
           onAddMapElement={handleStartPlaceMapElement}
           onOpenMapCreator={() => handleOpenMapCreator(activeSceneId)}
           onOpenEncyclopedia={(category) => setEncyclopediaState({ isOpen: true, category: category || 'character' })}
@@ -3302,8 +3462,8 @@ function App() {
               boxShadow: '0 10px 25px rgba(0,0,0,0.9)'
             }}
           >
-            <span style={{ fontSize: '13px', fontWeight: 600 }}>
-              {pendingMapSpawn.icon || '📦'} Haz clic en el mapa para colocar: <strong style={{ color: '#fbbf24' }}>{pendingMapSpawn.name}</strong>
+            <span style={{ fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              <Package size={14} strokeWidth={2.2} style={{ color: '#fbbf24' }} /> Haz clic en el mapa para colocar: <strong style={{ color: '#fbbf24' }}>{pendingMapSpawn.name}</strong>
             </span>
             <button
               onClick={() => setPendingMapSpawn(null)}

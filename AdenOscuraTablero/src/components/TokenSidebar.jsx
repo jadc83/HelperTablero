@@ -97,6 +97,8 @@ const TokenSidebar = ({
   onAddToken, 
   onStartDragCharacter,
   onEndDragCharacter,
+  onStartDragItem,
+  onEndDragItem,
   onAddMapElement,
   onOpenMapCreator,
   onOpenEncyclopedia,
@@ -840,29 +842,6 @@ const TokenSidebar = ({
             onClick={() => setIsItemsExpanded(!isItemsExpanded)}
             tooltip="Objetos comunes y botín para equipar o soltar"
           >
-            {/* Aviso de turno activo destinatario */}
-            {(() => {
-              const activeTurnToken = tokens.find(t => t.id === activeTurnTokenId) || null;
-              return (
-                <div style={{
-                  padding: '5px 8px',
-                  borderRadius: '6px',
-                  backgroundColor: activeTurnToken ? 'rgba(245, 158, 11, 0.15)' : '#171b26',
-                  border: activeTurnToken ? '1px solid #f59e0b' : '1px solid #282f40',
-                  fontSize: '10px',
-                  color: activeTurnToken ? '#fbbf24' : '#94a3b8',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  marginBottom: '2px'
-                }}>
-                  <span style={{ fontWeight: 600 }}>
-                    {activeTurnToken ? `Entregando al turno activo: ${activeTurnToken.name}` : 'Entrega directa a personajes'}
-                  </span>
-                </div>
-              );
-            })()}
-
             {/* Buscador de botín / objetos comunes */}
             <div style={{ display: 'flex', alignItems: 'center', background: '#0e1117', border: '1px solid #232a3a', borderRadius: '6px', padding: '3px 8px', marginBottom: '6px' }}>
               <Search size={12} strokeWidth={2.2} style={{ color: '#64748b', marginRight: '6px', flexShrink: 0 }} />
@@ -884,80 +863,97 @@ const TokenSidebar = ({
               )}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              {commonItems
-                .filter(item => !lootSearchQuery.trim() || item.name.toLowerCase().includes(lootSearchQuery.toLowerCase()) || (item.notes && item.notes.toLowerCase().includes(lootSearchQuery.toLowerCase())))
-                .map(item => (
-                <div
-                  key={item.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    backgroundColor: '#191d27',
-                    padding: '5px 8px',
-                    borderRadius: '7px',
-                    border: '1px solid #2c3344',
-                    gap: '6px'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '7px', overflow: 'hidden', flex: 1 }}>
-                    <div style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                      {getGameIconComponent(item.name, 18)}
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <span style={{ fontSize: '11px', color: '#e2e8f0', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
-                        {item.name}
-                      </span>
-                      {item.notes && (
-                        <span style={{ fontSize: '9px', color: '#94a3b8', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={item.notes}>
-                          {item.notes}
-                        </span>
-                      )}
-                    </div>
-                  </div>
+            {Boolean(lootSearchQuery.trim()) && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {(() => {
+                  const q = lootSearchQuery.trim().toLowerCase();
+                  const matches = commonItems.filter(item =>
+                    item.name.toLowerCase().includes(q) ||
+                    (item.notes && item.notes.toLowerCase().includes(q)) ||
+                    (item.category && item.category.toLowerCase().includes(q))
+                  );
 
-                  <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
-                    {onPlaceGroundItem && (
-                      <button
-                        type="button"
-                        onClick={() => onPlaceGroundItem(item)}
-                        className="vtt-brass-btn"
-                        style={{
-                          padding: '2px 6px',
-                          fontSize: '10px',
-                          borderRadius: '5px',
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                          color: '#38bdf8',
-                          borderColor: '#0284c7'
-                        }}
-                        title="Colocar en el suelo del mapa"
-                      >
-                        En suelo
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      onClick={() => onGiveItemToCharacter && onGiveItemToCharacter(activeTurnTokenId, item)}
-                      className="vtt-brass-btn"
-                      style={{
-                        padding: '2px 7px',
-                        fontSize: '10px',
-                        borderRadius: '5px',
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                        color: '#fbbf24',
-                        borderColor: '#f59e0b'
+                  if (matches.length === 0) {
+                    return (
+                      <div style={{ textAlign: 'center', padding: '10px 6px', color: '#64748b', fontSize: '11px', fontStyle: 'italic' }}>
+                        No se encontraron objetos para "{lootSearchQuery}".
+                      </div>
+                    );
+                  }
+
+                  return matches.map(item => (
+                    <div
+                      key={item.id}
+                      draggable={true}
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData('text/plain', JSON.stringify({ type: 'ground_item', item }));
+                        e.dataTransfer.effectAllowed = 'copy';
+                        if (onStartDragItem) onStartDragItem(item);
                       }}
-                      title="Añadir inmediatamente al inventario del turno activo"
+                      onDragEnd={() => {
+                        if (onEndDragItem) onEndDragItem();
+                      }}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        backgroundColor: '#191d27',
+                        padding: '5px 8px',
+                        borderRadius: '7px',
+                        border: '1px solid #2c3344',
+                        gap: '6px',
+                        cursor: 'grab',
+                        userSelect: 'none',
+                        transition: 'border-color 0.15s, box-shadow 0.15s'
+                      }}
+                      title="Arrastra este objeto directamente al tablero para soltarlo en el suelo"
                     >
-                      Dar
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '7px', overflow: 'hidden', flex: 1 }}>
+                        <span style={{ color: '#64748b', display: 'inline-flex', cursor: 'grab', flexShrink: 0 }} title="Arrastrar al tablero">
+                          <Grip size={11} strokeWidth={2.2} />
+                        </span>
+                        <div style={{ width: '20px', height: '20px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          {getGameIconComponent(item.name, 18)}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                          <span style={{ fontSize: '11px', color: '#e2e8f0', fontWeight: 600, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>
+                            {item.name}
+                          </span>
+                          {item.notes && (
+                            <span style={{ fontSize: '9px', color: '#94a3b8', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }} title={item.notes}>
+                              {item.notes}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onGiveItemToCharacter) onGiveItemToCharacter(activeTurnTokenId, item);
+                          }}
+                          className="vtt-brass-btn"
+                          style={{
+                            padding: '2px 7px',
+                            fontSize: '10px',
+                            borderRadius: '5px',
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            color: '#fbbf24',
+                            borderColor: '#f59e0b'
+                          }}
+                          title="Añadir inmediatamente al inventario del turno activo"
+                        >
+                          Dar
+                        </button>
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            )}
           </SectionAccordion>
 
           {/* 3. FUENTES DE LUZ */}

@@ -17,7 +17,10 @@ import {
   Flame,
   Moon,
   FileText,
-  Zap
+  Zap,
+  Package,
+  DoorClosed,
+  AppWindow
 } from 'lucide-react';
 
 const MapLayer = ({
@@ -236,34 +239,37 @@ const MapLayer = ({
                 position: 'absolute',
                 left: `${element.x}px`,
                 top: `${element.y}px`,
-                width: `${element.width || 38}px`,
-                height: `${element.height || 38}px`,
-                background: 'radial-gradient(circle, rgba(245, 158, 11, 0.28) 0%, rgba(20, 15, 10, 0.95) 100%)',
+                width: '18px',
+                height: '18px',
+                background: 'linear-gradient(135deg, #1b202c 0%, #0f131c 100%)',
                 border: isDragging
-                  ? '2px dashed #fbbf24'
-                  : (element.isHidden ? '1.5px dashed #c084fc' : '1.5px solid #d4af37'),
-                borderRadius: '50%',
+                  ? '1.5px dashed #fbbf24'
+                  : (element.isHidden ? '1px dashed #c084fc' : '1px solid #d4af37'),
+                borderRadius: '4px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: isPlayerView ? 'default' : (element.isLocked ? 'pointer' : (isDragging ? 'grabbing' : 'grab')),
                 boxShadow: isDragging
-                  ? '0 10px 25px rgba(245, 158, 11, 0.6)'
-                  : '0 4px 12px rgba(0,0,0,0.85), 0 0 10px rgba(245, 158, 11, 0.35)',
+                  ? '0 6px 14px rgba(245, 158, 11, 0.6)'
+                  : '0 2px 6px rgba(0,0,0,0.85), 0 0 5px rgba(245, 158, 11, 0.25)',
                 zIndex: isDragging ? 1000 : 6,
-                fontSize: '18px',
                 userSelect: 'none',
                 opacity: isDragging ? 0.85 : (!isPlayerView && element.isHidden ? 0.45 : 1),
                 transition: isDragging ? 'none' : 'border 0.2s, box-shadow 0.2s, opacity 0.2s'
               }}
-              title={`${element.name || 'Objeto'} en el suelo (${element.isLocked ? '🔒 Bloqueado - ' : ''}${element.isHidden ? '👁️‍🗨️ Oculto - ' : ''}Arrastra para mover o clic derecho para opciones)`}
+              title={`${element.name || 'Objeto'} en el suelo (${element.isLocked ? 'Bloqueado - ' : ''}${element.isHidden ? 'Oculto - ' : ''}Arrastra para mover o clic derecho para opciones)`}
             >
-              {element.icon || '📦'}
+              <Package size={11} strokeWidth={2.3} style={{ color: '#fbbf24' }} />
               {!isPlayerView && element.isHidden && (
-                <span style={{ position: 'absolute', top: -3, left: -3, fontSize: '9px' }} title="Oculto a jugadores">👁️‍🗨️</span>
+                <span style={{ position: 'absolute', top: -4, left: -4, background: '#11141c', border: '1px solid #c084fc', borderRadius: '3px', padding: '1px', display: 'flex', color: '#e9d5ff' }} title="Oculto a jugadores">
+                  <EyeOff size={7} strokeWidth={2.4} />
+                </span>
               )}
               {!isPlayerView && element.isLocked && (
-                <span style={{ position: 'absolute', top: -3, right: -3, fontSize: '9px' }} title="Posición bloqueada">🔒</span>
+                <span style={{ position: 'absolute', top: -4, right: -4, background: '#11141c', border: '1px solid #f59e0b', borderRadius: '3px', padding: '1px', display: 'flex', color: '#fbbf24' }} title="Posición bloqueada">
+                  <Lock size={7} strokeWidth={2.4} />
+                </span>
               )}
               {/* Etiqueta flotante con el nombre del objeto */}
               {element.showName !== false && (
@@ -517,14 +523,12 @@ const MapLayer = ({
           const supportsVisibilityAndName = activeItem.type === 'item' || activeItem.type === 'object' || activeItem.type === 'light';
 
           const headerIcon = activeItem.type === 'door'
-            ? '🚪'
+            ? <DoorClosed size={15} strokeWidth={2.2} style={{ color: '#d4af37' }} />
             : activeItem.type === 'window'
-            ? '🪟'
+            ? <AppWindow size={15} strokeWidth={2.2} style={{ color: '#38bdf8' }} />
             : activeItem.type === 'light'
-            ? (activeItem.icon || '🔥')
-            : activeItem.type === 'item'
-            ? (activeItem.icon || '📦')
-            : (activeItem.icon || '📦');
+            ? <Flame size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
+            : <Package size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />;
 
           const headerTitle = activeItem.type === 'door'
             ? 'Control de Puerta'
@@ -543,41 +547,23 @@ const MapLayer = ({
             <div
               ref={menuRef}
               onPointerDown={(e) => e.stopPropagation()}
+              className="vtt-context-menu"
               style={{
-                position: 'fixed',
                 top: `${Math.max(12, Math.min(contextMenu.y, window.innerHeight - 430))}px`,
-                left: `${Math.max(12, Math.min(contextMenu.x, window.innerWidth - 275))}px`,
-                background: 'linear-gradient(180deg, #1b202c 0%, #11141c 100%)',
-                padding: '12px 14px',
-                borderRadius: '10px',
-                border: '1px solid #3b4254',
-                boxShadow: '0 15px 35px rgba(0,0,0,0.95)',
-                zIndex: 999999,
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '10px',
-                width: '256px',
-                maxHeight: 'calc(100vh - 24px)',
-                overflowY: 'auto',
-                color: '#e2e8f0',
-                scrollbarWidth: 'thin',
-                scrollbarColor: '#475569 transparent'
+                left: `${Math.max(12, Math.min(contextMenu.x, window.innerWidth - 275))}px`
               }}
             >
               {/* CABECERA */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #283144', paddingBottom: '8px', gap: '8px' }}>
+              <div className="vtt-context-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, flex: 1 }}>
-                  <span style={{ fontSize: '16px', flexShrink: 0 }}>{headerIcon}</span>
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {headerTitle}
-                    </span>
-                    {activeItem.category && (
-                      <span style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: 600 }}>
-                        {activeItem.category}
-                      </span>
-                    )}
-                  </div>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', flexShrink: 0 }}>{headerIcon}</span>
+                  <span
+                    className="vtt-gothic-title"
+                    style={{ fontSize: '13px', lineHeight: 1.2, color: '#f8fafc', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                    title={activeItem.category ? `${headerTitle} (${activeItem.category})` : headerTitle}
+                  >
+                    {headerTitle}
+                  </span>
                 </div>
 
                 {supportsVisibilityAndName && onUpdateMapElement && (
@@ -592,16 +578,12 @@ const MapLayer = ({
                         setIsEditingMenu(false);
                       }
                     }}
-                    className="vtt-brass-btn"
-                    style={{
-                      padding: '3px 7px',
-                      borderRadius: '5px',
-                      fontSize: '11px',
-                      cursor: 'pointer',
-                      borderColor: isEditingMenu ? '#f59e0b' : '#334155',
-                      color: isEditingMenu ? '#fbbf24' : '#cbd5e1',
-                      flexShrink: 0
-                    }}
+                    className="vtt-context-header-btn"
+                    style={isEditingMenu ? {
+                      borderColor: '#f59e0b',
+                      color: '#fbbf24',
+                      background: 'rgba(245, 158, 11, 0.14)'
+                    } : undefined}
                     title="Renombrar o editar descripción del objeto"
                   >
                     <Pencil size={13} strokeWidth={2.2} />
@@ -609,6 +591,127 @@ const MapLayer = ({
                 )}
               </div>
 
+              {/* BARRA COMPACTA DE ICONOS DE ACCIÓN (Misma posición y estilo que el menú de tokens) */}
+              <div className="vtt-context-icon-bar">
+                {/* 1. Visibilidad para Jugadores */}
+                {supportsVisibilityAndName && onUpdateMapElement && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateMapElement(
+                        activeItem.id,
+                        { isHidden: !isHidden },
+                        !isHidden ? 'Elemento oculto a jugadores' : 'Elemento visible a jugadores',
+                        !isHidden ? '👁️‍🗨️' : '👁️'
+                      );
+                    }}
+                    className="vtt-context-icon-btn"
+                    style={isHidden ? {
+                      background: 'rgba(139, 92, 246, 0.22)',
+                      borderColor: '#c084fc',
+                      color: '#e9d5ff'
+                    } : undefined}
+                    title={isHidden ? 'Oculto a jugadores (clic para mostrar)' : 'Visible a jugadores (clic para ocultar)'}
+                  >
+                    {isHidden ? <EyeOff size={16} strokeWidth={2.2} /> : <Eye size={16} strokeWidth={2.2} />}
+                  </button>
+                )}
+
+                {/* 2. Mostrar / Ocultar Nombre */}
+                {supportsVisibilityAndName && onUpdateMapElement && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateMapElement(
+                        activeItem.id,
+                        { showName: !isNameVisible },
+                        !isNameVisible ? 'Nombre visible en el tablero' : 'Nombre oculto en el tablero',
+                        '🏷️'
+                      );
+                    }}
+                    className="vtt-context-icon-btn"
+                    style={isNameVisible ? {
+                      background: 'rgba(245, 158, 11, 0.14)',
+                      borderColor: '#f59e0b',
+                      color: '#fbbf24'
+                    } : { color: '#64748b' }}
+                    title={isNameVisible ? 'Ocultar etiqueta con el nombre en el tablero' : 'Mostrar etiqueta con el nombre en el tablero'}
+                  >
+                    {isNameVisible ? <Captions size={16} strokeWidth={2.2} /> : <CaptionsOff size={16} strokeWidth={2.2} />}
+                  </button>
+                )}
+
+                {/* 3. Bloquear / Desbloquear Posición */}
+                {onToggleMapElementLock && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onToggleMapElementLock(activeItem.id);
+                    }}
+                    className="vtt-context-icon-btn"
+                    style={isLocked ? {
+                      background: 'rgba(245, 158, 11, 0.14)',
+                      borderColor: '#f59e0b',
+                      color: '#fbbf24'
+                    } : undefined}
+                    title={isLocked ? 'Posición bloqueada (clic para desbloquear)' : 'Bloquear posición en el tablero'}
+                  >
+                    {isLocked ? <Lock size={16} strokeWidth={2.2} /> : <Unlock size={16} strokeWidth={2.2} />}
+                  </button>
+                )}
+
+                {/* 4. Duplicar */}
+                {onDuplicateMapElement && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onDuplicateMapElement(activeItem);
+                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
+                    }}
+                    className="vtt-context-icon-btn"
+                    title="Duplicar elemento en la escena"
+                  >
+                    <Copy size={16} strokeWidth={2.2} />
+                  </button>
+                )}
+
+                {/* 5. Proyectar a Jugadores */}
+                {activeItem.type === 'item' && onProjectHandout && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onProjectHandout({
+                        type: 'note',
+                        title: `${activeItem.icon || '📦'} ${activeItem.name || 'Objeto'}`,
+                        content: activeItem.notes || 'Objeto encontrado sobre el terreno.'
+                      });
+                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
+                    }}
+                    className="vtt-context-icon-btn vtt-context-icon-btn-info"
+                    title="Proyectar este objeto y sus notas en la pantalla de jugadores"
+                  >
+                    <Projector size={16} strokeWidth={2.2} />
+                  </button>
+                )}
+
+                {/* 6. Retirar de la Escena */}
+                {onRemoveMapElement && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onRemoveMapElement(activeItem.id);
+                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
+                    }}
+                    className="vtt-context-icon-btn vtt-context-icon-btn-danger"
+                    title="Retirar elemento de la escena"
+                  >
+                    <Trash2 size={16} strokeWidth={2.2} />
+                  </button>
+                )}
+              </div>
+
+              {(isEditingMenu || activeItem.type === 'item' || activeItem.type === 'door' || activeItem.type === 'window' || activeItem.type === 'object' || activeItem.type === 'light') && (
+              <div className="vtt-context-divider" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {/* MODO EDICIÓN RÁPIDA EN LÍNEA */}
               {isEditingMenu && onUpdateMapElement && (
                 <div style={{
@@ -726,10 +829,10 @@ const MapLayer = ({
 
                       {tokens.length > 1 && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <span style={{ fontSize: '9.5px', color: '#94a3b8', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          <span className="vtt-context-section-label">
                             O entregar a otro:
                           </span>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', maxHeight: '110px', overflowY: 'auto' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '110px', overflowY: 'auto' }}>
                             {tokens.filter(t => t.id !== recipientToken.id).map(tok => (
                               <button
                                 key={tok.id}
@@ -738,10 +841,24 @@ const MapLayer = ({
                                   if (onPickUpItem) onPickUpItem(activeItem, tok.id);
                                   setContextMenu({ visible: false, x: 0, y: 0, item: null });
                                 }}
-                                className="vtt-brass-btn"
-                                style={{ padding: '5px 8px', fontSize: '11px', borderRadius: '5px', textAlign: 'left', cursor: 'pointer', justifyContent: 'flex-start' }}
+                                style={{
+                                  padding: '6px 9px',
+                                  fontSize: '11px',
+                                  fontWeight: 600,
+                                  borderRadius: '6px',
+                                  textAlign: 'left',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  background: '#171c26',
+                                  border: '1px solid #2b3345',
+                                  color: '#e2e8f0',
+                                  transition: 'all 0.15s ease'
+                                }}
                               >
-                                🤲 {tok.name}
+                                <Hand size={12} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
+                                <span>{tok.name}</span>
                               </button>
                             ))}
                           </div>
@@ -750,7 +867,7 @@ const MapLayer = ({
                     </>
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <span style={{ fontSize: '9.5px', color: '#fbbf24', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      <span className="vtt-context-section-label">
                         Entregar a personaje:
                       </span>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '130px', overflowY: 'auto' }}>
@@ -762,20 +879,24 @@ const MapLayer = ({
                               if (onPickUpItem) onPickUpItem(activeItem, tok.id);
                               setContextMenu({ visible: false, x: 0, y: 0, item: null });
                             }}
-                            className="vtt-brass-btn"
                             style={{
                               padding: '6px 9px',
                               fontSize: '11.5px',
                               fontWeight: 600,
-                              borderRadius: '5px',
+                              borderRadius: '6px',
                               textAlign: 'left',
                               cursor: 'pointer',
-                              justifyContent: 'flex-start',
-                              borderColor: '#b45309',
-                              color: '#fef08a'
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              background: '#171c26',
+                              border: '1px solid #2b3345',
+                              color: '#e2e8f0',
+                              transition: 'all 0.15s ease'
                             }}
                           >
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}><Hand size={13} strokeWidth={2.2} /> {tok.name}</span>
+                            <Hand size={13} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
+                            <span>{tok.name}</span>
                           </button>
                         ))}
                       </div>
@@ -932,189 +1053,8 @@ const MapLayer = ({
                   {activeItem.isOn !== false ? <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Moon size={13} strokeWidth={2.2} /> Apagar Luz</span> : <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Flame size={13} strokeWidth={2.2} /> Encender Luz</span>}
                 </button>
               )}
-
-              {/* BLOQUE 2: BARRA COMPACTA DE ICONOS (Estilo uniforme Lucide) */}
-              <div style={{
-                borderTop: '1px solid #242c3d',
-                paddingTop: '9px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '5px'
-              }}>
-                {/* 1. Visibilidad para Jugadores */}
-                {supportsVisibilityAndName && onUpdateMapElement && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onUpdateMapElement(
-                        activeItem.id,
-                        { isHidden: !isHidden },
-                        !isHidden ? 'Elemento oculto a jugadores' : 'Elemento visible a jugadores',
-                        !isHidden ? '👁️‍🗨️' : '👁️'
-                      );
-                    }}
-                    style={{
-                      flex: 1,
-                      height: '34px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: isHidden ? 'linear-gradient(180deg, #6b21a8 0%, #3b0764 100%)' : '#171c26',
-                      border: isHidden ? '1px solid #c084fc' : '1px solid #2b3345',
-                      color: isHidden ? '#f3e8ff' : '#cbd5e1',
-                      transition: 'all 0.15s ease'
-                    }}
-                    title={isHidden ? 'Oculto a jugadores (clic para mostrar)' : 'Visible a jugadores (clic para ocultar)'}
-                  >
-                    {isHidden ? <EyeOff size={16} strokeWidth={2.2} /> : <Eye size={16} strokeWidth={2.2} />}
-                  </button>
-                )}
-
-                {/* 2. Mostrar / Ocultar Nombre */}
-                {supportsVisibilityAndName && onUpdateMapElement && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onUpdateMapElement(
-                        activeItem.id,
-                        { showName: !isNameVisible },
-                        !isNameVisible ? 'Nombre visible en el tablero' : 'Nombre oculto en el tablero',
-                        '🏷️'
-                      );
-                    }}
-                    style={{
-                      flex: 1,
-                      height: '34px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: isNameVisible ? 'rgba(245, 158, 11, 0.14)' : '#171c26',
-                      border: isNameVisible ? '1px solid #f59e0b' : '1px solid #2b3345',
-                      color: isNameVisible ? '#fbbf24' : '#64748b',
-                      transition: 'all 0.15s ease'
-                    }}
-                    title={isNameVisible ? 'Ocultar etiqueta con el nombre en el tablero' : 'Mostrar etiqueta con el nombre en el tablero'}
-                  >
-                    {isNameVisible ? <Captions size={16} strokeWidth={2.2} /> : <CaptionsOff size={16} strokeWidth={2.2} />}
-                  </button>
-                )}
-
-                {/* 3. Bloquear / Desbloquear Posición */}
-                {onToggleMapElementLock && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onToggleMapElementLock(activeItem.id);
-                    }}
-                    style={{
-                      flex: 1,
-                      height: '34px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: isLocked ? 'rgba(245, 158, 11, 0.14)' : '#171c26',
-                      border: isLocked ? '1px solid #f59e0b' : '1px solid #2b3345',
-                      color: isLocked ? '#fbbf24' : '#cbd5e1',
-                      transition: 'all 0.15s ease'
-                    }}
-                    title={isLocked ? 'Posición bloqueada (clic para desbloquear)' : 'Bloquear posición en el tablero'}
-                  >
-                    {isLocked ? <Lock size={16} strokeWidth={2.2} /> : <Unlock size={16} strokeWidth={2.2} />}
-                  </button>
-                )}
-
-                {/* 4. Duplicar */}
-                {onDuplicateMapElement && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onDuplicateMapElement(activeItem);
-                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                    }}
-                    style={{
-                      flex: 1,
-                      height: '34px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: '#171c26',
-                      border: '1px solid #2b3345',
-                      color: '#cbd5e1',
-                      transition: 'all 0.15s ease'
-                    }}
-                    title="Duplicar elemento en la escena"
-                  >
-                    <Copy size={16} strokeWidth={2.2} />
-                  </button>
-                )}
-
-                {/* 5. Proyectar a Jugadores */}
-                {activeItem.type === 'item' && onProjectHandout && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onProjectHandout({
-                        type: 'note',
-                        title: `${activeItem.icon || '📦'} ${activeItem.name || 'Objeto'}`,
-                        content: activeItem.notes || 'Objeto encontrado sobre el terreno.'
-                      });
-                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                    }}
-                    style={{
-                      flex: 1,
-                      height: '34px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      background: 'rgba(14, 165, 233, 0.12)',
-                      border: '1px solid #0284c7',
-                      color: '#38bdf8',
-                      transition: 'all 0.15s ease'
-                    }}
-                    title="Proyectar este objeto y sus notas en la pantalla de jugadores"
-                  >
-                    <Projector size={16} strokeWidth={2.2} />
-                  </button>
-                )}
-
-                {/* 6. Retirar de la Escena */}
-                {onRemoveMapElement && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onRemoveMapElement(activeItem.id);
-                      setContextMenu({ visible: false, x: 0, y: 0, item: null });
-                    }}
-                    style={{
-                      flex: 1,
-                      height: '34px',
-                      borderRadius: '6px',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      backgroundColor: 'rgba(127, 29, 29, 0.35)',
-                      border: '1px solid rgba(239, 68, 68, 0.45)',
-                      color: '#fca5a5',
-                      transition: 'all 0.15s ease'
-                    }}
-                    title="Retirar elemento de la escena"
-                  >
-                    <Trash2 size={16} strokeWidth={2.2} />
-                  </button>
-                )}
               </div>
+              )}
             </div>
           );
         })(),

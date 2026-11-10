@@ -1,5 +1,5 @@
 import React from 'react';
-import { Ruler, Bell } from 'lucide-react';
+import { Ruler, Bell, Package } from 'lucide-react';
 import GridLayer from './GridLayer';
 import MapLayer from './MapLayer';
 import FogLayer, { isPointVisibleToPlayers } from './FogLayer';
@@ -46,10 +46,11 @@ const GameBoard = ({
       const rect = boardRef.current.getBoundingClientRect();
       const rawX = (e.clientX - rect.left - pan.x) / scale;
       const rawY = (e.clientY - rect.top - pan.y) / scale;
-      const w = pendingMapSpawn ? (pendingMapSpawn.width || gridSize || 48) : (gridSize || 50);
-      const h = pendingMapSpawn ? (pendingMapSpawn.height || gridSize || 48) : (gridSize || 50);
-      const x = snapToGrid ? Math.floor(rawX / (gridSize || 50)) * (gridSize || 50) : rawX - w / 2;
-      const y = snapToGrid ? Math.floor(rawY / (gridSize || 50)) * (gridSize || 50) : rawY - h / 2;
+      const w = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.width || gridSize || 48)) : (gridSize || 50);
+      const h = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.height || gridSize || 48)) : (gridSize || 50);
+      const shouldSnap = snapToGrid && pendingMapSpawn?.type !== 'item';
+      const x = shouldSnap ? Math.floor(rawX / (gridSize || 50)) * (gridSize || 50) : rawX - w / 2;
+      const y = shouldSnap ? Math.floor(rawY / (gridSize || 50)) * (gridSize || 50) : rawY - h / 2;
       setSpawnHoverPos({ x, y, w, h });
     } else if (spawnHoverPos) {
       setSpawnHoverPos(null);
@@ -65,10 +66,11 @@ const GameBoard = ({
       const rect = boardRef.current.getBoundingClientRect();
       const rawX = (e.clientX - rect.left - pan.x) / scale;
       const rawY = (e.clientY - rect.top - pan.y) / scale;
-      const w = pendingMapSpawn ? (pendingMapSpawn.width || gridSize || 48) : (gridSize || 50);
-      const h = pendingMapSpawn ? (pendingMapSpawn.height || gridSize || 48) : (gridSize || 50);
-      const x = snapToGrid ? Math.floor(rawX / (gridSize || 50)) * (gridSize || 50) : rawX - w / 2;
-      const y = snapToGrid ? Math.floor(rawY / (gridSize || 50)) * (gridSize || 50) : rawY - h / 2;
+      const w = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.width || gridSize || 48)) : (gridSize || 50);
+      const h = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.height || gridSize || 48)) : (gridSize || 50);
+      const shouldSnap = snapToGrid && pendingMapSpawn?.type !== 'item';
+      const x = shouldSnap ? Math.floor(rawX / (gridSize || 50)) * (gridSize || 50) : rawX - w / 2;
+      const y = shouldSnap ? Math.floor(rawY / (gridSize || 50)) * (gridSize || 50) : rawY - h / 2;
       setSpawnHoverPos({ x, y, w, h });
     }
   };
@@ -438,9 +440,9 @@ const GameBoard = ({
               position: 'absolute',
               left: `${spawnHoverPos.x}px`,
               top: `${spawnHoverPos.y}px`,
-              width: `${spawnHoverPos.w || 48}px`,
-              height: `${spawnHoverPos.h || 48}px`,
-              borderRadius: pendingMapSpawn.type === 'light' ? '50%' : '6px',
+              width: `${pendingMapSpawn.type === 'item' ? 18 : (spawnHoverPos.w || 48)}px`,
+              height: `${pendingMapSpawn.type === 'item' ? 18 : (spawnHoverPos.h || 48)}px`,
+              borderRadius: pendingMapSpawn.type === 'light' ? '50%' : '4px',
               backgroundColor: 'rgba(245, 158, 11, 0.22)',
               border: '2px dashed #fbbf24',
               boxShadow: '0 0 16px rgba(245, 158, 11, 0.65)',
@@ -453,7 +455,9 @@ const GameBoard = ({
               fontSize: '20px'
             }}
           >
-            {pendingMapSpawn.icon || '📦'}
+            {pendingMapSpawn.type === 'item'
+              ? <Package size={11} strokeWidth={2.3} style={{ color: '#fbbf24' }} />
+              : (pendingMapSpawn.icon || <Package size={18} strokeWidth={2.2} style={{ color: '#fbbf24' }} />)}
           </div>
         )}
 

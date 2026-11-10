@@ -400,32 +400,35 @@ const GameToken = ({
         <div 
           ref={menuRef}
           onPointerDown={(e) => e.stopPropagation()}
+          className="vtt-context-menu"
           style={{
-            position: 'fixed', 
             top: `${Math.max(12, Math.min(menuState.y, window.innerHeight - 320))}px`, 
-            left: `${Math.max(12, Math.min(menuState.x, window.innerWidth - 275))}px`,
-            background: 'linear-gradient(180deg, #1b202c 0%, #11141c 100%)', 
-            padding: '12px 14px', 
-            borderRadius: '10px',
-            border: '1px solid #3b4254',
-            boxShadow: '0 15px 35px rgba(0,0,0,0.95)', 
-            zIndex: 999999, 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '10px',
-            width: '256px',
-            maxHeight: 'calc(100vh - 24px)',
-            overflowY: 'auto',
-            color: '#e2e8f0',
-            scrollbarWidth: 'thin',
-            scrollbarColor: '#475569 transparent'
+            left: `${Math.max(12, Math.min(menuState.x, window.innerWidth - 275))}px`
           }}
         >
           {/* CABECERA */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #283144', paddingBottom: '8px', gap: '8px' }}>
-            <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {token.name}
-            </span>
+          <div className="vtt-context-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '7px', minWidth: 0, flex: 1 }}>
+              <span style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                flexShrink: 0,
+                color: faction === 'enemy' ? '#f87171' : faction === 'player' ? '#34d399' : '#60a5fa'
+              }}>
+                {faction === 'enemy'
+                  ? <Swords size={15} strokeWidth={2.2} />
+                  : faction === 'player'
+                  ? <UserCheck size={15} strokeWidth={2.2} />
+                  : <Shield size={15} strokeWidth={2.2} />}
+              </span>
+              <span
+                className="vtt-gothic-title"
+                style={{ fontSize: '13px', lineHeight: 1.2, color: '#f8fafc', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                title={token.name}
+              >
+                {token.name}
+              </span>
+            </div>
             {onOpenSheet && (
               <button
                 type="button"
@@ -434,22 +437,16 @@ const GameToken = ({
                   setMenuState({ visible: false, x: 0, y: 0 });
                   onOpenSheet(token);
                 }}
-                className="vtt-primary-cta"
-                style={{ width: '30px', height: '28px', padding: 0, borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                className="vtt-context-header-btn"
                 title="Abrir Ficha del Personaje"
               >
-                <FileText size={14} strokeWidth={2.2} />
+                <FileText size={13} strokeWidth={2.2} />
               </button>
             )}
           </div>
 
-          {/* BARRA COMPACTA DE ICONOS DE ACCIÓN (Idéntica al menú de objetos) */}
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '5px'
-          }}>
+          {/* BARRA COMPACTA DE ICONOS DE ACCIÓN */}
+          <div className="vtt-context-icon-bar">
             {/* 1. Visibilidad (Oculto / Visible) */}
             <button
               type="button"
@@ -458,19 +455,12 @@ const GameToken = ({
                 e.preventDefault();
                 if (onToggleHidden) onToggleHidden(token.id);
               }}
-              style={{
-                flex: 1,
-                height: '34px',
-                cursor: 'pointer',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: isHidden ? 'linear-gradient(180deg, #6b21a8 0%, #3b0764 100%)' : '#171c26',
-                border: isHidden ? '1px solid #c084fc' : '1px solid #2b3345',
-                color: isHidden ? '#f3e8ff' : '#cbd5e1',
-                transition: 'all 0.15s ease'
-              }}
+              className="vtt-context-icon-btn"
+              style={isHidden ? {
+                background: 'rgba(139, 92, 246, 0.22)',
+                borderColor: '#c084fc',
+                color: '#e9d5ff'
+              } : undefined}
               title={isHidden ? 'Oculto a jugadores (clic para revelar)' : 'Visible a jugadores (clic para ocultar)'}
             >
               {isHidden ? <EyeOff size={16} strokeWidth={2.2} /> : <Eye size={16} strokeWidth={2.2} />}
@@ -484,26 +474,19 @@ const GameToken = ({
                 e.preventDefault();
                 if (onToggleFaction) onToggleFaction(token.id);
               }}
-              style={{
-                flex: 1,
-                height: '34px',
-                cursor: 'pointer',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: faction === 'enemy'
-                  ? 'linear-gradient(180deg, #991b1b 0%, #450a0a 100%)'
-                  : faction === 'player'
-                  ? 'linear-gradient(180deg, #065f46 0%, #022c22 100%)'
-                  : 'linear-gradient(180deg, #1e3a8a 0%, #172554 100%)',
-                border: faction === 'enemy'
-                  ? '1px solid #f87171'
-                  : faction === 'player'
-                  ? '1px solid #34d399'
-                  : '1px solid #60a5fa',
-                color: '#fff',
-                transition: 'all 0.15s ease'
+              className="vtt-context-icon-btn"
+              style={faction === 'enemy' ? {
+                background: 'rgba(239, 68, 68, 0.16)',
+                borderColor: '#ef4444',
+                color: '#fca5a5'
+              } : faction === 'player' ? {
+                background: 'rgba(16, 185, 129, 0.16)',
+                borderColor: '#10b981',
+                color: '#34d399'
+              } : {
+                background: 'rgba(59, 130, 246, 0.16)',
+                borderColor: '#3b82f6',
+                color: '#60a5fa'
               }}
               title={`Bando actual: ${faction === 'enemy' ? 'Enemigo' : faction === 'player' ? 'Jugador (PJ)' : 'Aliado (PNJ)'} (clic para cambiar)`}
             >
@@ -522,19 +505,12 @@ const GameToken = ({
                 e.preventDefault();
                 if (onToggleName) onToggleName(token.id);
               }}
-              style={{
-                flex: 1,
-                height: '34px',
-                cursor: 'pointer',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: token.showName !== false ? 'rgba(245, 158, 11, 0.14)' : '#171c26',
-                border: token.showName !== false ? '1px solid #f59e0b' : '1px solid #2b3345',
-                color: token.showName !== false ? '#fbbf24' : '#64748b',
-                transition: 'all 0.15s ease'
-              }}
+              className="vtt-context-icon-btn"
+              style={token.showName !== false ? {
+                background: 'rgba(245, 158, 11, 0.14)',
+                borderColor: '#f59e0b',
+                color: '#fbbf24'
+              } : { color: '#64748b' }}
               title={token.showName !== false ? 'Ocultar etiqueta de nombre en el tablero' : 'Mostrar etiqueta de nombre en el tablero'}
             >
               {token.showName !== false ? <Captions size={16} strokeWidth={2.2} /> : <CaptionsOff size={16} strokeWidth={2.2} />}
@@ -548,19 +524,12 @@ const GameToken = ({
                 e.preventDefault();
                 if (onToggleBars) onToggleBars(token.id);
               }}
-              style={{
-                flex: 1,
-                height: '34px',
-                cursor: 'pointer',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: token.showBars ? 'rgba(16, 185, 129, 0.14)' : '#171c26',
-                border: token.showBars ? '1px solid #10b981' : '1px solid #2b3345',
-                color: token.showBars ? '#34d399' : '#64748b',
-                transition: 'all 0.15s ease'
-              }}
+              className="vtt-context-icon-btn"
+              style={token.showBars ? {
+                background: 'rgba(16, 185, 129, 0.14)',
+                borderColor: '#10b981',
+                color: '#34d399'
+              } : { color: '#64748b' }}
               title={token.showBars ? 'Ocultar barras de Salud, Magia y Cordura' : 'Mostrar barras de Salud, Magia y Cordura'}
             >
               <Activity size={16} strokeWidth={2.2} />
@@ -574,60 +543,54 @@ const GameToken = ({
                 e.preventDefault();
                 if (onToggleLock) onToggleLock(token.id);
               }}
-              style={{
-                flex: 1,
-                height: '34px',
-                cursor: 'pointer',
-                borderRadius: '6px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: token.isLocked ? 'rgba(245, 158, 11, 0.14)' : '#171c26',
-                border: token.isLocked ? '1px solid #f59e0b' : '1px solid #2b3345',
-                color: token.isLocked ? '#fbbf24' : '#cbd5e1',
-                transition: 'all 0.15s ease'
-              }}
+              className="vtt-context-icon-btn"
+              style={token.isLocked ? {
+                background: 'rgba(245, 158, 11, 0.14)',
+                borderColor: '#f59e0b',
+                color: '#fbbf24'
+              } : undefined}
               title={token.isLocked ? 'Posición bloqueada (clic para desbloquear)' : 'Bloquear posición en el tablero'}
             >
               {token.isLocked ? <Lock size={16} strokeWidth={2.2} /> : <Unlock size={16} strokeWidth={2.2} />}
             </button>
           </div>
 
-          <div style={{ borderTop: '1px solid #242c3d', paddingTop: '8px', display: 'flex', flexWrap: 'wrap', gap: '4px', justifyContent: 'center' }}>
-            <span style={{ fontSize: '10px', color: '#94a3b8', width: '100%', textAlign: 'center', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 700 }}>Condiciones</span>
-            {customStatuses.map(status => {
-              const isActive = activeStatuses.includes(status.id);
-              const isImage = status.icon.startsWith('data:image');
-              return (
-                <button
-                  key={status.id}
-                  onPointerDown={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    if (onToggleStatus) onToggleStatus(token.id, status.id);
-                  }}
-                  style={{
-                    backgroundColor: isActive ? '#2a1a08' : '#161a25',
-                    background: isActive
-                      ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.35) 0%, rgba(180, 83, 9, 0.5) 100%)'
-                      : '#161a25',
-                    border: isActive ? '1.5px solid #f59e0b' : '1px solid #262e3f',
-                    borderRadius: '4px',
-                    padding: isImage ? '2px' : '4px 6px',
-                    cursor: 'pointer',
-                    fontSize: '15px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    boxShadow: isActive ? '0 2px 8px rgba(245, 158, 11, 0.25)' : 'none'
-                  }}
-                  title={status.label}
-                >
-                  {isImage ? <img src={status.icon} alt={status.label} style={{ width: '18px', height: '18px', borderRadius: '2px', objectFit: 'cover' }} /> : status.icon}
-                </button>
-              );
-            })}
-          </div>
+          {customStatuses && customStatuses.length > 0 && (
+            <div className="vtt-context-divider" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <span className="vtt-context-section-label">Condiciones</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                {customStatuses.map(status => {
+                  const isActive = activeStatuses.includes(status.id);
+                  const isImage = status.icon.startsWith('data:image');
+                  return (
+                    <button
+                      key={status.id}
+                      onPointerDown={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        if (onToggleStatus) onToggleStatus(token.id, status.id);
+                      }}
+                      style={{
+                        background: isActive ? 'rgba(245, 158, 11, 0.16)' : '#171c26',
+                        border: isActive ? '1px solid #f59e0b' : '1px solid #2b3345',
+                        borderRadius: '6px',
+                        padding: isImage ? '3px' : '4px 7px',
+                        cursor: 'pointer',
+                        fontSize: '14px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.15s ease'
+                      }}
+                      title={status.label}
+                    >
+                      {isImage ? <img src={status.icon} alt={status.label} style={{ width: '18px', height: '18px', borderRadius: '3px', objectFit: 'cover' }} /> : status.icon}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>,
         document.body
       )}
