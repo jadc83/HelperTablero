@@ -21,6 +21,25 @@ import { DEFAULT_COMMON_ITEMS } from './constants/commonItems';
 import useLocalStorage from './hooks/useLocalStorage';
 import { saveCampaignToDB, loadCampaignFromDB, clearActiveCampaignDB, exportCampaignJSON, saveCampaignSnapshot, getRecentCampaigns } from './utils/campaignStorage';
 import { exportJSON, importJSON } from './utils/fileDialog';
+import {
+  Grip,
+  Dices,
+  Volume2,
+  Ruler,
+  Bell,
+  Grid,
+  Crosshair,
+  Video,
+  VideoOff,
+  Trash2,
+  ChevronUp,
+  ChevronDown,
+  MousePointer2,
+  Eye,
+  EyeOff,
+  Sparkles,
+  X
+} from 'lucide-react';
 
 const isTauriDesktop = () => Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
 
@@ -1820,6 +1839,25 @@ function App() {
     showMasterFeedback('Objeto y notas actualizados', '💾');
   };
 
+  const handleUpdateMapElement = (elId, updatedFields, feedbackMsg = null, feedbackIcon = '💾') => {
+    setMaps(prev => prev.map(m => (m.id === elId ? { ...m, ...updatedFields } : m)));
+    if (feedbackMsg) {
+      showMasterFeedback(feedbackMsg, feedbackIcon);
+    }
+  };
+
+  const handleDuplicateMapElement = (el) => {
+    if (!el) return;
+    const copy = {
+      ...el,
+      id: Date.now() + Math.random(),
+      x: (el.x || 0) + 28,
+      y: (el.y || 0) + 28
+    };
+    setMaps(prev => [...prev, copy]);
+    showMasterFeedback(`"${el.name || 'Elemento'}" duplicado en la escena`, '📑');
+  };
+
   const handleUpdateSceneNotes = (sceneId, notesObj) => {
     setSceneNotes(prev => ({ ...prev, [sceneId]: notesObj }));
   };
@@ -3222,8 +3260,9 @@ function App() {
               boxShadow: '0 10px 25px rgba(0,0,0,0.9)'
             }}
           >
-            <span style={{ fontSize: '13px', fontWeight: 600 }}>
-              {pendingTokenSpawn.fromGraveyardId ? '✨ Haz clic en el mapa para situar al resucitado: ' : '🎯 Haz clic en el mapa para invocar a: '}
+            <span style={{ fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+              {pendingTokenSpawn.fromGraveyardId ? <Sparkles size={14} strokeWidth={2.2} style={{ color: '#fbbf24' }} /> : <Crosshair size={14} strokeWidth={2.2} style={{ color: '#fbbf24' }} />}
+              <span>{pendingTokenSpawn.fromGraveyardId ? 'Haz clic en el mapa para situar al resucitado: ' : 'Haz clic en el mapa para invocar a: '}</span>
               <strong style={{ color: '#fbbf24' }}>{pendingTokenSpawn.name}</strong>
             </span>
             <button
@@ -3305,6 +3344,8 @@ function App() {
           onMapElementPointerDown={handleMapElementPointerDown}
           onRotateMapElement={handleRotateMapElement}
           onToggleMapElementLock={handleToggleMapElementLock}
+          onUpdateMapElement={handleUpdateMapElement}
+          onDuplicateMapElement={handleDuplicateMapElement}
           onInspectObject={handleInspectObject}
           onRemoveMapElement={handleRemoveMapElement}
           handlePointerDown={handlePointerDown}
@@ -3414,12 +3455,7 @@ function App() {
               }}
               title="Arrastra o haz clic para desplegar/ocultar la barra secundaria"
             >
-              <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
-                <rect x="2" y="2" width="3" height="3" rx="0.7"/>
-                <rect x="8.5" y="2" width="3" height="3" rx="0.7"/>
-                <rect x="2" y="8.5" width="3" height="3" rx="0.7"/>
-                <rect x="8.5" y="8.5" width="3" height="3" rx="0.7"/>
-              </svg>
+              <Grip size={13} strokeWidth={2.2} />
             </div>
 
             {/* Herramientas de Juego */}
@@ -3429,10 +3465,10 @@ function App() {
                 setIsSoundboardOpen(false);
               }}
               className={`vtt-brass-btn ${isDiceOpen ? 'vtt-btn-active' : ''}`}
-              style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
+              style={{ padding: '6px 11px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600, gap: '5px' }}
               title="Abrir Cubilete de Dados Físicos 3D"
             >
-              Dados
+              <Dices size={13} strokeWidth={2.2} /> Dados
             </button>
 
             <button
@@ -3444,7 +3480,7 @@ function App() {
               style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600, gap: '6px' }}
               title="Abrir Órgano de Ecos y Sonidos Atmosféricos"
             >
-              <span>Ecos</span>
+              <Volume2 size={13} strokeWidth={2.2} /> <span>Ecos</span>
               {activeLoops.length > 0 && (
                 <span style={{ backgroundColor: '#f59e0b', color: '#0f1115', borderRadius: '999px', padding: '1px 5px', fontSize: '9px', fontWeight: 800 }}>
                   {activeLoops.length}
@@ -3460,7 +3496,7 @@ function App() {
               style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
               title="Medir distancia en el mapa (pies, metros y casillas)"
             >
-              Regla
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Ruler size={13} strokeWidth={2.2} /> Regla</span>
             </button>
 
             <button
@@ -3469,7 +3505,7 @@ function App() {
               style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
               title="Señalar punto en el mapa a los jugadores (o Alt + Clic)"
             >
-              Señal
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Bell size={13} strokeWidth={2.2} /> Señal</span>
             </button>
 
             <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
@@ -3499,6 +3535,7 @@ function App() {
                   boxShadow: snapToGrid ? '0 0 5px #10b981' : 'none',
                   display: 'inline-block'
                 }} />
+                <Grid size={12} strokeWidth={2.2} />
                 <span>Cuadrícula: {snapToGrid ? `${gridSize}px` : 'OFF'}</span>
               </button>
 
@@ -3569,7 +3606,7 @@ function App() {
               style={{ padding: '6px 11px', borderRadius: '6px', fontSize: '12px', cursor: 'pointer', fontWeight: 600 }}
               title="Centrar tablero y restablecer zoom al 100%"
             >
-              Centrar
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Crosshair size={13} strokeWidth={2.2} /> Centrar</span>
             </button>
 
             <button
@@ -3586,7 +3623,7 @@ function App() {
               style={{ padding: '6px 11px', borderRadius: '6px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
               title={syncCameraToPlayers ? "Cámara vinculada: los jugadores ven tus movimientos de pantalla" : "Cámara libre: navega en secreto sin mover la pantalla de los jugadores"}
             >
-              {syncCameraToPlayers ? 'Cámara: ON' : 'Cámara: OFF'}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>{syncCameraToPlayers ? <Video size={13} strokeWidth={2.2} /> : <VideoOff size={13} strokeWidth={2.2} />} {syncCameraToPlayers ? 'Cámara: ON' : 'Cámara: OFF'}</span>
             </button>
 
             <button
@@ -3611,7 +3648,7 @@ function App() {
               }}
               title="Vaciar por completo el tablero, fichas y crónicas para empezar de cero"
             >
-              {confirmResetBoard ? '¿Vaciar Mesa?' : 'Vaciar Mesa'}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Trash2 size={12} strokeWidth={2.2} /> {confirmResetBoard ? '¿Vaciar Mesa?' : 'Vaciar Mesa'}</span>
             </button>
 
             <div style={{ width: '1px', height: '18px', backgroundColor: '#262d3d' }}></div>
@@ -3636,7 +3673,7 @@ function App() {
               }}
               title={isFogDockOpen ? "Ocultar barra táctica secundaria" : "Desplegar barra táctica secundaria"}
             >
-              <span>{isFogDockOpen ? '▲' : '▼'}</span>
+              {isFogDockOpen ? <ChevronUp size={14} strokeWidth={2.4} /> : <ChevronDown size={14} strokeWidth={2.4} />}
             </button>
           </div>
 
@@ -3681,12 +3718,7 @@ function App() {
                 }}
                 title="Arrastra o haz clic para cerrar la barra secundaria"
               >
-                <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
-                  <rect x="2" y="2" width="3" height="3" rx="0.7"/>
-                  <rect x="8.5" y="2" width="3" height="3" rx="0.7"/>
-                  <rect x="2" y="8.5" width="3" height="3" rx="0.7"/>
-                  <rect x="8.5" y="8.5" width="3" height="3" rx="0.7"/>
-                </svg>
+                <Grip size={13} strokeWidth={2.2} />
               </div>
 
               {/* Conmutador Niebla Global */}
@@ -3822,7 +3854,7 @@ function App() {
                   }}
                   title="Modo Mover: interactúa con fichas y navega por el tablero normalmente"
                 >
-                  Mover
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><MousePointer2 size={12} strokeWidth={2.2} /> Mover</span>
                 </button>
                 <button
                   onClick={() => { setFowMode('reveal'); setRulerActive(false); setPingActive(false); }}
@@ -3839,7 +3871,7 @@ function App() {
                   }}
                   title="Pincel Despejar: arrastra sobre el mapa para desvelar zonas a los jugadores"
                 >
-                  👁️ Despejar
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Eye size={12} strokeWidth={2.2} /> Despejar</span>
                 </button>
                 <button
                   onClick={() => { setFowMode('hide'); setRulerActive(false); setPingActive(false); }}
@@ -3856,7 +3888,7 @@ function App() {
                   }}
                   title="Pincel Cubrir: arrastra sobre el mapa para volver a ocultar zonas en la niebla"
                 >
-                  ⬛ Cubrir
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><EyeOff size={12} strokeWidth={2.2} /> Cubrir</span>
                 </button>
               </div>
 
@@ -4082,7 +4114,7 @@ function App() {
           alignItems: 'center',
           gap: '14px'
         }}>
-          <span>🎲 Rodando dados en Pantalla de Jugadores...</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><Dices size={16} strokeWidth={2.2} /> Rodando dados en Pantalla de Jugadores...</span>
           <button
             onClick={() => {
               setWaitingForPlayerRoll(false);
@@ -4091,7 +4123,7 @@ function App() {
             className="vtt-brass-btn"
             style={{ padding: '3px 8px', fontSize: '11px', borderRadius: '4px', cursor: 'pointer' }}
           >
-            ✕ Cancelar
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><X size={12} strokeWidth={2.4} /> Cancelar</span>
           </button>
         </div>
       )}

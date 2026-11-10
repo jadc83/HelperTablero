@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { X, FileText, Lock, AlertTriangle } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
 const ObjectNotesModal = ({
@@ -150,7 +151,7 @@ const ObjectNotesModal = ({
               padding: '4px 8px'
             }}
           >
-            ✕
+            <X size={16} strokeWidth={2.4} />
           </button>
         </div>
 
@@ -175,7 +176,7 @@ const ObjectNotesModal = ({
               cursor: 'pointer'
             }}
           >
-            📝 Notas Secretas & Trampas
+            <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}><FileText size={13} strokeWidth={2.2} /> Notas Secretas &amp; Trampas</span>
           </button>
           <button
             type="button"
@@ -241,7 +242,7 @@ const ObjectNotesModal = ({
                       checked={isLockedWithKey}
                       onChange={(e) => setIsLockedWithKey(e.target.checked)}
                     />
-                    <span>🔒 Cerrado con llave</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Lock size={13} strokeWidth={2.2} /> Cerrado con llave</span>
                   </label>
                   {isLockedWithKey && (
                     <div style={{ marginTop: '8px' }}>
@@ -279,7 +280,7 @@ const ObjectNotesModal = ({
                       checked={isTrapped}
                       onChange={(e) => setIsTrapped(e.target.checked)}
                     />
-                    <span>⚠️ Con trampa</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><AlertTriangle size={13} strokeWidth={2.2} /> Con trampa</span>
                   </label>
                   {isTrapped && (
                     <div style={{ marginTop: '8px' }}>

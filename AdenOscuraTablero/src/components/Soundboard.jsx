@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Music, Square, X, Repeat, FolderOpen, VolumeX } from 'lucide-react';
 
 export const SOUND_CATALOG = [
   // Ambientes Continuos (Loops)
@@ -457,21 +458,21 @@ const Soundboard = ({
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #6b4c2b', paddingBottom: '8px' }}>
-              <span className="vtt-gothic-title" style={{ fontWeight: 'bold', fontSize: '14px', color: '#d4af37' }}>🎵 Órgano de Ecos (Jugador)</span>
+              <span className="vtt-gothic-title" style={{ fontWeight: 'bold', fontSize: '14px', color: '#d4af37' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}><Music size={14} strokeWidth={2.2} /> Órgano de Ecos (Jugador)</span></span>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 {activeLoops.length > 0 && (
                   <button
                     onClick={onStopAllSounds}
                     style={{ background: '#991b1b', border: '1px solid #f87171', color: 'white', borderRadius: '4px', padding: '3px 8px', fontSize: '11px', cursor: 'pointer', fontWeight: 'bold' }}
                   >
-                    ⏹ Silenciar
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Square size={10} strokeWidth={2.4} /> Silenciar</span>
                   </button>
                 )}
                 <button
                   onClick={onClose}
                   style={{ background: 'transparent', border: 'none', color: '#c5a059', cursor: 'pointer', fontSize: '16px' }}
                 >
-                  ✕
+                  <X size={15} strokeWidth={2.4} />
                 </button>
               </div>
             </div>
@@ -528,7 +529,7 @@ const Soundboard = ({
                       checked={newSoundLoop}
                       onChange={(e) => setNewSoundLoop(e.target.checked)}
                     />
-                    🔁 En bucle (Ambiente)
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Repeat size={12} strokeWidth={2.2} /> En bucle (Ambiente)</span>
                   </label>
 
                   <input
@@ -543,7 +544,7 @@ const Soundboard = ({
                     className="vtt-brass-btn"
                     style={{ padding: '5px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
                   >
-                    📂 Subir .ogg / .mp3 (≤1.5MB)
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><FolderOpen size={12} strokeWidth={2.2} /> Subir .ogg / .mp3 (≤1.5MB)</span>
                   </button>
                 </div>
 
@@ -610,7 +611,7 @@ const Soundboard = ({
                         }}
                         title="Eliminar sonido personalizado"
                       >
-                        ✕
+                        <X size={12} strokeWidth={2.4} />
                       </button>
                     )}
                   </div>
@@ -624,7 +625,7 @@ const Soundboard = ({
             </div>
 
             <div style={{ fontSize: '12px', color: '#b89f7d', textAlign: 'center', borderTop: '1px solid #6b4c2b', paddingTop: '6px', fontStyle: 'italic' }}>
-              🔇 Silenciado en la mesa del Master para evitar eco.
+              <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}><VolumeX size={13} strokeWidth={2.2} /> Silenciado en la mesa del Master para evitar eco.</span>
             </div>
           </div>
         </div>

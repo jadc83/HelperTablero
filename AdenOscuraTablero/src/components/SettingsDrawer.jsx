@@ -1,5 +1,33 @@
 import React, { useState, useRef } from 'react';
 import { OBJECT_PRESETS, LIGHT_PRESETS } from './MapCreator';
+import {
+  Map,
+  Eye,
+  FileText,
+  Zap,
+  Package,
+  Settings,
+  X,
+  Trash2,
+  Plus,
+  GripVertical,
+  Check,
+  Pencil,
+  ChevronUp,
+  ChevronDown,
+  Save,
+  Upload,
+  Scroll,
+  BookOpen,
+  Search,
+  MapPin,
+  Gift,
+  Hammer,
+  ArrowLeftRight,
+  ArrowRight,
+  ImagePlus,
+  Lock
+} from 'lucide-react';
 import { exportJSON, importJSON } from '../utils/fileDialog';
 import { ITEM_CATEGORIES, POPULAR_ITEM_ICONS } from '../constants/commonItems';
 
@@ -256,44 +284,15 @@ const renderTabIcon = (tabId, isActive) => {
   const size = 13;
   switch (tabId) {
     case 'escenario':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
-          <line x1="8" y1="2" x2="8" y2="18"/>
-          <line x1="16" y1="6" x2="16" y2="22"/>
-        </svg>
-      );
+      return <Map size={size} strokeWidth={2.2} style={{ color }} />;
     case 'niebla':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
-          <circle cx="12" cy="12" r="3"/>
-        </svg>
-      );
+      return <Eye size={size} strokeWidth={2.2} style={{ color }} />;
     case 'notas':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-          <polyline points="14 2 14 8 20 8"/>
-          <line x1="16" y1="13" x2="8" y2="13"/>
-          <line x1="16" y1="17" x2="8" y2="17"/>
-          <polyline points="10 9 9 9 8 9"/>
-        </svg>
-      );
+      return <FileText size={size} strokeWidth={2.2} style={{ color }} />;
     case 'estados':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
-        </svg>
-      );
+      return <Zap size={size} strokeWidth={2.2} style={{ color }} />;
     case 'items':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 8H3a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z"/>
-          <path d="M23 8l-4-5H5L1 8"/>
-          <circle cx="12" cy="14" r="2"/>
-        </svg>
-      );
+      return <Package size={size} strokeWidth={2.2} style={{ color }} />;
     default:
       return null;
   }
@@ -361,7 +360,7 @@ const renderTabIcon = (tabId, isActive) => {
           style={{ padding: '4px 11px', fontSize: '11px' }}
           title="Cerrar Centro de Mando"
         >
-          ✕ Cerrar
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><X size={13} strokeWidth={2.4} /> Cerrar</span>
         </button>
       </div>
 
@@ -407,11 +406,7 @@ const renderTabIcon = (tabId, isActive) => {
             <div className="vtt-wood-panel" style={{ padding: '12px 14px', borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '8px', flex: 1, overflow: 'hidden' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#d4af37', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#d4af37" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
-                    <line x1="8" y1="2" x2="8" y2="18"/>
-                    <line x1="16" y1="6" x2="16" y2="22"/>
-                  </svg>
+                  <Map size={14} strokeWidth={2.2} style={{ color: '#d4af37' }} />
                   <span>Selector de Escenas y Planos ({scenes.length})</span>
                 </div>
 
@@ -440,10 +435,7 @@ const renderTabIcon = (tabId, isActive) => {
                     }}
                     title={confirmDeleteAllScenes ? "Confirmar borrado total de todas las escenas" : "Borrar todas las escenas"}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
+                    <Trash2 size={13} strokeWidth={2.2} />
                     {confirmDeleteAllScenes && <span>¿Borrar todo?</span>}
                   </button>
                 )}
@@ -469,10 +461,7 @@ const renderTabIcon = (tabId, isActive) => {
                   style={{ flex: 1 }}
                 />
                 <button type="submit" className="vtt-brass-plate-btn" style={{ padding: '6px 14px' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                    <line x1="12" y1="5" x2="12" y2="19"/>
-                    <line x1="5" y1="12" x2="19" y2="12"/>
-                  </svg>
+                  <Plus size={13} strokeWidth={2.4} />
                   <span>Crear Escena</span>
                 </button>
               </form>
@@ -672,9 +661,7 @@ const renderTabIcon = (tabId, isActive) => {
                               style={{ opacity: idx === 0 ? 0.3 : 1, cursor: idx === 0 ? 'default' : 'pointer', padding: '2px 4px' }}
                               title="Subir escena"
                             >
-                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <polyline points="18 15 12 9 6 15"/>
-                              </svg>
+                              <ChevronUp size={11} strokeWidth={2.4} />
                             </button>
                             <button
                               type="button"
@@ -687,9 +674,7 @@ const renderTabIcon = (tabId, isActive) => {
                               style={{ opacity: idx === scenes.length - 1 ? 0.3 : 1, cursor: idx === scenes.length - 1 ? 'default' : 'pointer', padding: '2px 4px' }}
                               title="Bajar escena"
                             >
-                              <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <polyline points="6 9 12 15 18 9"/>
-                              </svg>
+                              <ChevronDown size={11} strokeWidth={2.4} />
                             </button>
                           </div>
                         )}
@@ -706,11 +691,7 @@ const renderTabIcon = (tabId, isActive) => {
                             style={{ color: '#fbbf24', padding: '3px 5px' }}
                             title={`Editar plano de "${sc.name}" en el Creador de Mapas`}
                           >
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                              <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
-                              <line x1="8" y1="2" x2="8" y2="18"/>
-                              <line x1="16" y1="6" x2="16" y2="22"/>
-                            </svg>
+                            <Map size={12} strokeWidth={2.2} />
                           </button>
                         )}
                         {confirmDeleteSceneId === sc.id ? (
@@ -783,10 +764,7 @@ const renderTabIcon = (tabId, isActive) => {
                               style={{ color: '#f87171', padding: '3px 6px' }}
                               title={`Eliminar escena "${sc.name}"`}
                             >
-                              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                <line x1="18" y1="6" x2="6" y2="18"/>
-                                <line x1="6" y1="6" x2="18" y2="18"/>
-                              </svg>
+                              <Trash2 size={11} strokeWidth={2.2} />
                             </button>
                           )
                         )}
@@ -806,11 +784,7 @@ const renderTabIcon = (tabId, isActive) => {
                       className="vtt-brass-plate-btn"
                       title="Guardar la aventura completa con todas las escenas, mapas, fichas y estado"
                     >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                        <polyline points="17 21 17 13 7 13 7 21"/>
-                        <polyline points="7 3 7 8 15 8"/>
-                      </svg>
+                      <Save size={13} strokeWidth={2.2} />
                       <span>Guardar Aventura</span>
                     </button>
                   )}
@@ -822,11 +796,7 @@ const renderTabIcon = (tabId, isActive) => {
                       className="vtt-brass-plate-btn"
                       title="Cargar e importar una aventura guardada previamente en formato .json"
                     >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="7 10 12 15 17 10"/>
-                        <line x1="12" y1="15" x2="12" y2="3"/>
-                      </svg>
+                      <Upload size={13} strokeWidth={2.2} />
                       <span>Cargar Aventura</span>
                     </button>
                   )}
@@ -838,12 +808,7 @@ const renderTabIcon = (tabId, isActive) => {
                       className="vtt-conclude-plate-btn"
                       title="Concluir y sellar la crónica actual de forma inmutable, archivándola y dejando la mesa limpia"
                     >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                        <polyline points="14 2 14 8 20 8"/>
-                        <line x1="16" y1="13" x2="8" y2="13"/>
-                        <line x1="16" y1="17" x2="8" y2="17"/>
-                      </svg>
+                      <Scroll size={13} strokeWidth={2.2} />
                       <span>Concluir Aventura</span>
                     </button>
                   )}
@@ -984,7 +949,7 @@ const renderTabIcon = (tabId, isActive) => {
                       }}
                       title="Eliminar pista"
                     >
-                      ✕
+                      <X size={12} strokeWidth={2.4} />
                     </button>
                   </div>
                 ))}
@@ -1175,7 +1140,7 @@ const renderTabIcon = (tabId, isActive) => {
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '15px' }}>📚</span>
+                    <BookOpen size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
                     <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em' }}>
                       Catálogo Común de Objetos
                     </span>
@@ -1187,8 +1152,8 @@ const renderTabIcon = (tabId, isActive) => {
 
                 {/* Buscador de Objetos del Catálogo */}
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <span style={{ position: 'absolute', left: '10px', fontSize: '12px', color: '#64748b', pointerEvents: 'none' }}>
-                    🔍
+                  <span style={{ position: 'absolute', left: '10px', display: 'flex', alignItems: 'center', color: '#64748b', pointerEvents: 'none' }}>
+                    <Search size={13} strokeWidth={2.2} />
                   </span>
                   <input
                     type="text"
@@ -1223,7 +1188,7 @@ const renderTabIcon = (tabId, isActive) => {
                       }}
                       title="Borrar búsqueda"
                     >
-                      ✕
+                      <X size={12} strokeWidth={2.4} />
                     </button>
                   )}
                 </div>
@@ -1309,7 +1274,7 @@ const renderTabIcon = (tabId, isActive) => {
                                   }}
                                   title="Colocar en el suelo del tablero para que los personajes puedan recogerlo"
                                 >
-                                  📍 Suelo
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><MapPin size={11} strokeWidth={2.2} /> Suelo</span>
                                 </button>
                               )}
                               <button
@@ -1337,7 +1302,7 @@ const renderTabIcon = (tabId, isActive) => {
                                 }}
                                 title={effectiveRecipientId ? `Entregar a ${effectiveRecipientName}` : 'Selecciona un destinatario abajo'}
                               >
-                                🎁 Entregar
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Gift size={11} strokeWidth={2.2} /> Entregar</span>
                               </button>
                               {!isDefaultPreset && onDeleteCommonItem && (
                                 <button
@@ -1353,7 +1318,7 @@ const renderTabIcon = (tabId, isActive) => {
                                   }}
                                   title="Eliminar plantilla del catálogo"
                                 >
-                                  🗑️
+                                  <Trash2 size={13} strokeWidth={2.2} />
                                 </button>
                               )}
                             </div>
@@ -1388,7 +1353,7 @@ const renderTabIcon = (tabId, isActive) => {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '15px' }}>🛠️</span>
+                    <Hammer size={15} strokeWidth={2.2} style={{ color: '#f59e0b' }} />
                     <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: '#f59e0b', letterSpacing: '0.04em' }}>
                       Forjar Nuevo Objeto
                     </span>
@@ -1556,7 +1521,7 @@ const renderTabIcon = (tabId, isActive) => {
                           opacity: commonItemName.trim() ? 1 : 0.4
                         }}
                       >
-                        ⭐ Guardar
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Save size={12} strokeWidth={2.2} /> Guardar</span>
                       </button>
 
                       {onPlaceGroundItem && (
@@ -1592,7 +1557,7 @@ const renderTabIcon = (tabId, isActive) => {
                           }}
                           title="Colocar directamente en el suelo del tablero"
                         >
-                          📍 En Suelo
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><MapPin size={11} strokeWidth={2.2} /> En Suelo</span>
                         </button>
                       )}
 
@@ -1631,7 +1596,7 @@ const renderTabIcon = (tabId, isActive) => {
                         }}
                         title={effectiveRecipientId ? `Entregar directamente a ${effectiveRecipientName}` : 'Selecciona un destinatario abajo'}
                       >
-                        🎁 Entregar
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Gift size={11} strokeWidth={2.2} /> Entregar</span>
                       </button>
                     </div>
                   </div>
@@ -1651,7 +1616,7 @@ const renderTabIcon = (tabId, isActive) => {
                 gap: '10px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '15px' }}>🎁</span>
+                  <ArrowLeftRight size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
                   <div>
                     <span className="vtt-gothic-title" style={{ fontSize: '13px', fontWeight: 800, color: '#fbbf24', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
                       Traspaso de Objetos entre Personajes
@@ -1709,7 +1674,7 @@ const renderTabIcon = (tabId, isActive) => {
 
                   {/* Flecha indicadora */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: '14px', color: '#fbbf24', fontSize: '13px', fontWeight: 700 }}>
-                    ➔
+                    <ArrowRight size={14} strokeWidth={2.4} />
                   </div>
 
                   {/* Destinatario de Entrega */}
@@ -1826,7 +1791,7 @@ const renderTabIcon = (tabId, isActive) => {
                               }}
                               title={effectiveRecipientId ? `Transferir "${item.name}" a ${effectiveRecipientName}` : 'Selecciona un destinatario'}
                             >
-                              Traspasar ➔
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>Traspasar <ArrowRight size={11} strokeWidth={2.4} /></span>
                             </button>
                           </div>
                         ))}
@@ -1875,7 +1840,7 @@ const renderTabIcon = (tabId, isActive) => {
                   className="vtt-brass-btn"
                   style={{ borderRadius: '6px', padding: '5px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 'bold' }}
                 >
-                  + 📷 Subir Icono
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><ImagePlus size={12} strokeWidth={2.2} /> Subir Icono</span>
                 </button>
                 <input type="file" accept="image/*" ref={statusIconInputRef} onChange={handleStatusIconUpload} style={{ display: 'none' }} />
               </div>
@@ -1918,8 +1883,8 @@ const renderTabIcon = (tabId, isActive) => {
                     <div key={status.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: '#141822', border: '1px solid #2e3546', padding: '6px 10px', borderRadius: '7px', fontSize: '12px' }}>
                       {isImage ? <img src={status.icon} style={{ width: '16px', height: '16px', borderRadius: '2px', objectFit: 'cover' }} alt="" /> : <span>{status.icon}</span>}
                       <span style={{ fontWeight: 600 }}>{status.label}</span>
-                      {status.effect === 'immobilize' && <span style={{ fontSize: '10px', color: '#f87171' }}>(🔒)</span>}
-                      <button onClick={() => onRemoveCustomStatus(status.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', marginLeft: '2px' }}>✕</button>
+                      {status.effect === 'immobilize' && <span style={{ fontSize: '10px', color: '#f87171' }}><Lock size={11} strokeWidth={2.2} /></span>}
+                      <button onClick={() => onRemoveCustomStatus(status.id)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold', marginLeft: '2px' }}><X size={12} strokeWidth={2.5} /></button>
                     </div>
                   );
                 })}
@@ -2084,11 +2049,7 @@ const renderTabIcon = (tabId, isActive) => {
                   </>
                 ) : (
                   <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                      <polyline points="17 21 17 13 7 13 7 21"/>
-                      <polyline points="7 3 7 8 15 8"/>
-                    </svg>
+                    <Save size={14} strokeWidth={2.2} />
                     <span>Guardar Aventura</span>
                   </>
                 )}
@@ -2141,7 +2102,7 @@ const renderTabIcon = (tabId, isActive) => {
             }}>
               <div>
                 <h3 className="vtt-gothic-title" style={{ margin: 0, fontSize: '18px', color: '#fbbf24', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span>📜</span> Concluir Aventura y Archivar
+                  <Scroll size={14} strokeWidth={2.2} /> Concluir Aventura y Archivar
                 </h3>
                 <p style={{ margin: '4px 0 0 0', fontSize: '12px', color: '#94a3b8' }}>
                   Sella esta crónica de forma permanente, archívala y despeja la mesa para tu próxima historia.

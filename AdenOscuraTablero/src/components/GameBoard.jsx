@@ -1,4 +1,5 @@
 import React from 'react';
+import { Ruler, Bell } from 'lucide-react';
 import GridLayer from './GridLayer';
 import MapLayer from './MapLayer';
 import FogLayer, { isPointVisibleToPlayers } from './FogLayer';
@@ -24,7 +25,7 @@ const GameBoard = ({
   onUpdateTokenStats, onOpenTokenSheet, customStatuses,
   rulerMeasure, pings = [], holdProgress = null, radialMenu = null, onCloseRadialMenu, onSelectSpatialSound,
   customSounds = [],
-  draggedMapElement = null, onMapElementPointerDown, onRotateMapElement, onToggleMapElementLock, onInspectObject, onRemoveMapElement,
+  draggedMapElement = null, onMapElementPointerDown, onRotateMapElement, onToggleMapElementLock, onUpdateMapElement, onDuplicateMapElement, onInspectObject, onRemoveMapElement,
   onToggleDoor, onToggleWindow, onToggleObject, onToggleLight,
   onProjectHandout,
   activeTurnTokenId = null,
@@ -131,7 +132,7 @@ const GameBoard = ({
             boxShadow: '0 6px 16px rgba(0,0,0,0.85)'
           }}
         >
-          📏 {squares} casillas ({feet} ft / {meters} m)
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Ruler size={13} strokeWidth={2.2} /> {squares} casillas ({feet} ft / {meters} m)</span>
         </div>
       </div>
     );
@@ -318,6 +319,8 @@ const GameBoard = ({
           onMapElementPointerDown={onMapElementPointerDown}
           onRotateMapElement={onRotateMapElement}
           onToggleMapElementLock={onToggleMapElementLock}
+          onUpdateMapElement={onUpdateMapElement}
+          onDuplicateMapElement={onDuplicateMapElement}
           onInspectObject={onInspectObject}
           onRemoveMapElement={onRemoveMapElement}
           onToggleDoor={onToggleDoor}
@@ -511,7 +514,7 @@ const GameBoard = ({
               boxShadow: '0 0 18px rgba(212, 175, 55, 0.95)',
               animation: 'vttSoundPulse 0.8s ease-in-out infinite'
             }}>
-              {ping.icon || '🔔'}
+              {ping.icon || <Bell size={18} strokeWidth={2.2} style={{ color: '#fbbf24' }} />}
             </div>
             {ping.label && (
               <div
@@ -568,7 +571,7 @@ const GameBoard = ({
             }}
             title="Emitir Señal Visual (Ping)"
           >
-            🔔
+            <Bell size={20} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
           </button>
 
           {radialSounds.map((snd, idx) => {

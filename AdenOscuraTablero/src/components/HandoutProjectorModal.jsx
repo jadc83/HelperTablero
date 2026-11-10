@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { Monitor, X, Square, Upload, Eye, EyeOff, Trash2, Scroll } from 'lucide-react';
 
 const HandoutProjectorModal = ({
   isOpen,
@@ -87,11 +88,7 @@ const HandoutProjectorModal = ({
               color: '#fef08a',
               boxShadow: '0 2px 8px rgba(0,0,0,0.6)'
             }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="2" y="3" width="20" height="14" rx="2"/>
-                <line x1="8" y1="21" x2="16" y2="21"/>
-                <line x1="12" y1="17" x2="12" y2="21"/>
-              </svg>
+              <Monitor size={18} strokeWidth={2.2} />
             </span>
             <div>
               <h2 className="vtt-gothic-title" style={{ margin: 0, fontSize: '17px', color: '#f8fafc', letterSpacing: '0.05em' }}>
@@ -108,7 +105,7 @@ const HandoutProjectorModal = ({
             style={{ padding: '5px 12px', fontSize: '11px' }}
             title="Cerrar proyector"
           >
-            ✕ Cerrar
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><X size={13} strokeWidth={2.4} /> Cerrar</span>
           </button>
         </div>
 
@@ -141,7 +138,7 @@ const HandoutProjectorModal = ({
               className="vtt-danger-plate-btn"
               style={{ padding: '4px 10px', fontSize: '11px', flexShrink: 0 }}
             >
-              ⏹ Detener Proyección
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Square size={11} strokeWidth={2.4} /> Detener Proyección</span>
             </button>
           </div>
         )}
@@ -176,11 +173,7 @@ const HandoutProjectorModal = ({
             className="vtt-brass-plate-btn"
             style={{ padding: '9px 16px', fontSize: '12px', flexShrink: 0 }}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-              <polyline points="17 8 12 3 7 8"/>
-              <line x1="12" y1="3" x2="12" y2="15"/>
-            </svg>
+            <Upload size={14} strokeWidth={2.2} />
             <span>Subir Documento o Imagen</span>
           </button>
         </div>
@@ -284,7 +277,7 @@ const HandoutProjectorModal = ({
                       }}
                       title={isShowing ? 'Ocultar documento de la pantalla de jugadores' : 'Proyectar este documento a pantalla completa a los jugadores'}
                     >
-                      {isShowing ? '⏹ Ocultar' : '👁️ Proyectar'}
+                      {isShowing ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><EyeOff size={12} strokeWidth={2.2} /> Ocultar</span> : <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Eye size={12} strokeWidth={2.2} /> Proyectar</span>}
                     </button>
 
                     {onRemoveHandout && (
@@ -294,10 +287,7 @@ const HandoutProjectorModal = ({
                         style={{ color: '#f87171', padding: '5px 7px' }}
                         title="Eliminar de la galería"
                       >
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                          <polyline points="3 6 5 6 21 6"/>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                        </svg>
+                        <Trash2 size={13} strokeWidth={2.2} />
                       </button>
                     )}
                   </div>
@@ -318,7 +308,7 @@ const HandoutProjectorModal = ({
               alignItems: 'center',
               gap: '12px'
             }}>
-              <span style={{ fontSize: '36px', opacity: 0.6 }}>📜</span>
+              <Scroll size={36} strokeWidth={1.75} style={{ opacity: 0.6, color: '#d4af37' }} />
               <div style={{ maxWidth: '420px', lineHeight: 1.6 }}>
                 Aún no has añadido pistas a la crónica. Usa el campo superior para subir cartas, retratos o mapas de investigación y mostrárselos a tus jugadores en tiempo real.
               </div>

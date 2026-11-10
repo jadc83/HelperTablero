@@ -1,5 +1,19 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  Eye,
+  EyeOff,
+  Captions,
+  CaptionsOff,
+  Activity,
+  Lock,
+  Unlock,
+  Shield,
+  FileText,
+  Droplet,
+  UserCheck,
+  Swords
+} from 'lucide-react';
 
 const GameToken = ({
   token,
@@ -203,7 +217,7 @@ const GameToken = ({
           }}
           title="En Sigilo (Invisible en Pantalla de Jugadores)"
         >
-          👻
+          <EyeOff size={12} strokeWidth={2.3} style={{ color: '#e9d5ff' }} />
         </div>
       )}
 
@@ -345,7 +359,8 @@ const GameToken = ({
               title={`Encuentro: ${combatGroup.name}`}
             />
           )}
-          <span>{isGraveWound ? '🩸 ' : ''}{token.name}</span>
+          {isGraveWound && <Droplet size={11} strokeWidth={2.5} style={{ color: '#f87171', fill: '#ef4444', flexShrink: 0 }} />}
+          <span>{token.name}</span>
         </div>
       )}
 
@@ -387,8 +402,8 @@ const GameToken = ({
           onPointerDown={(e) => e.stopPropagation()}
           style={{
             position: 'fixed', 
-            top: `${Math.max(12, Math.min(menuState.y, window.innerHeight - 380))}px`, 
-            left: `${Math.max(12, Math.min(menuState.x, window.innerWidth - 250))}px`,
+            top: `${Math.max(12, Math.min(menuState.y, window.innerHeight - 320))}px`, 
+            left: `${Math.max(12, Math.min(menuState.x, window.innerWidth - 275))}px`,
             background: 'linear-gradient(180deg, #1b202c 0%, #11141c 100%)', 
             padding: '12px 14px', 
             borderRadius: '10px',
@@ -397,8 +412,8 @@ const GameToken = ({
             zIndex: 999999, 
             display: 'flex', 
             flexDirection: 'column', 
-            gap: '8px',
-            width: '235px',
+            gap: '10px',
+            width: '256px',
             maxHeight: 'calc(100vh - 24px)',
             overflowY: 'auto',
             color: '#e2e8f0',
@@ -406,27 +421,38 @@ const GameToken = ({
             scrollbarColor: '#475569 transparent'
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #283144', paddingBottom: '7px' }}>
-            <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 'bold' }}>
+          {/* CABECERA */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #283144', paddingBottom: '8px', gap: '8px' }}>
+            <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 'bold', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {token.name}
             </span>
             {onOpenSheet && (
               <button
+                type="button"
                 onPointerDown={(e) => {
                   e.stopPropagation();
                   setMenuState({ visible: false, x: 0, y: 0 });
                   onOpenSheet(token);
                 }}
                 className="vtt-primary-cta"
-                style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '10px', cursor: 'pointer' }}
+                style={{ width: '30px', height: '28px', padding: 0, borderRadius: '6px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+                title="Abrir Ficha del Personaje"
               >
-                Ficha
+                <FileText size={14} strokeWidth={2.2} />
               </button>
             )}
           </div>
 
-          <div style={{ display: 'flex', gap: '6px' }}>
+          {/* BARRA COMPACTA DE ICONOS DE ACCIÓN (Idéntica al menú de objetos) */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '5px'
+          }}>
+            {/* 1. Visibilidad (Oculto / Visible) */}
             <button
+              type="button"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -434,21 +460,25 @@ const GameToken = ({
               }}
               style={{
                 flex: 1,
+                height: '34px',
                 cursor: 'pointer',
-                padding: '6px 8px',
-                borderRadius: '5px',
-                fontWeight: 700,
-                fontSize: '11px',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 background: isHidden ? 'linear-gradient(180deg, #6b21a8 0%, #3b0764 100%)' : '#171c26',
                 border: isHidden ? '1px solid #c084fc' : '1px solid #2b3345',
-                color: isHidden ? '#f3e8ff' : '#cbd5e1'
+                color: isHidden ? '#f3e8ff' : '#cbd5e1',
+                transition: 'all 0.15s ease'
               }}
-              title="Oculta o revela esta ficha en la pantalla de los jugadores"
+              title={isHidden ? 'Oculto a jugadores (clic para revelar)' : 'Visible a jugadores (clic para ocultar)'}
             >
-              {isHidden ? 'Oculto' : 'Visible'}
+              {isHidden ? <EyeOff size={16} strokeWidth={2.2} /> : <Eye size={16} strokeWidth={2.2} />}
             </button>
 
+            {/* 2. Bando / Facción */}
             <button
+              type="button"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -456,11 +486,12 @@ const GameToken = ({
               }}
               style={{
                 flex: 1,
+                height: '34px',
                 cursor: 'pointer',
-                padding: '6px 8px',
-                borderRadius: '5px',
-                fontWeight: 700,
-                fontSize: '11px',
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 background: faction === 'enemy'
                   ? 'linear-gradient(180deg, #991b1b 0%, #450a0a 100%)'
                   : faction === 'player'
@@ -471,79 +502,94 @@ const GameToken = ({
                   : faction === 'player'
                   ? '1px solid #34d399'
                   : '1px solid #60a5fa',
-                color: '#fff'
+                color: '#fff',
+                transition: 'all 0.15s ease'
               }}
-              title="Alternar bando: Jugador (PJ), Aliado (PNJ) o Enemigo"
+              title={`Bando actual: ${faction === 'enemy' ? 'Enemigo' : faction === 'player' ? 'Jugador (PJ)' : 'Aliado (PNJ)'} (clic para cambiar)`}
             >
-              {faction === 'enemy' ? 'Enemigo' : faction === 'player' ? 'Jugador' : 'Aliado'}
+              {faction === 'enemy'
+                ? <Swords size={16} strokeWidth={2.2} />
+                : faction === 'player'
+                ? <UserCheck size={16} strokeWidth={2.2} />
+                : <Shield size={16} strokeWidth={2.2} />}
             </button>
-          </div>
 
-          <div style={{ display: 'flex', gap: '6px' }}>
+            {/* 3. Nombre flotante */}
             <button
+              type="button"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 if (onToggleName) onToggleName(token.id);
               }}
-              className="vtt-brass-btn"
               style={{
                 flex: 1,
+                height: '34px',
                 cursor: 'pointer',
-                padding: '6px 8px',
-                borderRadius: '5px',
-                fontWeight: 700,
-                fontSize: '11px',
-                borderColor: token.showName !== false ? '#f59e0b' : '#2b3345',
-                color: token.showName !== false ? '#fbbf24' : '#94a3b8'
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: token.showName !== false ? 'rgba(245, 158, 11, 0.14)' : '#171c26',
+                border: token.showName !== false ? '1px solid #f59e0b' : '1px solid #2b3345',
+                color: token.showName !== false ? '#fbbf24' : '#64748b',
+                transition: 'all 0.15s ease'
               }}
-              title="Muestra u oculta la etiqueta con el nombre sobre la ficha en el tablero"
+              title={token.showName !== false ? 'Ocultar etiqueta de nombre en el tablero' : 'Mostrar etiqueta de nombre en el tablero'}
             >
-              {token.showName !== false ? 'Ocultar Nombre' : 'Mostrar Nombre'}
+              {token.showName !== false ? <Captions size={16} strokeWidth={2.2} /> : <CaptionsOff size={16} strokeWidth={2.2} />}
             </button>
 
+            {/* 4. Barras de Salud/Magia/Cordura */}
             <button
+              type="button"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 if (onToggleBars) onToggleBars(token.id);
               }}
-              className="vtt-brass-btn"
               style={{
                 flex: 1,
+                height: '34px',
                 cursor: 'pointer',
-                padding: '6px 8px',
-                borderRadius: '5px',
-                fontWeight: 700,
-                fontSize: '11px',
-                borderColor: token.showBars ? '#10b981' : '#2b3345',
-                color: token.showBars ? '#34d399' : '#94a3b8'
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: token.showBars ? 'rgba(16, 185, 129, 0.14)' : '#171c26',
+                border: token.showBars ? '1px solid #10b981' : '1px solid #2b3345',
+                color: token.showBars ? '#34d399' : '#64748b',
+                transition: 'all 0.15s ease'
               }}
-              title="Muestra u oculta las barras de Salud, Magia y Cordura sobre el mapa"
+              title={token.showBars ? 'Ocultar barras de Salud, Magia y Cordura' : 'Mostrar barras de Salud, Magia y Cordura'}
             >
-              {token.showBars ? 'Ocultar Barras' : 'Mostrar Barras'}
+              <Activity size={16} strokeWidth={2.2} />
             </button>
-          </div>
 
-          <div style={{ display: 'flex', gap: '6px' }}>
+            {/* 5. Bloquear / Desbloquear posición */}
             <button
+              type="button"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
                 if (onToggleLock) onToggleLock(token.id);
-                setMenuState({ visible: false, x: 0, y: 0 });
               }}
-              className="vtt-brass-btn"
               style={{
                 flex: 1,
+                height: '34px',
                 cursor: 'pointer',
-                padding: '6px 8px',
-                borderRadius: '5px',
-                fontWeight: 700,
-                fontSize: '11px'
+                borderRadius: '6px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                background: token.isLocked ? 'rgba(245, 158, 11, 0.14)' : '#171c26',
+                border: token.isLocked ? '1px solid #f59e0b' : '1px solid #2b3345',
+                color: token.isLocked ? '#fbbf24' : '#cbd5e1',
+                transition: 'all 0.15s ease'
               }}
+              title={token.isLocked ? 'Posición bloqueada (clic para desbloquear)' : 'Bloquear posición en el tablero'}
             >
-              {token.isLocked ? 'Desbloquear posición' : 'Bloquear posición'}
+              {token.isLocked ? <Lock size={16} strokeWidth={2.2} /> : <Unlock size={16} strokeWidth={2.2} />}
             </button>
           </div>
 

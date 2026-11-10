@@ -13,6 +13,28 @@ import {
   GiDetective
 } from './icons/GameIcons';
 import SearchableCombobox from './SearchableCombobox';
+import {
+  Save,
+  Pencil,
+  Upload,
+  Download,
+  X,
+  Eye,
+  Shield,
+  AlertTriangle,
+  Footprints,
+  Swords,
+  Zap,
+  MapPin,
+  Search,
+  Gift,
+  Hand,
+  Backpack,
+  Package,
+  Trash2,
+  Sparkles,
+  BookOpen
+} from 'lucide-react';
 import { PROFESSIONS_CATALOG, EDUCATION_CATALOG, CITIES_CATALOG } from '../constants/biographyData';
 
 export const getItemIcon = (item, size = 26) => {
@@ -437,7 +459,7 @@ const CharacterSheetModal = ({
               }}
               title={isEditingHeader ? "Cerrar modo edición (autoguardar cambios)" : "Activar modo edición"}
             >
-              {isEditingHeader ? '💾' : '✏️'}
+              {isEditingHeader ? <Save size={14} strokeWidth={2.2} /> : <Pencil size={14} strokeWidth={2.2} />}
             </button>
             <input type="file" accept=".json" ref={importCharInputRef} onChange={handleImportSingleCharacter} style={{ display: 'none' }} />
             <button
@@ -447,7 +469,7 @@ const CharacterSheetModal = ({
               style={{ padding: '7px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
               title={isMonster ? "Cargar datos desde un archivo JSON de criatura" : "Cargar datos desde un archivo JSON de personaje"}
             >
-              {isMonster ? '📥 Importar Criatura' : '📥 Importar Ficha'}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Upload size={13} strokeWidth={2.2} /> {isMonster ? 'Importar Criatura' : 'Importar Ficha'}</span>
             </button>
             <button
               type="button"
@@ -456,7 +478,7 @@ const CharacterSheetModal = ({
               style={{ padding: '7px 12px', borderRadius: '8px', fontSize: '12px', fontWeight: 600, cursor: 'pointer' }}
               title={isMonster ? "Descargar esta criatura en un archivo JSON" : "Descargar este personaje en un archivo JSON"}
             >
-              {isMonster ? '📤 Exportar Criatura' : '📤 Exportar Ficha'}
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Download size={13} strokeWidth={2.2} /> {isMonster ? 'Exportar Criatura' : 'Exportar Ficha'}</span>
             </button>
             <button
               type="button"
@@ -466,7 +488,7 @@ const CharacterSheetModal = ({
                 color: '#fca5a5', borderRadius: '8px', width: '34px', height: '34px', cursor: 'pointer', fontSize: '15px', fontWeight: 'bold'
               }}
             >
-              ✕
+              <X size={16} strokeWidth={2.4} style={{ display: 'block', margin: '0 auto' }} />
             </button>
           </div>
         </div>
@@ -550,7 +572,7 @@ const CharacterSheetModal = ({
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap', fontSize: '12px' }}>
                     <div>
-                      <span style={{ color: '#f59e0b', marginRight: '5px', fontWeight: 700 }}>👁️ P. Cordura:</span>
+                      <span style={{ color: '#f59e0b', marginRight: '5px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Eye size={12} strokeWidth={2.2} /> P. Cordura:</span>
                       <span style={{ color: '#fef08a', fontWeight: 800 }}>{sanityLoss.trim() || '1/1D6'}</span>
                     </div>
 
@@ -1079,7 +1101,7 @@ const CharacterSheetModal = ({
                   <div style={{ background: '#181420', border: '1px solid rgba(245, 158, 11, 0.45)', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '13px', fontWeight: 700, color: '#facc15', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>👁️</span> Pérdida de Cordura (Horror)
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Eye size={13} strokeWidth={2.2} /> Pérdida de Cordura (Horror)</span>
                       </span>
                       <span className="vtt-retro-badge" style={{ fontSize: '14px', fontWeight: 800, color: '#fef08a' }}>{sanityLoss || '1/1D6'}</span>
                     </div>
@@ -1147,7 +1169,7 @@ const CharacterSheetModal = ({
                 <div style={{ background: '#141822', border: '1px solid #2c3344', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0' }}>
-                      {isMonster ? '🛡️ Armadura Natural y Resistencia' : 'Protección y Armadura'}
+                      {isMonster ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Shield size={13} strokeWidth={2.2} /> Armadura Natural y Resistencia</span> : 'Protección y Armadura'}
                     </span>
                     <button
                       type="button"
@@ -1243,7 +1265,7 @@ const CharacterSheetModal = ({
                         boxShadow: isGraveWound ? '0 0 16px rgba(239, 68, 68, 0.6)' : 'none'
                       }}
                     >
-                      {isGraveWound ? '⚠️ HERIDA GRAVE ACTIVA' : 'Estable (Sin Herida Grave)'}
+                      {isGraveWound ? <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><AlertTriangle size={12} strokeWidth={2.2} /> HERIDA GRAVE ACTIVA</span> : 'Estable (Sin Herida Grave)'}
                     </button>
                   </div>
                 </div>
@@ -1260,7 +1282,7 @@ const CharacterSheetModal = ({
                 }}>
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: 700, color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>🏃</span> Velocidad Base por Turno
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Footprints size={13} strokeWidth={2.2} /> Velocidad Base por Turno</span>
                     </div>
                     <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
                       Distancia máxima en combate ({speed * 5} ft / {(speed * 1.5).toFixed(1)} m). Con Herida Grave se reduce a {Math.max(1, Math.floor(speed / 2))} casillas.
@@ -1309,7 +1331,7 @@ const CharacterSheetModal = ({
               }}>
                 <div>
                   <div style={{ fontSize: '13px', fontWeight: 700, color: '#fca5a5', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span>⚔️</span> Acciones Ofensivas y Habilidades de Combate
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Swords size={13} strokeWidth={2.2} /> Acciones Ofensivas y Habilidades de Combate</span>
                   </div>
                   <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '2px' }}>
                     Ataques naturales, zarpazos, mordiscos, presas y rasgos especiales en mesa
@@ -1442,10 +1464,10 @@ const CharacterSheetModal = ({
                       <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <span style={{ fontSize: '13px', fontWeight: 700, color: '#f8fafc' }}>{att.name}</span>
                         <span style={{ fontSize: '11px', fontWeight: 800, color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.15)', padding: '2px 7px', borderRadius: '4px', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-                          💥 {att.damage || '1D6'}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><Zap size={11} strokeWidth={2.2} /> {att.damage || '1D6'}</span>
                         </span>
                         <span style={{ fontSize: '11px', color: '#94a3b8' }}>
-                          📍 {att.range || 'Cuerpo a cuerpo'}
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><MapPin size={11} strokeWidth={2.2} /> {att.range || 'Cuerpo a cuerpo'}</span>
                         </span>
                       </div>
                       {att.desc && (
@@ -2022,7 +2044,7 @@ const CharacterSheetModal = ({
                     maxWidth: '320px',
                     boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.4)'
                   }}>
-                    <span style={{ color: '#64748b', fontSize: '11px', marginRight: '6px' }}>🔍</span>
+                    <Search size={12} strokeWidth={2.2} style={{ color: '#64748b', marginRight: '6px', flexShrink: 0 }} />
                     <input
                       type="text"
                       value={inventorySearch}
@@ -2119,7 +2141,7 @@ const CharacterSheetModal = ({
                           {/* Buscador interno del catálogo común */}
                           <div style={{ padding: '2px 2px 6px', borderBottom: '1px solid #222c3d', marginBottom: '6px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', background: '#0a0d14', border: '1px solid #2f3b52', borderRadius: '5px', padding: '2px 8px' }}>
-                              <span style={{ color: '#64748b', fontSize: '10px', marginRight: '5px' }}>🔍</span>
+                              <Search size={11} strokeWidth={2.2} style={{ color: '#64748b', marginRight: '5px', flexShrink: 0 }} />
                               <input
                                 type="text"
                                 value={commonFilter}
@@ -2438,7 +2460,7 @@ const CharacterSheetModal = ({
                             fontWeight: 'bold'
                           }}
                         >
-                          ✕
+                          <X size={13} strokeWidth={2.4} />
                         </button>
 
                         {/* Moneda de Oro Pirata (Emblema Central de Acción) */}
@@ -2527,7 +2549,7 @@ const CharacterSheetModal = ({
                               color: '#fbbf24'
                             }}
                           >
-                            <span>✋</span>
+                            <Hand size={13} strokeWidth={2.2} />
                             <span>Mover de hueco (⇄)</span>
                           </button>
 
@@ -2560,7 +2582,7 @@ const CharacterSheetModal = ({
                                 color: '#38bdf8'
                               }}
                             >
-                              <span>🎒</span>
+                              <Backpack size={13} strokeWidth={2.2} />
                               <span>Poner en el Inventario</span>
                             </button>
                           )}
@@ -2594,7 +2616,7 @@ const CharacterSheetModal = ({
                                 color: '#fbbf24'
                               }}
                             >
-                              <span>🎒</span>
+                              <Backpack size={13} strokeWidth={2.2} />
                               <span>Guardar en la Mochila</span>
                             </button>
                           )}
@@ -2623,7 +2645,7 @@ const CharacterSheetModal = ({
                                 color: '#cbd5e1'
                               }}
                             >
-                              <span>📦</span>
+                              <Package size={13} strokeWidth={2.2} />
                               <span>Dejar en "No lo lleva"</span>
                             </button>
                           )}
@@ -2652,7 +2674,7 @@ const CharacterSheetModal = ({
                                 color: '#fca5a5'
                               }}
                             >
-                              <span>🫳</span>
+                              <MapPin size={13} strokeWidth={2.2} />
                               <span>Tirar al suelo del tablero</span>
                             </button>
                           )}
@@ -2678,7 +2700,7 @@ const CharacterSheetModal = ({
                             }}
                           >
                             <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span>🎁</span>
+                              <Gift size={13} strokeWidth={2.2} />
                               <span>Dar a otro personaje</span>
                             </span>
                             <span style={{ fontSize: '10px' }}>{showTransferMenu ? '▲' : '▼'}</span>
@@ -2774,7 +2796,7 @@ const CharacterSheetModal = ({
                             onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.borderColor = 'transparent'; }}
                           >
-                            <span>🗑️</span>
+                            <Trash2 size={13} strokeWidth={2.2} />
                             <span>Eliminar objeto</span>
                           </button>
                         </div>
@@ -2833,7 +2855,7 @@ const CharacterSheetModal = ({
                   <div key={sp.id} style={{ background: '#141822', padding: '12px 14px', borderRadius: '10px', border: '1px solid rgba(59, 130, 246, 0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '10px' }}>
                     <div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontWeight: 700, color: '#f8fafc', fontSize: '13px' }}>✨ {sp.name}</span>
+                        <span style={{ fontWeight: 700, color: '#f8fafc', fontSize: '13px', display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Sparkles size={13} strokeWidth={2.2} style={{ color: '#fbbf24' }} /> {sp.name}</span>
                         <span className="vtt-retro-badge" style={{ fontSize: '10px', padding: '2px 7px', borderRadius: '999px', backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#93c5fd' }}>
                           {sp.cost}
                         </span>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BookOpen, Scroll } from 'lucide-react';
 import { getClassificationMeta } from './EncyclopediaView';
 import { getRecentCampaigns } from '../utils/campaignStorage';
 
@@ -162,9 +163,10 @@ const HomeScreen = ({
             justifyContent: 'center',
             fontSize: '24px',
             border: '1.5px solid #f59e0b',
-            boxShadow: '0 4px 20px rgba(245, 158, 11, 0.25)'
+            boxShadow: '0 4px 20px rgba(245, 158, 11, 0.25)',
+            color: '#fbbf24'
           }}>
-            ⚜️
+            <BookOpen size={22} strokeWidth={2.2} />
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -368,7 +370,7 @@ const HomeScreen = ({
                                   fontWeight: 700,
                                   flexShrink: 0
                                 }}>
-                                  📜 Concluida
+                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Scroll size={11} strokeWidth={2.2} /> Concluida</span>
                                 </span>
                               )}
                             </div>

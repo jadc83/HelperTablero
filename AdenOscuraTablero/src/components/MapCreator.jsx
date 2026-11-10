@@ -7,7 +7,23 @@ import {
   AppWindow,
   Package,
   Flame,
-  Scroll
+  Scroll,
+  Map,
+  Upload,
+  Download,
+  Crosshair,
+  X,
+  Save,
+  ImagePlus,
+  Lightbulb,
+  ZoomIn,
+  ZoomOut,
+  RotateCw,
+  Sliders,
+  Sun,
+  Pencil,
+  Copy,
+  Trash2
 } from 'lucide-react';
 
 export const OBJECT_PRESETS = [
@@ -448,9 +464,10 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
               background: 'linear-gradient(135deg, #f59e0b 0%, #b45309 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               border: '1.5px solid #fbbf24', fontSize: '20px',
-              boxShadow: '0 2px 10px rgba(245, 158, 11, 0.35)'
+              boxShadow: '0 2px 10px rgba(245, 158, 11, 0.35)',
+              color: '#fff'
             }}>
-              🗺️
+              <Map size={20} strokeWidth={2.2} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column' }}>
               <h1 className="vtt-gothic-title" style={{
@@ -480,13 +497,13 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
 
           <div style={{ display: 'flex', gap: '6px' }}>
             <button onClick={() => handleImportMapConfig()} className="vtt-brass-btn" style={{ padding: '6px 11px', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-              <span>📥</span> Importar escena
+              <Upload size={13} strokeWidth={2.2} /> Importar escena
             </button>
             <button onClick={handleExportMapConfig} className="vtt-brass-btn" style={{ padding: '6px 11px', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-              <span>📤</span> Exportar escena
+              <Download size={13} strokeWidth={2.2} /> Exportar escena
             </button>
             <button onClick={() => { setPan({ x: 0, y: 0 }); setScale(0.85); }} className="vtt-brass-btn" style={{ padding: '6px 11px', borderRadius: '7px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 }}>
-              <span>🎯</span> Centrar Lienzo
+              <Crosshair size={13} strokeWidth={2.2} /> Centrar Lienzo
             </button>
           </div>
         </div>
@@ -507,7 +524,7 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
             }}
             title="Salir sin guardar los cambios recientes"
           >
-            ✕ Cancelar
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><X size={13} strokeWidth={2.4} /> Cancelar</span>
           </button>
 
           <button
@@ -532,7 +549,7 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
             }}
             title="Guardar plano y volver a Ajustes"
           >
-            <span>💾</span> Guardar y volver
+            <Save size={15} strokeWidth={2.2} /> Guardar y volver
           </button>
         </div>
       </div>
@@ -579,7 +596,7 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
                 transition: 'all 0.15s ease'
               }}
             >
-              <span style={{ fontSize: '24px' }}>🗺️</span>
+              <ImagePlus size={22} strokeWidth={2} style={{ color: '#93c5fd', flexShrink: 0 }} />
               <div>
                 <div style={{ fontSize: '13px', fontWeight: 700, color: '#93c5fd' }}>Subir imagen</div>
                 <div style={{ fontSize: '11px', color: '#94a3b8' }}>Imagen PNG, JPG o WebP</div>
@@ -780,7 +797,7 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
             color: '#94a3b8',
             lineHeight: '1.5'
           }}>
-            <div style={{ fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}>💡 Controles Rápidos:</div>
+            <div style={{ fontWeight: 700, color: '#cbd5e1', marginBottom: '4px' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Lightbulb size={13} strokeWidth={2.2} style={{ color: '#fbbf24' }} /> Controles Rápidos:</span></div>
             <div>• <strong>Doble clic</strong> en Puerta/Ventana para rotar 90º.</div>
             <div>• <strong>Doble clic</strong> en Objeto/Luz/Nota para editar.</div>
             <div>• <strong>Supr / Backspace</strong> elimina lo seleccionado.</div>
@@ -837,7 +854,7 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
               {toolMode === 'wall' ? (
                 <>
                   <span>
-                    <strong style={{ color: '#f87171' }}>🧱 Modo Trazar Muros:</strong> Arrastra con clic izquierdo en el lienzo para levantar paredes.
+                    <strong style={{ color: '#f87171', display: 'inline-flex', alignItems: 'center', gap: '5px' }}><BrickWall size={14} strokeWidth={2.2} /> Modo Trazar Muros:</strong> Arrastra con clic izquierdo en el lienzo para levantar paredes.
                   </span>
                   <button
                     onClick={() => setToolMode('select')}
@@ -860,37 +877,37 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
                   <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                     {selectedElement && (selectedElement.type === 'image' || !selectedElement.type) && (
                       <>
-                        <button onClick={() => handleScaleSelectedImage(0.9)} className="vtt-brass-btn" style={{ padding: '4px 9px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>🔍 -10%</button>
-                        <button onClick={() => handleScaleSelectedImage(1.1)} className="vtt-brass-btn" style={{ padding: '4px 9px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>🔍 +10%</button>
+                        <button onClick={() => handleScaleSelectedImage(0.9)} className="vtt-brass-btn" style={{ padding: '4px 9px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><ZoomOut size={12} strokeWidth={2.2} /> -10%</span></button>
+                        <button onClick={() => handleScaleSelectedImage(1.1)} className="vtt-brass-btn" style={{ padding: '4px 9px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><ZoomIn size={12} strokeWidth={2.2} /> +10%</span></button>
                       </>
                     )}
 
                     {selectedElement && (selectedElement.type === 'door' || selectedElement.type === 'window') && (
                       <button onClick={handleRotateSelected} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>
-                        🔄 Rotar 90º
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><RotateCw size={12} strokeWidth={2.2} /> Rotar 90º</span>
                       </button>
                     )}
 
                     {selectedElement && selectedElement.type === 'object' && (
-                      <button onClick={() => setEditingObject(selectedElement)} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>
-                        Propiedades
+                      <button onClick={() => setEditingObject(selectedElement)} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, gap: '5px' }}>
+                        <Sliders size={12} strokeWidth={2.2} /> Propiedades
                       </button>
                     )}
 
                     {selectedElement && selectedElement.type === 'light' && (
-                      <button onClick={() => setEditingLight(selectedElement)} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>
-                        Radio de Luz
+                      <button onClick={() => setEditingLight(selectedElement)} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, gap: '5px' }}>
+                        <Sun size={12} strokeWidth={2.2} /> Radio de Luz
                       </button>
                     )}
 
                     {selectedElement && selectedElement.type === 'note' && (
-                      <button onClick={() => setEditingNote(selectedElement)} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 }}>
-                        Editar Texto
+                      <button onClick={() => setEditingNote(selectedElement)} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', fontWeight: 600, gap: '5px' }}>
+                        <Pencil size={12} strokeWidth={2.2} /> Editar Texto
                       </button>
                     )}
 
-                    <button onClick={handleDuplicateSelected} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px' }}>
-                      Duplicar
+                    <button onClick={handleDuplicateSelected} className="vtt-brass-btn" style={{ padding: '4px 10px', borderRadius: '6px', cursor: 'pointer', fontSize: '11px', gap: '5px' }}>
+                      <Copy size={12} strokeWidth={2.2} /> Duplicar
                     </button>
 
                     <button
@@ -906,7 +923,7 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
                         fontWeight: 700
                       }}
                     >
-                      Eliminar
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Trash2 size={12} strokeWidth={2.2} /> Eliminar</span>
                     </button>
                   </div>
                 </>
@@ -929,7 +946,7 @@ const MapCreator = ({ initialElements, onLoadMapToBoard, onClose, onReturnToSett
               borderRadius: '14px',
               maxWidth: '420px'
             }}>
-              <div style={{ fontSize: '36px', marginBottom: '10px' }}>🗺️</div>
+              <div style={{ marginBottom: '10px', display: 'flex', justifyContent: 'center', color: '#fbbf24' }}><Map size={36} strokeWidth={1.75} /></div>
               <div className="vtt-gothic-title" style={{ fontSize: '16px', color: '#f8fafc', fontWeight: 'bold', marginBottom: '6px' }}>
                 Lienzo de Escenario Listo
               </div>

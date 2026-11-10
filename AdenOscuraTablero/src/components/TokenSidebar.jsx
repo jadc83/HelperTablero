@@ -2,6 +2,21 @@ import React, { useState, useEffect, useRef } from 'react';
 import { LIGHT_PRESETS } from './MapCreator';
 import { getGameIconComponent } from './icons/GameIcons';
 import { importJSON } from '../utils/fileDialog';
+import {
+  Grip,
+  Pencil,
+  FolderOpen,
+  Search,
+  X,
+  Swords,
+  Play,
+  SkipForward,
+  Square,
+  Star,
+  Trash2,
+  Circle,
+  ArrowRight
+} from 'lucide-react';
 
 const SectionAccordion = ({ title, count, isExpanded, onClick, children, tooltip }) => (
   <div
@@ -586,12 +601,7 @@ const TokenSidebar = ({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
                     <span style={{ color: '#64748b', display: 'inline-flex', cursor: 'grab', userSelect: 'none' }} title="Arrastrar al tablero">
-                      <svg width="10" height="10" viewBox="0 0 14 14" fill="currentColor">
-                        <rect x="2" y="2" width="3" height="3" rx="0.7"/>
-                        <rect x="8.5" y="2" width="3" height="3" rx="0.7"/>
-                        <rect x="2" y="8.5" width="3" height="3" rx="0.7"/>
-                        <rect x="8.5" y="8.5" width="3" height="3" rx="0.7"/>
-                      </svg>
+                      <Grip size={12} strokeWidth={2.2} />
                     </span>
                     <div style={{
                       width: '24px',
@@ -633,7 +643,7 @@ const TokenSidebar = ({
                         style={{ borderRadius: '6px', padding: '4px 7px', cursor: 'pointer', fontSize: '11px' }}
                         title="Abrir y editar ficha"
                       >
-                        ✏️
+                        <Pencil size={12} strokeWidth={2.2} />
                       </button>
                     )}
                   </div>
@@ -674,7 +684,7 @@ const TokenSidebar = ({
                   }}
                   title="Cargar archivo JSON de personajes"
                 >
-                  <span>📂</span>
+                  <FolderOpen size={13} strokeWidth={2.2} />
                   <span>Cargar Personajes (JSON)</span>
                 </button>
               </div>
@@ -732,12 +742,7 @@ const TokenSidebar = ({
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
                     <span style={{ color: '#64748b', display: 'inline-flex', cursor: 'grab', userSelect: 'none' }} title="Arrastrar al tablero">
-                      <svg width="10" height="10" viewBox="0 0 14 14" fill="currentColor">
-                        <rect x="2" y="2" width="3" height="3" rx="0.7"/>
-                        <rect x="8.5" y="2" width="3" height="3" rx="0.7"/>
-                        <rect x="2" y="8.5" width="3" height="3" rx="0.7"/>
-                        <rect x="8.5" y="8.5" width="3" height="3" rx="0.7"/>
-                      </svg>
+                      <Grip size={12} strokeWidth={2.2} />
                     </span>
                     <div style={{
                       width: '24px',
@@ -779,7 +784,7 @@ const TokenSidebar = ({
                         style={{ borderRadius: '6px', padding: '4px 7px', cursor: 'pointer', fontSize: '11px' }}
                         title="Abrir y editar ficha"
                       >
-                        ✏️
+                        <Pencil size={12} strokeWidth={2.2} />
                       </button>
                     )}
                   </div>
@@ -820,7 +825,7 @@ const TokenSidebar = ({
                   }}
                   title="Cargar archivo JSON de criaturas y monstruos"
                 >
-                  <span>📂</span>
+                  <FolderOpen size={13} strokeWidth={2.2} />
                   <span>Cargar Bestiario (JSON)</span>
                 </button>
               </div>
@@ -860,7 +865,7 @@ const TokenSidebar = ({
 
             {/* Buscador de botín / objetos comunes */}
             <div style={{ display: 'flex', alignItems: 'center', background: '#0e1117', border: '1px solid #232a3a', borderRadius: '6px', padding: '3px 8px', marginBottom: '6px' }}>
-              <span style={{ color: '#64748b', fontSize: '11px', marginRight: '6px' }}>🔍</span>
+              <Search size={12} strokeWidth={2.2} style={{ color: '#64748b', marginRight: '6px', flexShrink: 0 }} />
               <input
                 type="text"
                 value={lootSearchQuery}
@@ -874,7 +879,7 @@ const TokenSidebar = ({
                   onClick={() => setLootSearchQuery('')}
                   style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '10px' }}
                 >
-                  ✕
+                  <X size={12} strokeWidth={2.4} />
                 </button>
               )}
             </div>
@@ -1043,7 +1048,7 @@ const TokenSidebar = ({
                     style={{ padding: '3px 7px', fontSize: '10px', borderRadius: '4px', cursor: 'pointer' }}
                     title="Dividir en grupos de combate independientes para personajes en distintas zonas"
                   >
-                    ⚔️ + Grupos
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Swords size={11} strokeWidth={2.2} /> + Grupos</span>
                   </button>
                 )}
                 {!isCombatActive ? (
@@ -1055,7 +1060,7 @@ const TokenSidebar = ({
                       style={{ padding: '3px 8px', fontSize: '10px', borderRadius: '4px', cursor: 'pointer' }}
                       title="Iniciar el combate siguiendo el orden de la lista"
                     >
-                      ▶ Iniciar
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Play size={10} strokeWidth={2.4} /> Iniciar</span>
                     </button>
                   )
                 ) : (
@@ -1087,7 +1092,7 @@ const TokenSidebar = ({
                         style={{ padding: '3px 8px', fontSize: '10px', borderRadius: '4px', cursor: 'pointer' }}
                         title="Pasar al siguiente turno en la lista y restablecer movimiento"
                       >
-                        ▶ Sig. Turno
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><SkipForward size={10} strokeWidth={2.4} /> Sig. Turno</span>
                       </button>
                     )}
                     {onEndCombat && (
@@ -1106,7 +1111,7 @@ const TokenSidebar = ({
                         }}
                         title="Finalizar el combate"
                       >
-                        ⏹
+                        <Square size={10} strokeWidth={2.4} />
                       </button>
                     )}
                   </>
@@ -1119,7 +1124,7 @@ const TokenSidebar = ({
               </span>
             ) : (
               <span style={{ fontSize: '10px', color: '#94a3b8', fontStyle: 'italic', marginTop: '2px' }}>
-                Pulsa <strong style={{ color: '#fbbf24' }}>▶ Iniciar</strong> para comenzar el combate y activar el límite de movimiento por turno.
+                Pulsa <strong style={{ color: '#fbbf24' }}><span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Play size={10} strokeWidth={2.4} /> Iniciar</span></strong> para comenzar el combate y activar el límite de movimiento por turno.
               </span>
             )}
           </div>
@@ -1140,7 +1145,7 @@ const TokenSidebar = ({
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span style={{ fontSize: '11px', color: '#fbbf24', fontWeight: 700 }}>
-                ⚔️ Encuentros ({combatGroups.length})
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Swords size={12} strokeWidth={2.2} /> Encuentros ({combatGroups.length})</span>
               </span>
             </div>
             <div style={{ display: 'flex', gap: '5px' }}>
@@ -1171,7 +1176,7 @@ const TokenSidebar = ({
                   }}
                   title="Disolver todos los encuentros y volver a la lista unificada"
                 >
-                  ✕ Disolver
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><X size={11} strokeWidth={2.4} /> Disolver</span>
                 </button>
               )}
             </div>
@@ -1418,12 +1423,7 @@ const TokenSidebar = ({
                       title="Arrastra para reordenar fluidamente los turnos"
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <svg width="12" height="12" viewBox="0 0 14 14" fill="currentColor">
-                        <rect x="2" y="2" width="3.5" height="3.5" rx="0.8" />
-                        <rect x="8.5" y="2" width="3.5" height="3.5" rx="0.8" />
-                        <rect x="2" y="8.5" width="3.5" height="3.5" rx="0.8" />
-                        <rect x="8.5" y="8.5" width="3.5" height="3.5" rx="0.8" />
-                      </svg>
+                      <Grip size={13} strokeWidth={2.2} />
                     </span>
                     <span
                       style={{
@@ -1751,7 +1751,7 @@ const TokenSidebar = ({
                             }}
                             title="Asignar el turno activo a este combatiente"
                           >
-                            ★ Turno
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Star size={10} strokeWidth={2.4} /> Turno</span>
                           </button>
                         )}
 
@@ -1806,7 +1806,7 @@ const TokenSidebar = ({
                           }}
                           title="Retirar del mapa sin enviar a la cripta"
                         >
-                          ✕
+                          <X size={11} strokeWidth={2.4} />
                         </button>
                       </div>
                     </div>
@@ -2208,7 +2208,7 @@ const TokenSidebar = ({
                             }}
                             title="Clic para renombrar este encuentro"
                           >
-                            {group.name} ✏️
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{group.name} <Pencil size={10} strokeWidth={2.2} /></span>
                           </span>
                         )}
                         <span style={{ fontSize: '10px', color: '#64748b' }}>({groupTokens.length})</span>
@@ -2224,7 +2224,7 @@ const TokenSidebar = ({
                               style={{ padding: '2px 7px', fontSize: '9px', borderRadius: '4px', cursor: 'pointer' }}
                               title="Iniciar combate en este grupo"
                             >
-                              ▶ Iniciar
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Play size={10} strokeWidth={2.4} /> Iniciar</span>
                             </button>
                           )
                         ) : (
@@ -2240,7 +2240,7 @@ const TokenSidebar = ({
                                 style={{ padding: '2px 6px', fontSize: '9px', borderRadius: '4px', cursor: 'pointer' }}
                                 title="Siguiente turno en este encuentro"
                               >
-                                ▶ Sig.
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}><SkipForward size={10} strokeWidth={2.4} /> Sig.</span>
                               </button>
                             )}
                             {onEndGroupCombat && (
@@ -2278,7 +2278,7 @@ const TokenSidebar = ({
                             }}
                             title="Eliminar este grupo (las fichas quedan libres)"
                           >
-                            🗑️
+                            <Trash2 size={12} strokeWidth={2.2} />
                           </button>
                         )}
                       </div>
@@ -2350,7 +2350,7 @@ const TokenSidebar = ({
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: '10px', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.04em' }}>
-                      ⭕ FUERA DE COMBATE / LIBRES ({tokens.filter(t => !t.combatGroupId).length})
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><Circle size={10} strokeWidth={2.4} /> FUERA DE COMBATE / LIBRES</span> ({tokens.filter(t => !t.combatGroupId).length})
                     </span>
                     <span style={{ fontSize: '9px', color: '#64748b', fontStyle: 'italic' }}>
                       {(activeDrag?.overGroupId === 'free' || dragOverGroupId === 'free') ? 'Soltar aquí para liberar del combate' : 'Movimiento libre'}
@@ -2391,7 +2391,7 @@ const TokenSidebar = ({
               className="vtt-brass-btn"
               style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11px', fontWeight: 700, cursor: 'pointer', color: '#fbbf24', borderColor: '#f59e0b' }}
             >
-              Abrir Elementos →
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>Abrir Elementos <ArrowRight size={12} strokeWidth={2.4} /></span>
             </button>
           </div>
         )}
@@ -2433,26 +2433,15 @@ const TokenSidebar = ({
             zIndex: 40
           }}
         >
-          <svg
-            width="16"
-            height="16"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          <Trash2
+            size={16}
+            strokeWidth={2.2}
             style={{
               transform: activeDrag?.isOverTrash ? 'scale(1.25) rotate(-6deg)' : 'scale(1)',
               transition: 'transform 0.15s ease',
               color: activeDrag?.isOverTrash ? '#ffffff' : '#ef4444'
             }}
-          >
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
-          </svg>
+          />
           <span style={{ fontSize: '11px', fontWeight: 700, letterSpacing: '0.03em' }}>
             {activeDrag?.isOverTrash ? 'Soltar para retirar del tablero' : 'Arrastra aquí abajo para retirar'}
           </span>

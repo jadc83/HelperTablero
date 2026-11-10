@@ -1,4 +1,14 @@
 import React from 'react';
+import {
+  BookOpen,
+  Map,
+  Skull,
+  SkipForward,
+  Monitor,
+  Projector,
+  Settings,
+  HelpCircle
+} from 'lucide-react';
 
 const Toolbar = ({
   onOpenHome,
@@ -62,7 +72,7 @@ const Toolbar = ({
             color: '#fbbf24',
             boxShadow: '0 2px 8px rgba(245, 158, 11, 0.25)'
           }}>
-            ⚜
+            <BookOpen size={15} strokeWidth={2.2} />
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
             <span className="vtt-gothic-title" style={{ fontSize: '13px', color: '#f8fafc', fontWeight: 800, letterSpacing: '0.05em', lineHeight: 1.1 }}>
@@ -86,6 +96,7 @@ const Toolbar = ({
           borderRadius: '6px',
           border: '1px solid #262e40'
         }}>
+          <Map size={13} strokeWidth={2.2} style={{ color: '#94a3b8' }} />
           <span style={{ fontSize: '11px', color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
             Escena
           </span>
@@ -136,7 +147,7 @@ const Toolbar = ({
             }}
             title="Abrir Cripta y Cementerio de Caídos"
           >
-            <span style={{ fontSize: '13px' }}>⚰️</span>
+            <Skull size={14} strokeWidth={2.2} style={{ color: '#cbd5e1' }} />
             <span>Cripta</span>
             {graveyardCount > 0 && (
               <span style={{
@@ -249,7 +260,9 @@ const Toolbar = ({
               }}
               title="Avanzar al siguiente turno"
             >
-              Sig. Turno →
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                Sig. Turno <SkipForward size={11} strokeWidth={2.5} />
+              </span>
             </button>
           )}
 
@@ -293,6 +306,7 @@ const Toolbar = ({
           title="Abre la ventana sincronizada en tiempo real para proyectar o llevar a la pantalla de jugadores"
         >
           <span style={{ display: 'inline-block', width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#10b981', boxShadow: '0 0 5px #10b981' }}></span>
+          <Monitor size={14} strokeWidth={2.2} />
           Pantalla Jugadores
         </button>
 
@@ -319,6 +333,7 @@ const Toolbar = ({
             backgroundColor: hasActiveHandout ? '#10b981' : '#38bdf8',
             boxShadow: hasActiveHandout ? '0 0 6px #10b981' : '0 0 4px #38bdf8'
           }} />
+          <Projector size={14} strokeWidth={2.2} />
           Proyector {handoutsCount > 0 ? `(${handoutsCount})` : ''}
         </button>
 
@@ -330,10 +345,12 @@ const Toolbar = ({
             borderRadius: '6px',
             fontSize: '12px',
             fontWeight: 600,
-            cursor: 'pointer'
+            cursor: 'pointer',
+            gap: '6px'
           }}
           title="Abre el Centro de Mando: Escenas, Niebla, Estados y Decorado"
         >
+          <Settings size={14} strokeWidth={2.2} />
           Ajustes
         </button>
 
@@ -352,7 +369,7 @@ const Toolbar = ({
           }}
           title="Guía rápida y tutorial del Grimorio VTT"
         >
-          <span style={{ fontSize: '11px' }}>❓</span>
+          <HelpCircle size={14} strokeWidth={2.2} />
           Ayuda
         </button>
       </div>

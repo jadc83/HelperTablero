@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Sparkles, Dices, X, Eye, EyeOff } from 'lucide-react';
 
 const DICE_TYPES = [4, 6, 8, 10, 12, 20, 100];
 
@@ -166,7 +167,7 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
           title="Haz clic para cerrar"
         >
           <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#d4af37', fontWeight: 'bold' }}>
-            ⚜️ Destino: {screenRoll.formula}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}><Sparkles size={13} strokeWidth={2.2} /> Destino: {screenRoll.formula}</span>
           </div>
           <div
             className="vtt-gothic-title"
@@ -235,7 +236,7 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
             {/* Cabecera */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #6b4c2b', paddingBottom: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ fontSize: '16px' }}>🎲</span>
+                <Dices size={16} strokeWidth={2.2} style={{ color: '#d4af37' }} />
                 <span className="vtt-gothic-title" style={{ fontWeight: 'bold', fontSize: '14px', color: '#d4af37' }}>
                   Cubilete del Destino
                 </span>
@@ -245,7 +246,7 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                 style={{ background: 'transparent', border: 'none', color: '#c5a059', cursor: 'pointer', fontSize: '16px' }}
                 title="Cerrar panel"
               >
-                ✕
+                <X size={15} strokeWidth={2.4} />
               </button>
             </div>
 
@@ -469,7 +470,7 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                 }}
                 title="Lanzamiento visible para todos los jugadores en la Pantalla 3D"
               >
-                👁️ Público (3D)
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}><Eye size={12} strokeWidth={2.2} /> Público (3D)</span>
               </button>
               <button
                 type="button"
@@ -481,7 +482,7 @@ const DiceRoller = ({ isOpen, onClose, onPublicRoll, onHiddenRoll, incomingResul
                 }}
                 title="Tirada oculta: solo el Máster ve el resultado en su pantalla"
               >
-                👻 Oculto (Local)
+                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}><EyeOff size={12} strokeWidth={2.2} /> Oculto (Local)</span>
               </button>
             </div>
 
