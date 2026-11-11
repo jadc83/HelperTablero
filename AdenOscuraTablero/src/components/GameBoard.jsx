@@ -29,7 +29,7 @@ const GameBoard = ({
   rulerMeasure, holdProgress = null, radialMenu = null, onSelectSpatialSound,
   customSounds = [],
   draggedMapElement = null, onMapElementPointerDown, onToggleMapElementLock, onUpdateMapElement, onDuplicateMapElement, onInspectObject, onRemoveMapElement,
-  onToggleDoor, onToggleWindow, onToggleObject, onToggleLight,
+  onToggleDoor, onToggleWindow, onToggleObject, onToggleLight, onSetAllLights,
   handouts = [], onProjectHandout,
   activeTurnTokenId = null,
   onPickUpItem,
@@ -334,6 +334,7 @@ const GameBoard = ({
           onToggleWindow={onToggleWindow}
           onToggleObject={onToggleObject}
           onToggleLight={onToggleLight}
+          onSetAllLights={onSetAllLights}
           handouts={handouts}
           onProjectHandout={onProjectHandout}
           activeTurnTokenId={activeTurnTokenId}

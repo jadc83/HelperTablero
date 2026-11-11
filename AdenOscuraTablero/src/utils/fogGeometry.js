@@ -261,3 +261,53 @@ export const isPointVisibleToPlayers = (tx, ty, viewerTokens = [], maps = [], vi
 
   return false;
 };
+
+const DEFAULT_FOG_BOUNDS = { left: -1000, top: -1000, width: 4000, height: 4000 };
+
+/**
+ * Calcula los límites mundiales de la niebla de guerra ajustados al tamaño real
+ * del mapa cargado (o al área por defecto si no hay imagen de mapa aún),
+ * escalando el backing-store para mapas muy grandes sin superar límites WebGL/Canvas.
+ */
+export const computeFogBounds = (maps = [], maxBackingDim = 3072) => {
+  const mapImages = (maps || []).filter(
+    el => (el.type === 'image' || !el.type) && Number(el.width) > 0 && Number(el.height) > 0
+  );
+
+  let bounds = DEFAULT_FOG_BOUNDS;
+  if (mapImages.length > 0) {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+
+    for (let i = 0; i < mapImages.length; i++) {
+      const m = mapImages[i];
+      const mx = Number(m.x) || 0;
+      const my = Number(m.y) || 0;
+      const mw = Number(m.width) || 0;
+      const mh = Number(m.height) || 0;
+      if (mx < minX) minX = mx;
+      if (my < minY) minY = my;
+      if (mx + mw > maxX) maxX = mx + mw;
+      if (my + mh > maxY) maxY = my + mh;
+    }
+
+    bounds = {
+      left: minX,
+      top: minY,
+      width: Math.max(1, maxX - minX),
+      height: Math.max(1, maxY - minY)
+    };
+  }
+
+  const maxSide = Math.max(bounds.width, bounds.height);
+  const scale = Math.min(1, maxBackingDim / maxSide);
+
+  return {
+    ...bounds,
+    scale,
+    canvasWidth: Math.max(1, Math.round(bounds.width * scale)),
+    canvasHeight: Math.max(1, Math.round(bounds.height * scale))
+  };
+};

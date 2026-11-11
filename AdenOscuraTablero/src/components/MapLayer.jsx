@@ -22,6 +22,7 @@ const MapLayer = ({
   onToggleWindow,
   onToggleObject,
   onToggleLight,
+  onSetAllLights,
   handouts = [],
   onProjectHandout,
   activeTurnTokenId = null,
@@ -539,6 +540,7 @@ const MapLayer = ({
         onToggleWindow={onToggleWindow}
         onToggleObject={onToggleObject}
         onToggleLight={onToggleLight}
+        onSetAllLights={onSetAllLights}
         onProjectHandout={onProjectHandout}
         onPickUpItem={onPickUpItem}
         onReadNote={(noteEl) => setReadingNote(noteEl)}

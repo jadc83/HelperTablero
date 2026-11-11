@@ -788,6 +788,7 @@ function App() {
     handleToggleWindow,
     handleToggleObject,
     handleToggleLight,
+    handleSetAllLights,
     handleWheel,
     handleStartDragCharacter,
     handleEndDragCharacter,
@@ -1723,6 +1724,7 @@ function App() {
           onToggleWindow={handleToggleWindow}
           onToggleObject={handleToggleObject}
           onToggleLight={handleToggleLight}
+          onSetAllLights={handleSetAllLights}
           handouts={handouts}
           onProjectHandout={handleProjectHandoutWithMode}
           onPickUpItem={handlePickUpItem}

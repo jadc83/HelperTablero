@@ -1,9 +1,6 @@
 import { useEffect, useRef, useMemo } from 'react';
-import { getVisionBlockers, raySegmentIntersection, angleDiff } from '../utils/fogGeometry';
+import { getVisionBlockers, raySegmentIntersection, angleDiff, computeFogBounds } from '../utils/fogGeometry';
 import { useAppSettings } from '../hooks/useAppSettings';
-
-const CANVAS_SIZE = 4000;
-const CANVAS_OFFSET = 1000;
 
 const computeVisibilityPolygon = (ox, oy, radius, angleDeg = 0, fovDeg = 90, blockers = []) => {
   const isFullCircle = fovDeg >= 360;
@@ -57,8 +54,8 @@ const computeVisibilityPolygon = (ox, oy, radius, angleDeg = 0, fovDeg = 90, blo
     }
 
     points.push({
-      x: ox + dx * closestT + CANVAS_OFFSET,
-      y: oy + dy * closestT + CANVAS_OFFSET
+      x: ox + dx * closestT,
+      y: oy + dy * closestT
     });
   }
   return points;
@@ -66,8 +63,6 @@ const computeVisibilityPolygon = (ox, oy, radius, angleDeg = 0, fovDeg = 90, blo
 
 const drawVisionMask = (ctx, ox, oy, radius, angleDeg = 0, fovDeg = 90, sourceSize = 50, blockers = [], isMemoryStamp = false) => {
   if (!Number.isFinite(ox) || !Number.isFinite(oy) || !Number.isFinite(radius) || radius <= 0) return;
-  const cx = ox + CANVAS_OFFSET;
-  const cy = oy + CANVAS_OFFSET;
   const isFullCircle = fovDeg >= 360;
 
   ctx.save();
@@ -95,7 +90,7 @@ const drawVisionMask = (ctx, ox, oy, radius, angleDeg = 0, fovDeg = 90, sourceSi
       ctx.moveTo(polyPoints[0].x, polyPoints[0].y);
       for (let i = 1; i < polyPoints.length; i++) ctx.lineTo(polyPoints[i].x, polyPoints[i].y);
     } else {
-      ctx.moveTo(cx, cy);
+      ctx.moveTo(ox, oy);
       for (let i = 0; i < polyPoints.length; i++) ctx.lineTo(polyPoints[i].x, polyPoints[i].y);
     }
     ctx.closePath();
@@ -105,7 +100,7 @@ const drawVisionMask = (ctx, ox, oy, radius, angleDeg = 0, fovDeg = 90, sourceSi
       ctx.fillStyle = '#ffffff';
       ctx.fill();
     } else {
-      const grad = ctx.createRadialGradient(cx, cy, radius * 0.72, cx, cy, radius);
+      const grad = ctx.createRadialGradient(ox, oy, radius * 0.72, ox, oy, radius);
       grad.addColorStop(0, 'rgba(0,0,0,1)');
       grad.addColorStop(1, 'rgba(0,0,0,0)');
       ctx.fillStyle = grad;
@@ -131,6 +126,9 @@ const FogLayer = ({
   const exploredMaskCanvasRef = useRef(null);
   const lastActionsCountRef = useRef(0);
   const lastSceneIdRef = useRef(activeSceneId);
+  const lastMaskBoundsRef = useRef(null);
+
+  const fogBounds = useMemo(() => computeFogBounds(maps), [maps]);
 
   // Caching de segmentos de muros, puertas y objetos bloqueantes para evitar recálculos por frame
   const cachedBlockers = useMemo(() => getVisionBlockers(maps), [maps]);
@@ -142,36 +140,76 @@ const FogLayer = ({
   useEffect(() => {
     if (!fowEnabled || !fowCanvasRef?.current) return;
 
+    const { left, top, width, height, scale, canvasWidth, canvasHeight } = fogBounds;
+
     // Lienzo de máscara de zonas exploradas (transparente = no visto, blanco = ya explorado)
     if (!exploredMaskCanvasRef.current) {
       const off = document.createElement('canvas');
-      off.width = CANVAS_SIZE;
-      off.height = CANVAS_SIZE;
+      off.width = canvasWidth;
+      off.height = canvasHeight;
       exploredMaskCanvasRef.current = off;
+      lastMaskBoundsRef.current = fogBounds;
     }
 
     const maskCanvas = exploredMaskCanvasRef.current;
-    const maskCtx = maskCanvas.getContext('2d');
+    const prevBounds = lastMaskBoundsRef.current;
+    const maskDimensionsChanged = maskCanvas.width !== canvasWidth || maskCanvas.height !== canvasHeight;
 
-    // Limpiar máscara si cambiamos de escena o si se reinician las acciones de niebla
+    // Limpiar máscara si cambiamos de escena o si se reinician las acciones de niebla;
+    // si solo cambió el tamaño del mapa en la misma escena, reencuadramos lo ya explorado.
     if (activeSceneId !== lastSceneIdRef.current) {
-      maskCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      if (maskDimensionsChanged) {
+        maskCanvas.width = canvasWidth;
+        maskCanvas.height = canvasHeight;
+      } else {
+        maskCanvas.getContext('2d').clearRect(0, 0, canvasWidth, canvasHeight);
+      }
       lastSceneIdRef.current = activeSceneId;
     } else if (fowActions.length === 0 && lastActionsCountRef.current > 0) {
-      maskCtx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      if (maskDimensionsChanged) {
+        maskCanvas.width = canvasWidth;
+        maskCanvas.height = canvasHeight;
+      } else {
+        maskCanvas.getContext('2d').clearRect(0, 0, canvasWidth, canvasHeight);
+      }
+    } else if (
+      maskDimensionsChanged ||
+      (prevBounds && (prevBounds.left !== left || prevBounds.top !== top || prevBounds.width !== width || prevBounds.height !== height))
+    ) {
+      const prevCopy = document.createElement('canvas');
+      prevCopy.width = maskCanvas.width;
+      prevCopy.height = maskCanvas.height;
+      prevCopy.getContext('2d').drawImage(maskCanvas, 0, 0);
+
+      maskCanvas.width = canvasWidth;
+      maskCanvas.height = canvasHeight;
+      const nextMaskCtx = maskCanvas.getContext('2d');
+      nextMaskCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+      if (prevBounds) {
+        nextMaskCtx.save();
+        nextMaskCtx.setTransform(scale, 0, 0, scale, -left * scale, -top * scale);
+        nextMaskCtx.drawImage(prevCopy, prevBounds.left, prevBounds.top, prevBounds.width, prevBounds.height);
+        nextMaskCtx.restore();
+      }
     }
+
+    lastMaskBoundsRef.current = fogBounds;
     lastActionsCountRef.current = fowActions.length;
 
-    let rafId = requestAnimationFrame(() => {
+    const maskCtx = maskCanvas.getContext('2d');
+
+    const rafId = requestAnimationFrame(() => {
       // 1. Si hay memoria de exploración, registramos las zonas visitadas en una máscara limpia (sin acumular opacidad)
       if (fowMemoryEnabled) {
+        maskCtx.save();
+        maskCtx.setTransform(scale, 0, 0, scale, -left * scale, -top * scale);
+
         tokens.forEach(token => {
           if (token.isHidden || token.faction === 'enemy') return;
           const size = token.size || 50;
           const ox = token.x + size / 2;
           const oy = token.y + size / 2;
-          const fov = 90;
-          drawVisionMask(maskCtx, ox, oy, fowVisionRadius, token.rotation || 0, fov, size, cachedBlockers, true);
+          drawVisionMask(maskCtx, ox, oy, fowVisionRadius, token.rotation || 0, 90, size, cachedBlockers, true);
         });
 
         activeLightSources.forEach(light => {
@@ -180,17 +218,20 @@ const FogLayer = ({
           const oy = light.y + lSize / 2;
           drawVisionMask(maskCtx, ox, oy, light.radius || 220, 0, 360, lSize, cachedBlockers, true);
         });
+
+        maskCtx.restore();
       }
 
-      // 2. Componer el lienzo principal con oscuridad total de base
+      // 2. Componer el lienzo principal con oscuridad total ajustada al tamaño del mapa
       const mainCanvas = fowCanvasRef.current;
       if (!mainCanvas) return;
       const ctx = mainCanvas.getContext('2d');
 
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.globalCompositeOperation = 'source-over';
-      ctx.clearRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      ctx.clearRect(0, 0, canvasWidth, canvasHeight);
       ctx.fillStyle = '#050302';
-      ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+      ctx.fillRect(0, 0, canvasWidth, canvasHeight);
 
       // Si la memoria está activa, rebajamos de forma 100% uniforme la opacidad en toda la zona explorada (penumbra limpia)
       if (fowMemoryEnabled) {
@@ -201,12 +242,15 @@ const FogLayer = ({
         ctx.restore();
       }
 
+      ctx.save();
+      ctx.setTransform(scale, 0, 0, scale, -left * scale, -top * scale);
+
       // 3. Aplicar trazos manuales del Master
       for (let i = 0; i < fowActions.length; i++) {
         const act = fowActions[i];
         ctx.save();
         ctx.beginPath();
-        ctx.arc(act.x + CANVAS_OFFSET, act.y + CANVAS_OFFSET, act.size || 80, 0, Math.PI * 2);
+        ctx.arc(act.x, act.y, act.size || 80, 0, Math.PI * 2);
         if (act.mode === 'reveal') {
           ctx.globalCompositeOperation = 'destination-out';
           ctx.fillStyle = 'rgba(0,0,0,1)';
@@ -224,8 +268,7 @@ const FogLayer = ({
         const size = token.size || 50;
         const ox = token.x + size / 2;
         const oy = token.y + size / 2;
-        const fov = 90;
-        drawVisionMask(ctx, ox, oy, fowVisionRadius, token.rotation || 0, fov, size, cachedBlockers, false);
+        drawVisionMask(ctx, ox, oy, fowVisionRadius, token.rotation || 0, 90, size, cachedBlockers, false);
       });
 
       // 5. Recortar a 100% de claridad las Fuentes de Luz estáticas (antorchas, braseros, faroles)
@@ -239,33 +282,35 @@ const FogLayer = ({
         // Tinte cálido o espectral sobre la zona iluminada por la antorcha
         ctx.save();
         ctx.globalCompositeOperation = 'source-over';
-        const cx = ox + CANVAS_OFFSET;
-        const cy = oy + CANVAS_OFFSET;
-        const glow = ctx.createRadialGradient(cx, cy, 4, cx, cy, lRadius * 0.85);
+        const glow = ctx.createRadialGradient(ox, oy, 4, ox, oy, lRadius * 0.85);
         glow.addColorStop(0, light.color || 'rgba(251, 146, 60, 0.22)');
         glow.addColorStop(1, 'rgba(0, 0, 0, 0)');
         ctx.fillStyle = glow;
         ctx.beginPath();
-        ctx.arc(cx, cy, lRadius * 0.85, 0, Math.PI * 2);
+        ctx.arc(ox, oy, lRadius * 0.85, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       });
+
+      ctx.restore();
     });
 
     return () => cancelAnimationFrame(rafId);
-  }, [fowEnabled, fowActions, cachedBlockers, activeLightSources, tokens, fowVisionRadius, fowMemoryEnabled, fowCanvasRef, activeSceneId]);
+  }, [fowEnabled, fowActions, cachedBlockers, activeLightSources, tokens, fowVisionRadius, fowMemoryEnabled, fowCanvasRef, activeSceneId, fogBounds]);
 
   if (!fowEnabled) return null;
 
   return (
     <canvas
       ref={fowCanvasRef}
-      width={CANVAS_SIZE}
-      height={CANVAS_SIZE}
+      width={fogBounds.canvasWidth}
+      height={fogBounds.canvasHeight}
       style={{
         position: 'absolute',
-        top: -CANVAS_OFFSET,
-        left: -CANVAS_OFFSET,
+        top: `${fogBounds.top}px`,
+        left: `${fogBounds.left}px`,
+        width: `${fogBounds.width}px`,
+        height: `${fogBounds.height}px`,
         pointerEvents: 'none',
         zIndex: 8,
         opacity: isPlayerView ? 1 : settings.masterFogOpacity,

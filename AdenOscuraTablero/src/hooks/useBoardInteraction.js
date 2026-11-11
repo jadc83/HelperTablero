@@ -122,16 +122,34 @@ export function useBoardInteraction({
     }));
   };
 
-  const handleToggleLight = (lightId) => {
+  const handleToggleLight = (lightId, forcedState = undefined) => {
     setMaps(prev => prev.map(el => {
       if (el.id === lightId && el.type === 'light') {
-        const nextOn = el.isOn === false;
-        handleTriggerSound('sfx_fireball');
-        showMasterFeedback(`${el.name}: ${nextOn ? 'Encendida' : 'Apagada'}`);
+        const wasOn = el.isOn !== false;
+        const nextOn = typeof forcedState === 'boolean' ? forcedState : !wasOn;
+        if (nextOn !== wasOn) {
+          handleTriggerSound('sfx_fireball');
+        }
+        showMasterFeedback(`${el.name || 'Luz'}: ${nextOn ? 'Encendida' : 'Apagada'}`);
         return { ...el, isOn: nextOn };
       }
       return el;
     }));
+  };
+
+  const handleSetAllLights = (nextOn) => {
+    let changed = 0;
+    setMaps(prev => prev.map(el => {
+      if (el.type === 'light') {
+        if ((el.isOn !== false) !== nextOn) changed += 1;
+        return { ...el, isOn: nextOn };
+      }
+      return el;
+    }));
+    if (changed > 0) {
+      handleTriggerSound('sfx_fireball');
+    }
+    showMasterFeedback(nextOn ? 'Todas las luces encendidas' : 'Todas las luces apagadas');
   };
 
   const isMovementBlocked = (fromX, fromY, toX, toY) => {
@@ -902,6 +920,7 @@ export function useBoardInteraction({
     handleToggleWindow,
     handleToggleObject,
     handleToggleLight,
+    handleSetAllLights,
     cancelHoldTimer,
     handleWheel,
     handleStartDragCharacter,

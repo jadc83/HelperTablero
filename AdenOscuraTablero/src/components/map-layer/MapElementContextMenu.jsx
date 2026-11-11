@@ -12,6 +12,8 @@ import {
   Hand,
   Flame,
   Moon,
+  Sun,
+  LightbulbOff,
   FileText,
   Zap,
   Package,
@@ -49,6 +51,7 @@ const MapElementContextMenu = ({
   onToggleWindow,
   onToggleObject,
   onToggleLight,
+  onSetAllLights,
   onProjectHandout,
   onPickUpItem,
   onReadNote
@@ -632,23 +635,95 @@ const MapElementContextMenu = ({
             </div>
           )}
 
-          {activeItem.type === 'light' && (
-            <button
-              type="button"
-              onClick={() => {
-                if (onToggleLight) onToggleLight(activeItem.id);
-                onClose();
-              }}
-              className="vtt-primary-cta"
-              style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px' }}
-            >
-              {activeItem.isOn !== false ? (
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Moon size={13} strokeWidth={2.2} /> Apagar Luz</span>
-              ) : (
-                <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}><Flame size={13} strokeWidth={2.2} /> Encender Luz</span>
-              )}
-            </button>
-          )}
+          {activeItem.type === 'light' && (() => {
+            const isLightOn = activeItem.isOn !== false;
+            const lightElements = maps.filter(m => m.type === 'light');
+            const allOn = lightElements.length > 0 && lightElements.every(m => m.isOn !== false);
+            const allOff = lightElements.length > 0 && lightElements.every(m => m.isOn === false);
+
+            const lightActions = [
+              {
+                key: 'on-one',
+                icon: Flame,
+                title: 'Encender esta luz',
+                isActive: isLightOn,
+                activeStyle: { background: 'rgba(245, 158, 11, 0.2)', borderColor: '#f59e0b', color: '#fbbf24' },
+                onClick: () => onToggleLight && onToggleLight(activeItem.id, true)
+              },
+              {
+                key: 'off-one',
+                icon: LightbulbOff,
+                title: 'Apagar esta luz',
+                isActive: !isLightOn,
+                activeStyle: { background: 'rgba(100, 116, 139, 0.24)', borderColor: '#94a3b8', color: '#e2e8f0' },
+                onClick: () => onToggleLight && onToggleLight(activeItem.id, false)
+              },
+              {
+                key: 'on-all',
+                icon: Sun,
+                title: 'Encender todas las luces',
+                isActive: allOn,
+                activeStyle: { background: 'rgba(234, 179, 8, 0.2)', borderColor: '#eab308', color: '#fde047' },
+                onClick: () => onSetAllLights && onSetAllLights(true)
+              },
+              {
+                key: 'off-all',
+                icon: Moon,
+                title: 'Apagar todas las luces',
+                isActive: allOff,
+                activeStyle: { background: 'rgba(71, 85, 105, 0.28)', borderColor: '#64748b', color: '#cbd5e1' },
+                onClick: () => onSetAllLights && onSetAllLights(false)
+              }
+            ];
+
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div className="vtt-context-icon-bar" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                  {lightActions.map(action => {
+                    const IconComp = action.icon;
+                    return (
+                      <button
+                        key={action.key}
+                        type="button"
+                        onClick={() => {
+                          action.onClick();
+                          onClose();
+                        }}
+                        className="vtt-context-icon-btn"
+                        style={action.isActive ? action.activeStyle : undefined}
+                        title={action.title}
+                        aria-label={action.title}
+                      >
+                        <IconComp size={16} strokeWidth={2.2} />
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {onUpdateMapElement && (
+                  <div style={{
+                    backgroundColor: '#0e1118',
+                    border: '1px solid #242d3d',
+                    borderRadius: '7px',
+                    padding: '9px 10px'
+                  }}>
+                    <SliderControl
+                      label="Radio"
+                      value={activeItem.radius || 220}
+                      unit="px"
+                      min={60}
+                      max={650}
+                      step={10}
+                      labelWidth="88px"
+                      sliderWidth="112px"
+                      onChange={(val) => onUpdateMapElement(activeItem.id, { radius: val })}
+                      title="Ajustar intensidad y alcance del área iluminada en la niebla"
+                    />
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </div>
       )}
     </ContextMenu>

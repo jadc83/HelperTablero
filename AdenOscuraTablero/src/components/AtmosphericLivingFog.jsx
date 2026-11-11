@@ -1,9 +1,7 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
+import { computeFogBounds } from '../utils/fogGeometry';
 import { useAppSettings } from '../hooks/useAppSettings';
-
-const CANVAS_SIZE = 4000;
-const CANVAS_OFFSET = 1000;
 
 /**
  * Shaders GLSL optimizados para niebla volumétrica viva (Victorian occult fog)
@@ -20,6 +18,7 @@ const VERTEX_SHADER = `
 const FRAGMENT_SHADER = `
   uniform float uTime;
   uniform sampler2D uMaskTexture;
+  uniform vec2 uWorldSize;
   uniform vec2 uLights[12];
   uniform float uLightRadii[12];
   uniform vec3 uLightColors[12];
@@ -65,17 +64,17 @@ const FRAGMENT_SHADER = `
       discard; // Optimización de fragmentos transparentes
     }
 
-    // 2. Volutas de niebla viva en dos capas cruzadas a velocidades distintas
-    vec2 fogUv1 = vUv * 7.5 + vec2(uTime * 0.012, uTime * 0.007);
-    vec2 fogUv2 = vUv * 13.0 - vec2(uTime * 0.009, -uTime * 0.014);
-    
+    // 2. Volutas de niebla viva con escala constante en píxeles de mapa independientemente de su tamaño
+    vec2 pixelPos = vUv * uWorldSize;
+    vec2 fogUv1 = (pixelPos / 533.0) + vec2(uTime * 0.012, uTime * 0.007);
+    vec2 fogUv2 = (pixelPos / 308.0) - vec2(uTime * 0.009, -uTime * 0.014);
+
     float n1 = fbm(fogUv1);
     float n2 = fbm(fogUv2);
     float mist = smoothstep(0.15, 0.85, n1 * 0.65 + n2 * 0.35);
 
     // 3. Cálculos de parpadeo de luz cálida (antorchas/faroles en el perímetro)
     vec3 lightGlow = vec3(0.0);
-    vec2 pixelPos = vUv * 4000.0;
 
     for (int i = 0; i < 12; i++) {
       if (i >= uNumLights) break;
@@ -102,7 +101,7 @@ const FRAGMENT_SHADER = `
     // 4. Composición final: tinte abisal de niebla (#060913) impregnado de bruma viva y luz perimetral
     vec3 deepFogColor = vec3(0.024, 0.035, 0.065); // Tinte victoriano azul tinta/carbón
     vec3 mistColor = vec3(0.065, 0.085, 0.13);     // Tinte de las volutas en suspensión
-    
+
     vec3 finalColor = mix(deepFogColor, mistColor, mist * uFogIntensity);
     finalColor += lightGlow * (0.4 + mist * 0.6);
 
@@ -125,14 +124,15 @@ const AtmosphericLivingFog = ({
   const mountRef = useRef(null);
   const threeRefs = useRef(null);
 
+  const fogBounds = useMemo(() => computeFogBounds(maps), [maps]);
+
   useEffect(() => {
     const mountEl = mountRef.current;
     if (!fowEnabled || !livingFogEnabled || quality === 'off' || !mountEl || !fowCanvasRef?.current) return;
 
-    const width = CANVAS_SIZE;
-    const height = CANVAS_SIZE;
+    const { width, height, canvasWidth, canvasHeight } = fogBounds;
 
-    // Escena ortográfica exacta alineada 1:1 con las coordenadas del tablero
+    // Escena ortográfica exacta alineada 1:1 con las coordenadas del mapa cargado
     const scene = new THREE.Scene();
     const camera = new THREE.OrthographicCamera(
       -width / 2, width / 2,
@@ -142,8 +142,11 @@ const AtmosphericLivingFog = ({
     camera.position.z = 10;
 
     const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: true, powerPreference: 'low-power' });
-    renderer.setSize(width, height);
-    renderer.setPixelRatio(1); // 1 es ideal para mapas grandes de 4000px sin sobrecargar memoria
+    renderer.setSize(canvasWidth, canvasHeight, false);
+    renderer.setPixelRatio(1);
+    renderer.domElement.style.width = '100%';
+    renderer.domElement.style.height = '100%';
+    renderer.domElement.style.display = 'block';
     mountEl.appendChild(renderer.domElement);
 
     // Textura desde el canvas 2D de FogLayer
@@ -155,6 +158,7 @@ const AtmosphericLivingFog = ({
     const uniforms = {
       uTime: { value: 0 },
       uMaskTexture: { value: maskTexture },
+      uWorldSize: { value: new THREE.Vector2(width, height) },
       uLights: { value: Array(12).fill(new THREE.Vector2(0, 0)) },
       uLightRadii: { value: new Float32Array(12).fill(0) },
       uLightColors: { value: Array(12).fill(new THREE.Vector3(1, 0.7, 0.3)) },
@@ -216,7 +220,7 @@ const AtmosphericLivingFog = ({
       maskTexture.dispose();
       threeRefs.current = null;
     };
-  }, [fowEnabled, livingFogEnabled, quality, fowCanvasRef]);
+  }, [fowEnabled, livingFogEnabled, quality, fowCanvasRef, fogBounds]);
 
   // Actualizar posiciones de luces y antorchas dinámicamente en los uniforms
   useEffect(() => {
@@ -230,8 +234,8 @@ const AtmosphericLivingFog = ({
       if (el.type === 'light' && el.isOn !== false && lightList.length < 12) {
         const size = el.width || 36;
         lightList.push({
-          x: el.x + size / 2 + CANVAS_OFFSET,
-          y: (CANVAS_SIZE - (el.y + size / 2 + CANVAS_OFFSET)), // Inversión Y en WebGL
+          x: (el.x + size / 2) - fogBounds.left,
+          y: fogBounds.height - ((el.y + size / 2) - fogBounds.top), // Inversión Y en WebGL
           radius: el.radius || 220,
           color: new THREE.Vector3(1.0, 0.65, 0.25) // Ámbar victoriano
         });
@@ -243,8 +247,8 @@ const AtmosphericLivingFog = ({
       if (!tok.isHidden && tok.faction !== 'enemy' && lightList.length < 12) {
         const size = tok.size || 50;
         lightList.push({
-          x: tok.x + size / 2 + CANVAS_OFFSET,
-          y: (CANVAS_SIZE - (tok.y + size / 2 + CANVAS_OFFSET)),
+          x: (tok.x + size / 2) - fogBounds.left,
+          y: fogBounds.height - ((tok.y + size / 2) - fogBounds.top),
           radius: fowVisionRadius * 0.9,
           color: new THREE.Vector3(0.95, 0.75, 0.45)
         });
@@ -271,7 +275,7 @@ const AtmosphericLivingFog = ({
     uniforms.uLightRadii.value = lightRadiiArr;
     uniforms.uLightColors.value = lightColorArr;
     uniforms.uNumLights.value = lightList.length;
-  }, [tokens, maps, fowVisionRadius]);
+  }, [tokens, maps, fowVisionRadius, fogBounds]);
 
   if (!fowEnabled || !livingFogEnabled || quality === 'off') return null;
 
@@ -280,10 +284,10 @@ const AtmosphericLivingFog = ({
       ref={mountRef}
       style={{
         position: 'absolute',
-        top: -CANVAS_OFFSET,
-        left: -CANVAS_OFFSET,
-        width: `${CANVAS_SIZE}px`,
-        height: `${CANVAS_SIZE}px`,
+        top: `${fogBounds.top}px`,
+        left: `${fogBounds.left}px`,
+        width: `${fogBounds.width}px`,
+        height: `${fogBounds.height}px`,
         pointerEvents: 'none',
         zIndex: 9,
         opacity: isPlayerView ? 1 : Math.min(0.98, settings.masterFogOpacity + 0.08),
