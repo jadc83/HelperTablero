@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Monitor, X, Square, Upload, Eye, EyeOff, Trash2, Scroll } from 'lucide-react';
+import { Monitor, X, Square, Upload, Eye, EyeOff, Trash2, Scroll, Maximize2, Minimize2 } from 'lucide-react';
 import { useConfirm } from '../hooks/useConfirm';
 import EmptyState from './ui/EmptyState';
 
@@ -10,7 +10,9 @@ const HandoutProjectorModal = ({
   activeHandout = null,
   onAddHandout,
   onRemoveHandout,
-  onProjectHandout
+  onProjectHandout,
+  isImageFullscreen = false,
+  onToggleImageFullscreen
 }) => {
   const [handoutTitle, setHandoutTitle] = useState('');
   const fileInputRef = useRef(null);
@@ -118,14 +120,38 @@ const HandoutProjectorModal = ({
               </div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="vtt-brass-plate-btn"
-            style={{ padding: '5px 12px', fontSize: '11px' }}
-            title="Cerrar proyector"
-          >
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><X size={13} strokeWidth={2.4} /> Cerrar</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {onToggleImageFullscreen && (
+              <button
+                type="button"
+                onClick={onToggleImageFullscreen}
+                className="vtt-brass-plate-btn"
+                style={{
+                  padding: '5px 11px',
+                  fontSize: '11px',
+                  borderColor: isImageFullscreen ? '#10b981' : undefined,
+                  background: isImageFullscreen ? 'rgba(16, 185, 129, 0.2)' : undefined,
+                  color: isImageFullscreen ? '#6ee7b7' : undefined
+                }}
+                title={isImageFullscreen
+                  ? 'Desactivar pantalla completa para imágenes en la Pantalla de Jugadores'
+                  : 'Activar pantalla completa para imágenes en la Pantalla de Jugadores'}
+              >
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  {isImageFullscreen ? <Minimize2 size={13} strokeWidth={2.2} /> : <Maximize2 size={13} strokeWidth={2.2} />}
+                  Pantalla completa: {isImageFullscreen ? 'ON' : 'OFF'}
+                </span>
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="vtt-brass-plate-btn"
+              style={{ padding: '5px 12px', fontSize: '11px' }}
+              title="Cerrar proyector"
+            >
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}><X size={13} strokeWidth={2.4} /> Cerrar</span>
+            </button>
+          </div>
         </div>
 
         {/* Banner de Proyección Activa (si hay algo proyectándose ahora mismo) */}
@@ -150,6 +176,11 @@ const HandoutProjectorModal = ({
               }} />
               <span style={{ fontSize: '12px', color: '#a7f3d0', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 En pantalla de jugadores: <strong style={{ color: '#ffffff' }}>{activeHandout.title}</strong>
+                {activeHandout.fullscreen && activeHandout.type !== 'note' && activeHandout.src && (
+                  <span style={{ marginLeft: '8px', fontSize: '10px', padding: '1px 6px', borderRadius: '4px', backgroundColor: 'rgba(16, 185, 129, 0.25)', border: '1px solid rgba(16, 185, 129, 0.5)', color: '#6ee7b7' }}>
+                    Pantalla completa
+                  </span>
+                )}
               </span>
             </div>
             <button

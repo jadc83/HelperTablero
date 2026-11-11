@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Ruler, X, Package } from 'lucide-react';
+import { Ruler, X, Package, ScrollText } from 'lucide-react';
 import GridLayer from './GridLayer';
 import MapLayer from './MapLayer';
 import FogLayer from './FogLayer';
@@ -50,8 +50,12 @@ const GameBoard = ({
     const rect = boardRef.current.getBoundingClientRect();
     const rawX = (clientX - rect.left - pan.x) / scale;
     const rawY = (clientY - rect.top - pan.y) / scale;
-    const w = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.width || gridSize || 48)) : (gridSize || 50);
-    const h = pendingMapSpawn ? (pendingMapSpawn.type === 'item' ? 18 : (pendingMapSpawn.height || gridSize || 48)) : (gridSize || 50);
+    const w = pendingMapSpawn
+      ? (pendingMapSpawn.type === 'item' ? 18 : pendingMapSpawn.type === 'note' ? (pendingMapSpawn.width || 34) : (pendingMapSpawn.width || gridSize || 48))
+      : (gridSize || 50);
+    const h = pendingMapSpawn
+      ? (pendingMapSpawn.type === 'item' ? 18 : pendingMapSpawn.type === 'note' ? (pendingMapSpawn.height || 34) : (pendingMapSpawn.height || gridSize || 48))
+      : (gridSize || 50);
     const isDirectCenter = Boolean(pendingMapSpawn);
     const shouldSnap = snapToGrid && !isDirectCenter;
     const x = shouldSnap ? Math.floor(rawX / (gridSize || 50)) * (gridSize || 50) : rawX - w / 2;
@@ -453,6 +457,8 @@ const GameBoard = ({
           >
             {pendingMapSpawn.type === 'item' ? (
               <Package size={11} strokeWidth={2.3} style={{ color: '#fbbf24' }} />
+            ) : pendingMapSpawn.type === 'note' ? (
+              <ScrollText size={16} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
             ) : (pendingMapSpawn.type === 'door' || pendingMapSpawn.type === 'window') ? (
               <MapStructureGraphic
                 type={pendingMapSpawn.type}

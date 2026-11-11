@@ -376,12 +376,18 @@ export function useBoardInteraction({
     if (e.button === 0) {
       if (!isPlayerView && pendingMapSpawn) {
         const coords = getLogicalCoords(e);
+        const isNote = pendingMapSpawn.type === 'note';
         const isStructure = pendingMapSpawn.type === 'door' || pendingMapSpawn.type === 'window';
-        const defaults = isStructure ? getDefaultStructureDimensions(pendingMapSpawn.type, settings) : { width: 48, height: 48 };
+        const defaults = isStructure
+          ? getDefaultStructureDimensions(pendingMapSpawn.type, settings)
+          : isNote
+          ? { width: 34, height: 34 }
+          : { width: 48, height: 48 };
         const w = pendingMapSpawn.width || defaults.width;
         const h = pendingMapSpawn.height || defaults.height;
-        const spawnX = snapToGrid ? Math.round(coords.x / gridSize) * gridSize : coords.x - w / 2;
-        const spawnY = snapToGrid ? Math.round(coords.y / gridSize) * gridSize : coords.y - h / 2;
+        const shouldSnap = snapToGrid && !isNote;
+        const spawnX = shouldSnap ? Math.round(coords.x / gridSize) * gridSize : coords.x - w / 2;
+        const spawnY = shouldSnap ? Math.round(coords.y / gridSize) * gridSize : coords.y - h / 2;
 
         const newMapEl = {
           ...pendingMapSpawn,
@@ -390,11 +396,23 @@ export function useBoardInteraction({
           y: Math.round(spawnY),
           width: w,
           height: h,
-          isLocked: false
+          isLocked: Boolean(pendingMapSpawn.isLocked)
         };
 
-        setMaps(prev => [...prev, newMapEl]);
-        showMasterFeedback(`${pendingMapSpawn.name} colocado en el tablero`);
+        setMaps(prev => {
+          if (isNote && pendingMapSpawn.clueId) {
+            const existingIdx = prev.findIndex(m => m.type === 'note' && m.clueId === pendingMapSpawn.clueId);
+            if (existingIdx !== -1) {
+              return prev.map((m, idx) => (idx === existingIdx ? { ...m, ...newMapEl, id: m.id } : m));
+            }
+          }
+          return [...prev, newMapEl];
+        });
+        showMasterFeedback(
+          isNote
+            ? `Pista "${pendingMapSpawn.title || pendingMapSpawn.name}" colocada en el tablero`
+            : `${pendingMapSpawn.name} colocado en el tablero`
+        );
         setPendingMapSpawn(null);
         return;
       }
@@ -734,7 +752,11 @@ export function useBoardInteraction({
     setIsSettingsOpen(false);
     setPendingTokenSpawn(null);
     setPendingMapSpawn(newElement);
-    showMasterFeedback(`Haz clic en el mapa para colocar ${newElement.name}`);
+    showMasterFeedback(
+      newElement?.type === 'note'
+        ? `Haz clic en el tablero para colocar la pista "${newElement.title || newElement.name}"`
+        : `Haz clic en el mapa para colocar ${newElement.name}`
+    );
   };
 
   const handleMapElementPointerDown = (e, element) => {

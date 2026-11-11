@@ -49,7 +49,8 @@ import {
   EyeOff,
   Sparkles,
   X,
-  Package
+  Package,
+  ScrollText
 } from 'lucide-react';
 
 const isTauriDesktop = () => Boolean(window.__TAURI_INTERNALS__ || window.__TAURI__);
@@ -106,6 +107,7 @@ function App() {
   const [handouts, setHandouts] = useState([]);
   const [activeHandout, setActiveHandout] = useState(null);
   const [isHandoutModalOpen, setIsHandoutModalOpen] = useState(false);
+  const [handoutImageFullscreen, setHandoutImageFullscreen] = useLocalStorage('vtt_handout_image_fullscreen', false);
 
   const [scale, setScale] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -727,6 +729,34 @@ function App() {
     isSwitchingSceneRef, lastPlayerPingRef, postSyncMessage, showMasterFeedback
   });
 
+  const handleProjectHandoutWithMode = (handoutObj) => {
+    if (!handoutObj) {
+      handleProjectHandout(null);
+      return;
+    }
+    const isImageHandout = handoutObj.type !== 'note' && Boolean(handoutObj.src);
+    handleProjectHandout(
+      isImageHandout
+        ? { ...handoutObj, fullscreen: handoutObj.fullscreen !== undefined ? handoutObj.fullscreen : handoutImageFullscreen }
+        : handoutObj
+    );
+  };
+
+  const handleToggleHandoutFullscreen = () => {
+    const nextFullscreen = !handoutImageFullscreen;
+    setHandoutImageFullscreen(nextFullscreen);
+    setActiveHandout(prev => (
+      prev && prev.type !== 'note' && prev.src
+        ? { ...prev, fullscreen: nextFullscreen }
+        : prev
+    ));
+    showMasterFeedback(
+      nextFullscreen
+        ? 'Proyección de imágenes a pantalla completa activada'
+        : 'Proyección de imágenes en modo normal'
+    );
+  };
+
   const {
     getTokenCombatContext,
     handleReorderTokens,
@@ -824,6 +854,95 @@ function App() {
     onArchiveItemsToCodex: archiveItemsToCodex,
     showMasterFeedback
   });
+
+  const handleStartPlaceClue = (clue, sceneId = activeSceneId) => {
+    if (!clue) return;
+    if (sceneId && sceneId !== activeSceneId) {
+      handleSelectScene(sceneId);
+    }
+    const clueTitle = clue.title || clue.text || 'Pista';
+    handleStartPlaceMapElement({
+      type: 'note',
+      title: clueTitle,
+      name: clueTitle,
+      content: clue.content || '',
+      clueId: clue.id,
+      width: 34,
+      height: 34,
+      showName: true,
+      isHidden: !clue.completed,
+      isLocked: clue.isLocked !== false
+    });
+  };
+
+  const handleUpdateBoardClue = (clueId, updatedFields, sceneId = activeSceneId) => {
+    if (!clueId) return;
+    if (!sceneId || sceneId === activeSceneId) {
+      setMaps(prev => prev.map(m => (
+        m.type === 'note' && m.clueId === clueId ? { ...m, ...updatedFields } : m
+      )));
+    } else {
+      setScenes(prev => prev.map(sc => (
+        sc.id === sceneId
+          ? {
+              ...sc,
+              maps: (sc.maps || []).map(m => (
+                m.type === 'note' && m.clueId === clueId ? { ...m, ...updatedFields } : m
+              ))
+            }
+          : sc
+      )));
+    }
+  };
+
+  const handleRemoveBoardClue = (clueId, sceneId = activeSceneId) => {
+    if (!clueId) return;
+    if (!sceneId || sceneId === activeSceneId) {
+      setMaps(prev => prev.filter(m => !(m.type === 'note' && m.clueId === clueId)));
+    } else {
+      setScenes(prev => prev.map(sc => (
+        sc.id === sceneId
+          ? {
+              ...sc,
+              maps: (sc.maps || []).filter(m => !(m.type === 'note' && m.clueId === clueId))
+            }
+          : sc
+      )));
+    }
+  };
+
+  const handleBoardMapElementUpdate = (elId, updatedFields, feedbackMsg) => {
+    handleUpdateMapElement(elId, updatedFields, feedbackMsg);
+    const targetNote = maps.find(m => m.id === elId && m.type === 'note' && m.clueId);
+    if (targetNote && (updatedFields.title !== undefined || updatedFields.content !== undefined || updatedFields.isHidden !== undefined)) {
+      const sceneEntry = sceneNotes[activeSceneId] || { notes: '', clues: [] };
+      const updatedClues = (sceneEntry.clues || []).map(c =>
+        c.id === targetNote.clueId
+          ? {
+              ...c,
+              title: updatedFields.title !== undefined ? updatedFields.title : (c.title || c.text),
+              text: updatedFields.title !== undefined ? updatedFields.title : c.text,
+              content: updatedFields.content !== undefined ? updatedFields.content : (c.content || ''),
+              completed: updatedFields.isHidden !== undefined ? !updatedFields.isHidden : Boolean(c.completed)
+            }
+          : c
+      );
+      handleUpdateSceneNotes(activeSceneId, { ...sceneEntry, clues: updatedClues });
+    }
+  };
+
+  const handleBoardMapElementLockToggle = (elId) => {
+    handleToggleMapElementLock(elId);
+    const targetNote = maps.find(m => m.id === elId && m.type === 'note' && m.clueId);
+    if (targetNote) {
+      const nextLocked = !targetNote.isLocked;
+      const sceneEntry = sceneNotes[activeSceneId] || { notes: '', clues: [] };
+      const updatedClues = (sceneEntry.clues || []).map(c =>
+        c.id === targetNote.clueId ? { ...c, isLocked: nextLocked } : c
+      );
+      handleUpdateSceneNotes(activeSceneId, { ...sceneEntry, clues: updatedClues });
+    }
+  };
 
   const handleBringCodexEntityToTable = (entity, { silent = false } = {}) => {
     if (!entity) return;
@@ -1187,7 +1306,6 @@ function App() {
           });
         }}
         onEditCharacter={handleEditCharacter}
-        onBringToTable={(entity) => handleBringCodexEntityToTable(entity)}
         onBringItemToTable={(item) => handleBringCodexItemToTable(item)}
         onDeleteCharacter={(id) => {
           deleteCodexEntity(id);
@@ -1519,7 +1637,17 @@ function App() {
             }}
           >
             <span style={{ fontSize: '13px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Package size={14} strokeWidth={2.2} style={{ color: 'var(--vtt-accent-amber)' }} /> Haz clic en el mapa para colocar: <strong style={{ color: 'var(--vtt-accent-amber)' }}>{pendingMapSpawn.name}</strong>
+              {pendingMapSpawn.type === 'note' ? (
+                <>
+                  <ScrollText size={14} strokeWidth={2.2} style={{ color: 'var(--vtt-accent-amber)' }} />
+                  Haz clic en el tablero para colocar la pista: <strong style={{ color: 'var(--vtt-accent-amber)' }}>{pendingMapSpawn.title || pendingMapSpawn.name}</strong>
+                </>
+              ) : (
+                <>
+                  <Package size={14} strokeWidth={2.2} style={{ color: 'var(--vtt-accent-amber)' }} />
+                  Haz clic en el mapa para colocar: <strong style={{ color: 'var(--vtt-accent-amber)' }}>{pendingMapSpawn.name}</strong>
+                </>
+              )}
             </span>
             <button
               onClick={() => setPendingMapSpawn(null)}
@@ -1556,8 +1684,8 @@ function App() {
           pendingMapSpawn={pendingMapSpawn}
           draggedMapElement={draggedMapElement}
           onMapElementPointerDown={handleMapElementPointerDown}
-          onToggleMapElementLock={handleToggleMapElementLock}
-          onUpdateMapElement={handleUpdateMapElement}
+          onToggleMapElementLock={handleBoardMapElementLockToggle}
+          onUpdateMapElement={handleBoardMapElementUpdate}
           onDuplicateMapElement={handleDuplicateMapElement}
           onInspectObject={handleInspectObject}
           onRemoveMapElement={handleRemoveMapElement}
@@ -1596,7 +1724,7 @@ function App() {
           onToggleObject={handleToggleObject}
           onToggleLight={handleToggleLight}
           handouts={handouts}
-          onProjectHandout={handleProjectHandout}
+          onProjectHandout={handleProjectHandoutWithMode}
           onPickUpItem={handlePickUpItem}
           isCombatActive={isCombatActive}
           movementLimitsEnabled={movementLimitsEnabled}
@@ -2150,6 +2278,7 @@ function App() {
         onMoveSceneOrder={handleMoveSceneOrder}
         onReorderScenes={handleReorderScenes}
         tokens={tokens}
+        maps={maps}
         activeTurnTokenId={activeTurnTokenId}
         commonItems={commonItems}
         onGiveItemToCharacter={handleGiveItemToCharacter}
@@ -2159,6 +2288,9 @@ function App() {
         onTransferItem={handleTransferItemBetweenCharacters}
         onSaveAdventure={handleSaveAdventure}
         onConcludeAdventure={handleConcludeAdventure}
+        onStartPlaceClue={handleStartPlaceClue}
+        onUpdateBoardClue={handleUpdateBoardClue}
+        onRemoveBoardClue={handleRemoveBoardClue}
       />
 
       <TutorialModal
@@ -2239,7 +2371,7 @@ function App() {
         objectItem={objectNotesModalState.objectItem}
         handouts={handouts}
         onUpdateObject={handleUpdateObject}
-        onProjectHandout={handleProjectHandout}
+        onProjectHandout={handleProjectHandoutWithMode}
         onRemoveObject={handleRemoveMapElement}
       />
 
@@ -2254,7 +2386,9 @@ function App() {
           setHandouts(prev => prev.filter(h => h.id !== id));
           if (activeHandout && activeHandout.id === id) setActiveHandout(null);
         }}
-        onProjectHandout={handleProjectHandout}
+        onProjectHandout={handleProjectHandoutWithMode}
+        isImageFullscreen={handoutImageFullscreen}
+        onToggleImageFullscreen={handleToggleHandoutFullscreen}
       />
 
       {/* Configuración Global de la Aplicación */}

@@ -33,7 +33,6 @@ const EncyclopediaView = ({
   onDeleteCharacter,
   onDeleteCodexItem,
   onSpawnOnBoard,
-  onBringToTable,
   onBringItemToTable,
   onImportCharacters,
   onImportCodexItems,
@@ -847,226 +846,341 @@ const EncyclopediaView = ({
             const storedItems = (selectedEntity.inventory || []).filter(i => i.state === 'stored');
             const initialLetter = (selectedEntity.name || '?').trim().charAt(0).toUpperCase();
 
+            const dossierPaperBg = {
+              backgroundColor: '#ece0c6',
+              backgroundImage: 'linear-gradient(180deg, rgba(255, 250, 238, 0.35) 0%, rgba(224, 206, 172, 0.25) 100%), url("/assets/textures/dossier_aged_paper.jpg")',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            };
+            const dossierCode = String(selectedEntity.id || '00000').replace(/\D/g, '').slice(-5).padStart(5, '0');
+
             return (
-              <div style={{ maxWidth: '980px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '22px' }}>
-                
-                {/* Tarjeta principal del expediente */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '250px 1fr',
-                  gap: '28px',
-                  background: 'linear-gradient(180deg, rgba(19, 23, 34, 0.92) 0%, rgba(13, 17, 25, 0.96) 100%)',
-                  backdropFilter: 'blur(10px)',
-                  border: isGraveyard ? '1.5px solid rgba(239, 68, 68, 0.45)' : '1px solid #362a1b',
-                  borderRadius: '14px',
-                  padding: '24px',
-                  boxShadow: '0 18px 48px rgba(0, 0, 0, 0.7)'
-                }}>
-                  {/* Columna izquierda: Retrato y clasificación sobria */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div style={{
-                      width: '250px',
-                      height: '280px',
-                      borderRadius: '10px',
-                      backgroundColor: '#090c12',
-                      border: '1.5px solid #4a3a25',
-                      boxShadow: 'inset 0 0 16px rgba(0, 0, 0, 0.8), 0 8px 24px rgba(0, 0, 0, 0.6)',
-                      overflow: 'hidden',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      position: 'relative'
+              <div style={{ maxWidth: '980px', margin: '0 auto', display: 'flex', flexDirection: 'column' }}>
+                {/* Pestaña superior de la carpeta marrón de expediente */}
+                <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', paddingLeft: '14px' }}>
+                  <div style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '7px 20px 6px 16px',
+                    borderRadius: '10px 14px 0 0',
+                    backgroundColor: '#8d683e',
+                    backgroundImage: 'linear-gradient(180deg, rgba(255, 232, 198, 0.22) 0%, rgba(72, 46, 20, 0.14) 100%), url("/assets/textures/dossier_manila_folder.jpg")',
+                    backgroundSize: 'cover',
+                    border: '1.5px solid #593d20',
+                    borderBottom: 'none',
+                    boxShadow: 'inset 0 1px 0 rgba(255, 234, 200, 0.35)',
+                    position: 'relative',
+                    zIndex: 2
+                  }}>
+                    <span style={{
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: isGraveyard ? '#8b1e1e' : selectedEntity.faction === 'enemy' ? '#92400e' : '#3f6212',
+                      boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.45)'
+                    }} />
+                    <span style={{
+                      fontSize: '10.5px',
+                      fontFamily: "'Cinzel', Georgia, serif",
+                      fontWeight: 800,
+                      letterSpacing: '0.1em',
+                      color: '#231509',
+                      textTransform: 'uppercase'
                     }}>
-                      {selectedEntity.avatar ? (
-                        <img
-                          src={selectedEntity.avatar}
-                          alt={selectedEntity.name}
+                      {isGraveyard
+                        ? `REGISTRO DE BAJA • EXP-${dossierCode}`
+                        : `EXPEDIENTE ${selectedEntity.faction === 'enemy' ? 'HOSTIL' : 'ALIADO'} • EXP-${dossierCode}`}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Cuerpo exterior de la carpeta marrón archivadora */}
+                <div style={{
+                  backgroundColor: '#8b663d',
+                  backgroundImage: 'linear-gradient(160deg, rgba(255, 235, 205, 0.14) 0%, rgba(56, 36, 16, 0.24) 100%), url("/assets/textures/dossier_manila_folder.jpg")',
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
+                  border: isGraveyard ? '1.5px solid #6b2626' : '1.5px solid #593d20',
+                  borderRadius: '0 12px 12px 12px',
+                  padding: '20px',
+                  boxShadow: '0 24px 55px rgba(0, 0, 0, 0.85), inset 14px 0 24px -14px rgba(42, 23, 8, 0.45), inset 0 1px 0 rgba(255, 234, 200, 0.28)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '18px',
+                  position: 'relative'
+                }}>
+                  {/* Borde visual de hojas apiladas dentro de la carpeta */}
+                  <div style={{
+                    position: 'relative',
+                    ...dossierPaperBg,
+                    border: '1px solid #b59a6e',
+                    borderRadius: '4px',
+                    padding: '24px 26px',
+                    boxShadow: '3px 3px 0 rgba(232, 217, 187, 0.7), 6px 6px 0 rgba(214, 194, 158, 0.55), 0 10px 24px rgba(32, 18, 6, 0.42)',
+                    color: '#23170d',
+                    display: 'grid',
+                    gridTemplateColumns: '236px 1fr',
+                    gap: '26px'
+                  }}>
+                    {/* Columna izquierda: Fotografía de archivo sujeta con clip */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: '6px' }}>
+                      <div style={{
+                        position: 'relative',
+                        width: '230px',
+                        backgroundColor: '#f7f1e3',
+                        padding: '11px 11px 13px 11px',
+                        border: '1px solid #c4af89',
+                        borderRadius: '3px',
+                        boxShadow: '0 8px 18px rgba(34, 20, 8, 0.32)',
+                        transform: 'rotate(-1.5deg)'
+                      }}>
+                        {/* Clip metálico sujetando la foto al expediente */}
+                        <svg
+                          width="26"
+                          height="52"
+                          viewBox="0 0 26 52"
+                          fill="none"
+                          aria-hidden="true"
                           style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            filter: isGraveyard ? 'grayscale(0.55)' : 'none'
+                            position: 'absolute',
+                            top: '-18px',
+                            left: '22px',
+                            zIndex: 4,
+                            filter: 'drop-shadow(1px 2px 2px rgba(0, 0, 0, 0.35))',
+                            pointerEvents: 'none'
                           }}
-                        />
-                      ) : (
+                        >
+                          <path
+                            d="M8 14V37C8 42.5228 12.4772 47 18 47C21.3137 47 24 44.3137 24 41V10C24 5.02944 19.9706 1 15 1C10.0294 1 6 5.02944 6 10V34C6 37.3137 8.68629 40 12 40C15.3137 40 18 37.3137 18 34V13"
+                            stroke="#64748b"
+                            strokeWidth="2.4"
+                            strokeLinecap="round"
+                          />
+                          <path
+                            d="M8 14V37C8 42.5228 12.4772 47 18 47C21.3137 47 24 44.3137 24 41V10C24 5.02944 19.9706 1 15 1C10.0294 1 6 5.02944 6 10V34C6 37.3137 8.68629 40 12 40C15.3137 40 18 37.3137 18 34V13"
+                            stroke="#cbd5e1"
+                            strokeWidth="1"
+                            strokeLinecap="round"
+                            strokeDasharray="12 6"
+                          />
+                        </svg>
+
                         <div style={{
-                          textAlign: 'center',
-                          padding: '20px',
+                          width: '100%',
+                          height: '240px',
+                          backgroundColor: '#1b1611',
+                          border: '1px solid #8c7553',
+                          overflow: 'hidden',
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
-                          gap: '10px'
+                          justifyContent: 'center',
+                          position: 'relative'
                         }}>
-                          <div style={{
-                            width: '84px',
-                            height: '84px',
-                            borderRadius: '50%',
-                            backgroundColor: '#141a26',
-                            border: '1.5px solid #36445c',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontFamily: "'Cinzel', Georgia, serif",
-                            fontSize: '36px',
-                            fontWeight: 700,
-                            color: '#fbbf24',
-                            boxShadow: 'inset 0 0 12px rgba(0,0,0,0.8)'
-                          }}>
-                            {initialLetter}
-                          </div>
-                          <div style={{ fontSize: '11px', color: '#6b7a90', letterSpacing: '0.04em' }}>
-                            Sin retrato en el expediente
-                          </div>
+                          {selectedEntity.avatar ? (
+                            <img
+                              src={selectedEntity.avatar}
+                              alt={selectedEntity.name}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                filter: isGraveyard ? 'grayscale(0.75) sepia(0.25) contrast(1.05)' : 'sepia(0.14) contrast(1.04)'
+                              }}
+                            />
+                          ) : (
+                            <div style={{
+                              textAlign: 'center',
+                              padding: '18px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              alignItems: 'center',
+                              gap: '10px'
+                            }}>
+                              <div style={{
+                                width: '78px',
+                                height: '78px',
+                                borderRadius: '50%',
+                                backgroundColor: 'rgba(130, 98, 58, 0.14)',
+                                border: '2px dashed rgba(196, 165, 117, 0.5)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                fontFamily: "'Cinzel', Georgia, serif",
+                                fontSize: '34px',
+                                fontWeight: 700,
+                                color: '#d4b483'
+                              }}>
+                                {initialLetter}
+                              </div>
+                              <div style={{
+                                fontSize: '10px',
+                                color: '#a8967a',
+                                letterSpacing: '0.08em',
+                                textTransform: 'uppercase',
+                                lineHeight: 1.4
+                              }}>
+                                Sin fotografía<br />en archivo
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      )}
+
+                        <div style={{
+                          marginTop: '9px',
+                          textAlign: 'center',
+                          fontSize: '10px',
+                          fontFamily: "'Cinzel', Georgia, serif",
+                          fontWeight: 700,
+                          letterSpacing: '0.08em',
+                          color: '#3b2917',
+                          textTransform: 'uppercase'
+                        }}>
+                          {meta.label}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Clasificación sobria debajo del marco del retrato */}
-                    <div style={{
-                      background: '#0a0d14',
-                      border: '1px solid #252e3f',
-                      borderRadius: '7px',
-                      padding: '7px 12px',
-                      textAlign: 'center',
-                      fontSize: '11px',
-                      fontFamily: "'Cinzel', Georgia, serif",
-                      fontWeight: 700,
-                      letterSpacing: '0.06em',
-                      color: '#d4c7b2',
-                      textTransform: 'uppercase'
-                    }}>
-                      {meta.label}
-                    </div>
-                  </div>
-
-                  {/* Columna derecha: Datos del combatiente, trasfondo y atributos */}
-                  <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
-                    <div>
-                      {/* Cabecera del expediente con sello y botones */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '14px', flexWrap: 'wrap' }}>
-                        <div>
+                    {/* Columna derecha: Hoja mecanografiada del sujeto */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {/* Cabecera de hoja con sello + acciones limpias */}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        gap: '14px',
+                        borderBottom: '2px solid rgba(72, 48, 22, 0.35)',
+                        paddingBottom: '12px'
+                      }}>
+                        <div style={{ minWidth: 0 }}>
                           <div style={{
                             fontSize: '10px',
                             fontFamily: "'Cinzel', Georgia, serif",
-                            color: isGraveyard ? '#f87171' : '#fbbf24',
+                            color: isGraveyard ? '#8b1e1e' : '#78350f',
                             fontWeight: 800,
                             letterSpacing: '0.12em',
                             textTransform: 'uppercase'
                           }}>
                             {isGraveyard
-                              ? `REGISTRO FÚNEBRE • CAÍDO EN: ${(selectedEntity.sceneName || 'Tablero de Juego').toUpperCase()}`
-                              : `EXPEDIENTE DE ARCHIVO • ${selectedEntity.faction === 'enemy' ? 'HOSTIL' : 'ALIADO'}`}
+                              ? `INFORME NECROLÓGICO • ${(selectedEntity.sceneName || 'Tablero de Juego').toUpperCase()}`
+                              : `REGISTRO OFICIAL DE ARCHIVO • ${selectedEntity.faction === 'enemy' ? 'SUJETO HOSTIL' : 'ALIADO'}`}
                           </div>
-                          <h2 className="vtt-gothic-title" style={{ margin: '4px 0 0 0', fontSize: '28px', color: '#f8fafc' }}>
+                          <h2 className="vtt-gothic-title" style={{
+                            margin: '3px 0 0 0',
+                            fontSize: '27px',
+                            color: '#1b1108',
+                            textShadow: 'none'
+                          }}>
                             {selectedEntity.name}
                           </h2>
                           {isGraveyard && selectedEntity.fallenAt && (
-                            <div style={{ fontSize: '11px', color: '#8d9bb0', marginTop: '3px' }}>
+                            <div style={{ fontSize: '11px', color: '#6b4c32', marginTop: '3px', fontStyle: 'italic' }}>
                               Fallecido el {new Date(selectedEntity.fallenAt).toLocaleDateString()} a las {new Date(selectedEntity.fallenAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </div>
                           )}
                         </div>
 
-                        {/* Botones de acción */}
-                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                          {isGraveyard ? (
-                            <>
-                              {onReviveCharacter && (
+                        {/* Sello de tinta + botones de acción */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexShrink: 0 }}>
+                          <div style={{
+                            padding: '3px 9px',
+                            border: isGraveyard ? '2px solid rgba(139, 30, 30, 0.72)' : '2px solid rgba(138, 38, 38, 0.62)',
+                            borderRadius: '3px',
+                            color: isGraveyard ? '#8b1e1e' : '#8a2626',
+                            fontFamily: "'Cinzel', Georgia, serif",
+                            fontSize: '9.5px',
+                            fontWeight: 900,
+                            letterSpacing: '0.14em',
+                            textTransform: 'uppercase',
+                            transform: 'rotate(-5deg)',
+                            opacity: 0.86,
+                            userSelect: 'none'
+                          }}>
+                            {isGraveyard ? 'BAJA' : 'ARCHIVADO'}
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                            {isGraveyard ? (
+                              <>
+                                {onReviveCharacter && (
+                                  <button
+                                    type="button"
+                                    onClick={() => onReviveCharacter(selectedEntity)}
+                                    className="vtt-primary-cta"
+                                    style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '11.5px', cursor: 'pointer' }}
+                                    title="Revive al personaje y lo devuelve al centro del tablero de juego"
+                                  >
+                                    <RotateCcw size={12} strokeWidth={2.2} /> Resucitar
+                                  </button>
+                                )}
                                 <button
                                   type="button"
-                                  onClick={() => onReviveCharacter(selectedEntity)}
-                                  className="vtt-primary-cta"
-                                  style={{ padding: '8px 16px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
-                                  title="Revive al personaje y lo devuelve al centro del tablero de juego"
-                                >
-                                  <RotateCcw size={13} strokeWidth={2.2} /> Resucitar al Tablero
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => onEditCharacter && onEditCharacter(selectedEntity)}
-                                className="vtt-brass-btn"
-                                style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
-                                title="Ver ficha completa y saquear objetos"
-                              >
-                                <Pencil size={13} strokeWidth={2.2} /> Ver Ficha
-                              </button>
-                              {onDeleteFromGraveyard && (
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const ok = await confirm({
-                                      title: 'Purgar registro de la cripta',
-                                      message: `¿Eliminar permanentemente a "${selectedEntity.name}" de la cripta y perder su inventario?`,
-                                      confirmLabel: 'Purgar',
-                                      tone: 'danger'
-                                    });
-                                    if (ok) onDeleteFromGraveyard(selectedEntity.graveyardId || selectedEntity.id);
-                                  }}
-                                  className="vtt-btn-danger"
+                                  onClick={() => onEditCharacter && onEditCharacter(selectedEntity)}
                                   style={{
-                                    padding: '8px 14px',
-                                    borderRadius: '7px',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    color: '#4a3520',
+                                    padding: '6px',
                                     cursor: 'pointer',
-                                    fontSize: '12px',
-                                    fontWeight: 700,
                                     display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
+                                    alignItems: 'center'
                                   }}
-                                  title="Eliminar permanentemente de la cripta"
+                                  title="Ver ficha completa y saquear objetos"
+                                  aria-label="Ver ficha completa"
                                 >
-                                  <Trash2 size={13} strokeWidth={2.2} /> Purgar
+                                  <Pencil size={16} strokeWidth={2} />
                                 </button>
-                              )}
-                            </>
-                          ) : (
-                            <>
-                              {onBringToTable && (
-                                <button
-                                  type="button"
-                                  disabled={tableEntityIdSet.has(String(selectedEntity.id))}
-                                  onClick={() => onBringToTable(selectedEntity)}
-                                  className="vtt-brass-btn"
-                                  style={{
-                                    padding: '8px 14px',
-                                    borderRadius: '7px',
-                                    fontSize: '12px',
-                                    fontWeight: 700,
-                                    cursor: tableEntityIdSet.has(String(selectedEntity.id)) ? 'default' : 'pointer',
-                                    opacity: tableEntityIdSet.has(String(selectedEntity.id)) ? 0.65 : 1,
-                                    color: tableEntityIdSet.has(String(selectedEntity.id)) ? '#6ee7b7' : '#38bdf8',
-                                    borderColor: tableEntityIdSet.has(String(selectedEntity.id)) ? '#059669' : '#0284c7'
-                                  }}
-                                >
-                                  {tableEntityIdSet.has(String(selectedEntity.id))
-                                    ? <><Check size={13} strokeWidth={2.3} /> En mesa</>
-                                    : <><Plus size={13} strokeWidth={2.3} /> Traer a mesa</>}
-                                </button>
-                              )}
-                              <button
-                                type="button"
-                                onClick={() => onEditCharacter && onEditCharacter(selectedEntity)}
-                                className="vtt-brass-btn"
-                                style={{ padding: '8px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
-                              >
-                                <Pencil size={13} strokeWidth={2.2} /> Editar Ficha
-                              </button>
-                              {onSpawnOnBoard && (
-                                <button
-                                  type="button"
-                                  onClick={() => onSpawnOnBoard(selectedEntity)}
-                                  className="vtt-primary-cta"
-                                  style={{ padding: '8px 16px', borderRadius: '7px', fontSize: '12px', cursor: 'pointer' }}
-                                >
-                                  <Crosshair size={13} strokeWidth={2.2} /> Invocar en el Tablero
-                                </button>
-                              )}
-                              {onDeleteCharacter && (
-                                <button
-                                  type="button"
-                                  onClick={async () => {
+                                {onDeleteFromGraveyard && (
+                                  <button
+                                    type="button"
+                                    onClick={async () => {
+                                      const ok = await confirm({
+                                        title: 'Purgar registro de la cripta',
+                                        message: `¿Eliminar permanentemente a "${selectedEntity.name}" de la cripta y perder su inventario?`,
+                                        confirmLabel: 'Purgar',
+                                        tone: 'danger'
+                                      });
+                                      if (ok) onDeleteFromGraveyard(selectedEntity.graveyardId || selectedEntity.id);
+                                    }}
+                                    style={{
+                                      background: 'transparent',
+                                      border: 'none',
+                                      color: '#7f1d1d',
+                                      padding: '6px',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center'
+                                    }}
+                                    title="Eliminar permanentemente de la cripta"
+                                    aria-label="Eliminar de la cripta"
+                                  >
+                                    <Trash2 size={16} strokeWidth={2} />
+                                  </button>
+                                )}
+                              </>
+                            ) : (
+                              [
+                                {
+                                  key: 'edit',
+                                  show: true,
+                                  icon: Pencil,
+                                  title: 'Editar Ficha',
+                                  onClick: () => onEditCharacter && onEditCharacter(selectedEntity)
+                                },
+                                {
+                                  key: 'spawn',
+                                  show: Boolean(onSpawnOnBoard),
+                                  icon: Crosshair,
+                                  title: 'Invocar en el Tablero',
+                                  onClick: () => onSpawnOnBoard(selectedEntity)
+                                },
+                                {
+                                  key: 'delete',
+                                  show: Boolean(onDeleteCharacter),
+                                  icon: Trash2,
+                                  title: 'Eliminar permanentemente del Códice Global',
+                                  onClick: async () => {
                                     const ok = await confirm({
                                       title: 'Eliminar del Códice Global',
                                       message: `¿Eliminar permanentemente a "${selectedEntity.name}" del Códice Global?`,
@@ -1074,64 +1188,82 @@ const EncyclopediaView = ({
                                       tone: 'danger'
                                     });
                                     if (ok) onDeleteCharacter(selectedEntity.id);
-                                  }}
-                                  className="vtt-btn-danger"
-                                  style={{
-                                    padding: '8px 14px',
-                                    borderRadius: '7px',
-                                    cursor: 'pointer',
-                                    fontSize: '12px',
-                                    fontWeight: 700,
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px'
-                                  }}
-                                  title="Eliminar permanentemente del Códice Global"
-                                >
-                                  <Trash2 size={13} strokeWidth={2.2} /> Eliminar
-                                </button>
-                              )}
-                            </>
-                          )}
+                                  }
+                                }
+                              ]
+                                .filter(btn => btn.show)
+                                .map(btn => {
+                                  const IconComp = btn.icon;
+                                  return (
+                                    <button
+                                      key={btn.key}
+                                      type="button"
+                                      onClick={btn.onClick}
+                                      style={{
+                                        background: 'transparent',
+                                        border: 'none',
+                                        boxShadow: 'none',
+                                        color: '#4a3520',
+                                        padding: '6px',
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'color 0.15s ease, transform 0.15s ease'
+                                      }}
+                                      onMouseEnter={(e) => {
+                                        e.currentTarget.style.color = '#1a1007';
+                                        e.currentTarget.style.transform = 'scale(1.14)';
+                                      }}
+                                      onMouseLeave={(e) => {
+                                        e.currentTarget.style.color = '#4a3520';
+                                        e.currentTarget.style.transform = 'scale(1)';
+                                      }}
+                                      title={btn.title}
+                                      aria-label={btn.title}
+                                    >
+                                      <IconComp size={17} strokeWidth={2.1} />
+                                    </button>
+                                  );
+                                })
+                            )}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Fila de metadatos limpios */}
+                      {/* Fila mecanografiada de metadatos */}
                       <div style={{
                         display: 'grid',
                         gridTemplateColumns: 'repeat(3, 1fr)',
-                        gap: '12px',
-                        marginTop: '16px',
-                        padding: '12px 14px',
-                        backgroundColor: '#0a0d14',
-                        borderRadius: '8px',
-                        border: '1px solid #202737'
+                        borderTop: '1px solid rgba(90, 62, 32, 0.3)',
+                        borderBottom: '1px solid rgba(90, 62, 32, 0.3)',
+                        backgroundColor: 'rgba(130, 96, 52, 0.07)'
                       }}>
-                        <div>
-                          <div style={{ fontSize: '10px', color: '#6e7d94', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Clasificación</div>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginTop: '2px' }}>{meta.label}</div>
+                        <div style={{ padding: '9px 12px', borderRight: '1px solid rgba(90, 62, 32, 0.22)' }}>
+                          <div style={{ fontSize: '9.5px', color: '#6e5235', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.07em' }}>Clasificación</div>
+                          <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#24170c', marginTop: '2px' }}>{meta.label}</div>
                         </div>
-                        <div>
-                          <div style={{ fontSize: '10px', color: '#6e7d94', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Año / Época</div>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: '#e2e8f0', marginTop: '2px' }}>{selectedEntity.birthYear || 'Desconocido'}</div>
+                        <div style={{ padding: '9px 12px', borderRight: '1px solid rgba(90, 62, 32, 0.22)' }}>
+                          <div style={{ fontSize: '9.5px', color: '#6e5235', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.07em' }}>Año / Época</div>
+                          <div style={{ fontSize: '12.5px', fontWeight: 700, color: '#24170c', marginTop: '2px' }}>{selectedEntity.birthYear || 'Desconocido'}</div>
                         </div>
-                        <div>
-                          <div style={{ fontSize: '10px', color: '#6e7d94', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.05em' }}>Protección / Armadura</div>
-                          <div style={{ fontSize: '12px', fontWeight: 700, color: selectedEntity.hasArmor ? '#cbd5e1' : '#64748b', marginTop: '2px' }}>
+                        <div style={{ padding: '9px 12px' }}>
+                          <div style={{ fontSize: '9.5px', color: '#6e5235', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.07em' }}>Protección / Armadura</div>
+                          <div style={{ fontSize: '12.5px', fontWeight: 700, color: selectedEntity.hasArmor ? '#24170c' : '#6e5235', marginTop: '2px' }}>
                             {selectedEntity.hasArmor ? selectedEntity.armorType : 'Sin armadura'}
                           </div>
                         </div>
                       </div>
 
-                      {/* Crónica y Trasfondo */}
-                      <div style={{ marginTop: '16px' }}>
+                      {/* Crónica y Trasfondo sobre líneas de expediente */}
+                      <div>
                         <div style={{
-                          fontSize: '11px',
+                          fontSize: '10.5px',
                           fontFamily: "'Cinzel', Georgia, serif",
-                          fontWeight: 700,
-                          color: '#d4a359',
+                          fontWeight: 800,
+                          color: '#5c3412',
                           textTransform: 'uppercase',
-                          letterSpacing: '0.06em',
+                          letterSpacing: '0.08em',
                           marginBottom: '6px'
                         }}>
                           Crónica y Trasfondo
@@ -1139,291 +1271,234 @@ const EncyclopediaView = ({
                         <p style={{
                           margin: 0,
                           fontSize: '13px',
-                          lineHeight: 1.6,
-                          color: '#cbd5e1',
-                          whiteSpace: 'pre-wrap'
+                          lineHeight: '22px',
+                          color: '#2d1f13',
+                          whiteSpace: 'pre-wrap',
+                          minHeight: '88px',
+                          padding: '2px 4px',
+                          backgroundImage: 'repeating-linear-gradient(transparent, transparent 21px, rgba(105, 78, 46, 0.16) 22px)'
                         }}>
-                          {selectedEntity.history || 'Sin historia o descripción registrada todavía. Pulsa "Editar Ficha" para documentar su trasfondo.'}
+                          {selectedEntity.history || 'Sin historia o descripción registrada todavía. Pulsa el icono del lápiz para documentar su trasfondo.'}
                         </p>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Fila de Atributos Base: Estructurada, sobria y sin pastillas redondeadas */}
+                  {/* Hojas anexas dentro de la carpeta: Inventario y Grimorio */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px' }}>
+                    {/* Hoja de Inventario / Botín */}
                     <div style={{
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(4, 1fr)',
-                      gap: '10px',
-                      paddingTop: '16px',
-                      borderTop: '1px solid #202737'
+                      ...dossierPaperBg,
+                      border: '1px solid #b59a6e',
+                      borderRadius: '4px',
+                      padding: '18px 20px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px',
+                      color: '#23170d',
+                      boxShadow: '2px 2px 0 rgba(224, 206, 172, 0.65), 0 8px 20px rgba(32, 18, 6, 0.35)'
                     }}>
-                      {/* Salud */}
                       <div style={{
-                        padding: '10px 12px',
-                        borderRadius: '7px',
-                        backgroundColor: isGraveyard ? 'rgba(239, 68, 68, 0.08)' : '#10141e',
-                        border: isGraveyard ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid #263042',
                         display: 'flex',
-                        flexDirection: 'column',
-                        gap: '3px'
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        borderBottom: '1.5px solid rgba(72, 48, 22, 0.3)',
+                        paddingBottom: '8px'
                       }}>
-                        <div style={{ fontSize: '10px', color: '#8e9caa', fontWeight: 700, letterSpacing: '0.06em' }}>
-                          SALUD (PV)
+                        <div className="vtt-gothic-title" style={{ fontSize: '13.5px', color: '#1b1108', fontWeight: 800, textShadow: 'none' }}>
+                          {isGraveyard ? 'Botín Recuperable para Saqueo' : 'Equipo, Pertinencias y Armas'}
                         </div>
-                        <div style={{ fontSize: '16px', fontWeight: 800, color: isGraveyard ? '#f87171' : '#f8fafc' }}>
-                          {isGraveyard ? '0' : (selectedEntity.hp ?? 20)} <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>/ {selectedEntity.maxHp ?? 20}</span>
-                        </div>
-                      </div>
-
-                      {/* Magia */}
-                      <div style={{
-                        padding: '10px 12px',
-                        borderRadius: '7px',
-                        backgroundColor: '#10141e',
-                        border: '1px solid #263042',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '3px'
-                      }}>
-                        <div style={{ fontSize: '10px', color: '#8e9caa', fontWeight: 700, letterSpacing: '0.06em' }}>
-                          MAGIA (PM)
-                        </div>
-                        <div style={{ fontSize: '16px', fontWeight: 800, color: '#93c5fd' }}>
-                          {selectedEntity.mp ?? 10} <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>/ {selectedEntity.maxMp ?? 10}</span>
-                        </div>
-                      </div>
-
-                      {/* Cordura */}
-                      <div style={{
-                        padding: '10px 12px',
-                        borderRadius: '7px',
-                        backgroundColor: '#10141e',
-                        border: '1px solid #263042',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '3px'
-                      }}>
-                        <div style={{ fontSize: '10px', color: '#8e9caa', fontWeight: 700, letterSpacing: '0.06em' }}>
-                          CORDURA (SAN)
-                        </div>
-                        <div style={{ fontSize: '16px', fontWeight: 800, color: '#fbbf24' }}>
-                          {selectedEntity.san ?? 60} <span style={{ fontSize: '12px', color: '#64748b', fontWeight: 500 }}>/ {selectedEntity.maxSan ?? 60}</span>
-                        </div>
-                      </div>
-
-                      {/* Estado */}
-                      <div style={{
-                        padding: '10px 12px',
-                        borderRadius: '7px',
-                        backgroundColor: isGraveyard ? 'rgba(239, 68, 68, 0.12)' : '#10141e',
-                        border: isGraveyard ? '1px solid rgba(239, 68, 68, 0.45)' : '1px solid #263042',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '3px'
-                      }}>
-                        <div style={{ fontSize: '10px', color: '#8e9caa', fontWeight: 700, letterSpacing: '0.06em' }}>
-                          ESTADO
-                        </div>
-                        <div style={{
-                          fontSize: '12px',
-                          fontWeight: 800,
-                          color: isGraveyard ? '#f87171' : selectedEntity.isGraveWound ? '#fca5a5' : '#86efac',
-                          marginTop: '2px'
+                        <span style={{
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          color: '#5c3412',
+                          backgroundColor: 'rgba(130, 96, 52, 0.14)',
+                          border: '1px solid rgba(110, 78, 40, 0.32)',
+                          padding: '2px 8px',
+                          borderRadius: '4px'
                         }}>
-                          {isGraveyard ? 'En la Cripta' : selectedEntity.isGraveWound ? 'Herida Grave' : 'Consciente'}
+                          {(selectedEntity.inventory || []).length} objetos
+                        </span>
+                      </div>
+
+                      {isGraveyard && (
+                        <div style={{ fontSize: '11px', color: '#6b4c32', fontStyle: 'italic' }}>
+                          Posesiones del combatiente disponibles para su recuperación o reparto por los investigadores.
                         </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                      )}
 
-                {/* Secciones inferiores: Inventario y Grimorio con diseño sobrio */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                  
-                  {/* Inventario / Botín */}
-                  <div style={{
-                    background: 'rgba(17, 21, 32, 0.90)',
-                    backdropFilter: 'blur(8px)',
-                    border: '1px solid #222b3c',
-                    borderRadius: '12px',
-                    padding: '18px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)'
-                  }}>
+                      {(selectedEntity.inventory || []).length === 0 ? (
+                        <div style={{ fontSize: '12px', color: '#6e5235', fontStyle: 'italic', padding: '10px 0' }}>
+                          No se han registrado objetos ni pertrechos en este expediente.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {equippedItems.length > 0 && (
+                            <div>
+                              <div style={{ fontSize: '10px', fontWeight: 700, color: '#6e5235', textTransform: 'uppercase', marginBottom: '5px', letterSpacing: '0.06em' }}>
+                                Lleva Encima ({equippedItems.length})
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {equippedItems.map(item => (
+                                  <span key={item.id} style={{
+                                    padding: '4px 10px',
+                                    borderRadius: '4px',
+                                    background: 'rgba(255, 251, 242, 0.72)',
+                                    border: '1px solid #bfa77e',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    color: '#24170c'
+                                  }}>
+                                    {item.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {handItems.length > 0 && (
+                            <div>
+                              <div style={{ fontSize: '10px', fontWeight: 700, color: '#6e5235', textTransform: 'uppercase', marginBottom: '5px', letterSpacing: '0.06em' }}>
+                                A Mano / Inmediato ({handItems.length})
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {handItems.map(item => (
+                                  <span key={item.id} style={{
+                                    padding: '4px 10px',
+                                    borderRadius: '4px',
+                                    background: 'rgba(255, 251, 242, 0.72)',
+                                    border: '1px solid #bfa77e',
+                                    fontSize: '12px',
+                                    fontWeight: 600,
+                                    color: '#24170c'
+                                  }}>
+                                    {item.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          {storedItems.length > 0 && (
+                            <div>
+                              <div style={{ fontSize: '10px', fontWeight: 700, color: '#6e5235', textTransform: 'uppercase', marginBottom: '5px', letterSpacing: '0.06em' }}>
+                                Guardado / Almacén ({storedItems.length})
+                              </div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                                {storedItems.map(item => (
+                                  <span key={item.id} style={{
+                                    padding: '4px 10px',
+                                    borderRadius: '4px',
+                                    background: 'rgba(242, 232, 210, 0.65)',
+                                    border: '1px solid #c7b18a',
+                                    fontSize: '12px',
+                                    color: '#523a24'
+                                  }}>
+                                    {item.name}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Hoja de Grimorio y Facultades */}
                     <div style={{
+                      ...dossierPaperBg,
+                      border: '1px solid #b59a6e',
+                      borderRadius: '4px',
+                      padding: '18px 20px',
                       display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      borderBottom: '1px solid #1f2737',
-                      paddingBottom: '8px'
+                      flexDirection: 'column',
+                      gap: '12px',
+                      color: '#23170d',
+                      boxShadow: '2px 2px 0 rgba(224, 206, 172, 0.65), 0 8px 20px rgba(32, 18, 6, 0.35)'
                     }}>
-                      <div className="vtt-gothic-title" style={{ fontSize: '14px', color: '#f8fafc', fontWeight: 'bold' }}>
-                        {isGraveyard ? 'Botín Recuperable para Saqueo' : 'Equipo, Pertinencias y Armas'}
+                      <div style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        borderBottom: '1.5px solid rgba(72, 48, 22, 0.3)',
+                        paddingBottom: '8px'
+                      }}>
+                        <div className="vtt-gothic-title" style={{ fontSize: '13.5px', color: '#1b1108', fontWeight: 800, textShadow: 'none' }}>
+                          Grimorio y Facultades Arcanas
+                        </div>
+                        <span style={{
+                          fontSize: '10.5px',
+                          fontWeight: 700,
+                          color: '#5c3412',
+                          backgroundColor: 'rgba(130, 96, 52, 0.14)',
+                          border: '1px solid rgba(110, 78, 40, 0.32)',
+                          padding: '2px 8px',
+                          borderRadius: '4px'
+                        }}>
+                          {(selectedEntity.spells || []).length} inscritos
+                        </span>
                       </div>
-                      <span className="vtt-retro-badge" style={{ fontSize: '11px', color: '#fbbf24' }}>
-                        {(selectedEntity.inventory || []).length} objetos
-                      </span>
+
+                      {(selectedEntity.spells || []).length === 0 ? (
+                        <div style={{ fontSize: '12px', color: '#6e5235', fontStyle: 'italic', padding: '10px 0' }}>
+                          Sin facultades ni hechizos arcanos registrados.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {(selectedEntity.spells || []).map(sp => (
+                            <div key={sp.id} style={{
+                              padding: '9px 12px',
+                              borderRadius: '4px',
+                              backgroundColor: 'rgba(255, 251, 242, 0.66)',
+                              border: '1px solid #c2ab83'
+                            }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
+                                <span style={{ fontSize: '12.5px', fontWeight: 700, color: '#1e1209' }}>{sp.name}</span>
+                                <span style={{
+                                  fontSize: '10px',
+                                  fontWeight: 800,
+                                  color: '#7c2d12',
+                                  backgroundColor: 'rgba(180, 83, 9, 0.12)',
+                                  border: '1px solid rgba(180, 83, 9, 0.32)',
+                                  padding: '2px 7px',
+                                  borderRadius: '4px',
+                                  whiteSpace: 'nowrap'
+                                }}>
+                                  {sp.cost}
+                                </span>
+                              </div>
+                              {sp.desc && <div style={{ fontSize: '11.5px', color: '#4f3823', marginTop: '4px', lineHeight: 1.45 }}>{sp.desc}</div>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-
-                    {isGraveyard && (
-                      <div style={{ fontSize: '11px', color: '#b8a37e', fontStyle: 'italic' }}>
-                        Posesiones del combatiente disponibles para su recuperación o reparto por los investigadores.
-                      </div>
-                    )}
-
-                    {(selectedEntity.inventory || []).length === 0 ? (
-                      <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', padding: '12px 0' }}>
-                        No se han registrado objetos ni pertrechos en este expediente.
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {equippedItems.length > 0 && (
-                          <div>
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: '#8e9caa', textTransform: 'uppercase', marginBottom: '5px', letterSpacing: '0.05em' }}>
-                              Lleva Encima ({equippedItems.length})
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                              {equippedItems.map(item => (
-                                <span key={item.id} style={{
-                                  padding: '5px 10px',
-                                  borderRadius: '5px',
-                                  background: '#171e2c',
-                                  border: '1px solid #2e3a50',
-                                  fontSize: '12px',
-                                  color: '#e2e8f0'
-                                }}>
-                                  {item.name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {handItems.length > 0 && (
-                          <div>
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: '#8e9caa', textTransform: 'uppercase', marginBottom: '5px', letterSpacing: '0.05em' }}>
-                              A Mano / Inmediato ({handItems.length})
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                              {handItems.map(item => (
-                                <span key={item.id} style={{
-                                  padding: '5px 10px',
-                                  borderRadius: '5px',
-                                  background: '#171e2c',
-                                  border: '1px solid #2e3a50',
-                                  fontSize: '12px',
-                                  color: '#e2e8f0'
-                                }}>
-                                  {item.name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        {storedItems.length > 0 && (
-                          <div>
-                            <div style={{ fontSize: '10px', fontWeight: 700, color: '#8e9caa', textTransform: 'uppercase', marginBottom: '5px', letterSpacing: '0.05em' }}>
-                              Guardado / Almacén ({storedItems.length})
-                            </div>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                              {storedItems.map(item => (
-                                <span key={item.id} style={{
-                                  padding: '5px 10px',
-                                  borderRadius: '5px',
-                                  background: '#141822',
-                                  border: '1px solid #232c3d',
-                                  fontSize: '12px',
-                                  color: '#94a3b8'
-                                }}>
-                                  {item.name}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
                   </div>
 
-                  {/* Grimorio y Facultades */}
-                  <div style={{
-                    background: 'rgba(17, 21, 32, 0.90)',
-                    backdropFilter: 'blur(8px)',
-                    border: '1px solid #222b3c',
-                    borderRadius: '12px',
-                    padding: '18px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)'
-                  }}>
+                  {/* Anexo de Notas de campo */}
+                  {selectedEntity.notes && (
                     <div style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      borderBottom: '1px solid #1f2737',
-                      paddingBottom: '8px'
+                      ...dossierPaperBg,
+                      border: '1px solid #b59a6e',
+                      borderRadius: '4px',
+                      padding: '16px 20px',
+                      color: '#23170d',
+                      boxShadow: '0 8px 20px rgba(32, 18, 6, 0.32)'
                     }}>
-                      <div className="vtt-gothic-title" style={{ fontSize: '14px', color: '#f8fafc', fontWeight: 'bold' }}>
-                        Grimorio y Facultades Arcanas
+                      <div className="vtt-gothic-title" style={{ fontSize: '13px', color: '#5c3412', fontWeight: 800, textShadow: 'none', marginBottom: '6px' }}>
+                        Notas de Campo y Apuntes
                       </div>
-                      <span className="vtt-retro-badge" style={{ fontSize: '11px', color: '#fbbf24' }}>
-                        {(selectedEntity.spells || []).length} inscritos
-                      </span>
+                      <p style={{
+                        margin: 0,
+                        fontSize: '13px',
+                        lineHeight: '22px',
+                        color: '#2d1f13',
+                        whiteSpace: 'pre-wrap',
+                        backgroundImage: 'repeating-linear-gradient(transparent, transparent 21px, rgba(105, 78, 46, 0.14) 22px)'
+                      }}>
+                        {selectedEntity.notes}
+                      </p>
                     </div>
-
-                    {(selectedEntity.spells || []).length === 0 ? (
-                      <div style={{ fontSize: '12px', color: '#64748b', fontStyle: 'italic', padding: '12px 0' }}>
-                        Sin facultades ni hechizos arcanos registrados.
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        {(selectedEntity.spells || []).map(sp => (
-                          <div key={sp.id} style={{
-                            padding: '9px 12px',
-                            borderRadius: '7px',
-                            backgroundColor: '#0c0f16',
-                            border: '1px solid #222a3a'
-                          }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ fontSize: '12px', fontWeight: 700, color: '#f8fafc' }}>{sp.name}</span>
-                              <span className="vtt-retro-badge" style={{
-                                fontSize: '10px',
-                                color: '#fbbf24',
-                                backgroundColor: 'rgba(245, 158, 11, 0.12)',
-                                border: '1px solid rgba(245, 158, 11, 0.3)',
-                                padding: '2px 7px',
-                                borderRadius: '4px'
-                              }}>
-                                {sp.cost}
-                              </span>
-                            </div>
-                            {sp.desc && <div style={{ fontSize: '11px', color: '#94a3b8', marginTop: '4px', lineHeight: 1.4 }}>{sp.desc}</div>}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  )}
                 </div>
-
-                {/* Notas de campo */}
-                {selectedEntity.notes && (
-                  <div style={{
-                    background: 'rgba(17, 21, 32, 0.90)',
-                    backdropFilter: 'blur(8px)',
-                    border: '1px solid #222b3c',
-                    borderRadius: '12px',
-                    padding: '18px',
-                    boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)'
-                  }}>
-                    <div className="vtt-gothic-title" style={{ fontSize: '14px', color: '#d4a359', fontWeight: 'bold', marginBottom: '8px' }}>
-                      Notas de Campo y Apuntes
-                    </div>
-                    <p style={{ margin: 0, fontSize: '13px', lineHeight: 1.6, color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
-                      {selectedEntity.notes}
-                    </p>
-                  </div>
-                )}
               </div>
             );
           })() : (

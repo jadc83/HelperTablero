@@ -45,6 +45,8 @@ const HandoutFullscreenOverlay = ({ handout, isPlayerView, onStopProjection }) =
     );
   }
 
+  const isImageFullscreen = Boolean(handout.fullscreen && handout.type !== 'note' && handout.src);
+
   return (
     <div
       style={{
@@ -53,13 +55,13 @@ const HandoutFullscreenOverlay = ({ handout, isPlayerView, onStopProjection }) =
         left: 0,
         width: '100vw',
         height: '100vh',
-        backgroundColor: 'rgba(5, 3, 2, 0.95)',
+        backgroundColor: isImageFullscreen ? '#000000' : 'rgba(5, 3, 2, 0.95)',
         zIndex: 99990,
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
         alignItems: 'center',
-        padding: '40px'
+        padding: isImageFullscreen ? 0 : '40px'
       }}
     >
       {handout.type === 'note' ? (
@@ -84,6 +86,17 @@ const HandoutFullscreenOverlay = ({ handout, isPlayerView, onStopProjection }) =
             {handout.content}
           </p>
         </div>
+      ) : isImageFullscreen ? (
+        <img
+          src={handout.src}
+          alt={handout.title}
+          style={{
+            width: '100vw',
+            height: '100vh',
+            objectFit: 'contain',
+            display: 'block'
+          }}
+        />
       ) : (
         <div
           style={{

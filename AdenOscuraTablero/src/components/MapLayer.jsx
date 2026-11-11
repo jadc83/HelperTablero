@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { isPointVisibleToPlayers, getStructureRenderBox } from '../utils/fogGeometry';
-import { EyeOff, Lock, Package } from 'lucide-react';
+import { EyeOff, Lock, Package, ScrollText } from 'lucide-react';
 import MapElementContextMenu from './map-layer/MapElementContextMenu';
 import NoteParchmentModal from './map-layer/NoteParchmentModal';
 import MapStructureGraphic from './map-layer/MapStructureGraphic';
@@ -32,6 +32,7 @@ const MapLayer = ({
   const [isEditingMenu, setIsEditingMenu] = useState(false);
   const [editName, setEditName] = useState('');
   const [editNotes, setEditNotes] = useState('');
+  const notePointerStartRef = useRef(null);
 
   // RADAR DE NIEBLA: Comprobación geométrica ultra-rápida (CPU pura, sin lecturas lentas de textura GPU)
   const visibleElements = useMemo(() => {
@@ -67,28 +68,104 @@ const MapLayer = ({
         }
 
         if (element.type === 'note') {
-          if (isPlayerView && fowEnabled && !visibleElements[element.id]) {
-            return null; 
+          if (isPlayerView && (element.isHidden || (fowEnabled && !visibleElements[element.id]))) {
+            return null;
           }
+
+          const isDragging = draggedMapElement === element.id;
+          const noteTitle = element.title || element.name || 'Pista';
+          const noteWidth = element.width || 34;
+          const noteHeight = element.height || 34;
 
           return (
             <div
               key={element.id}
-              onPointerDown={(e) => { 
-                e.stopPropagation(); 
-                setReadingNote(element); 
+              onContextMenu={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (isPlayerView) return;
+                setIsEditingMenu(false);
+                setContextMenu({ visible: true, x: e.clientX, y: e.clientY, item: element });
+              }}
+              onPointerDown={(e) => {
+                if (e.button === 2) {
+                  e.stopPropagation();
+                  return;
+                }
+                if (e.button !== 0) return;
+                e.stopPropagation();
+                notePointerStartRef.current = { id: element.id, x: e.clientX, y: e.clientY };
+                if (!isPlayerView && !element.isLocked && onMapElementPointerDown) {
+                  onMapElementPointerDown(e, element);
+                }
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                const start = notePointerStartRef.current;
+                notePointerStartRef.current = null;
+                if (start && start.id === element.id) {
+                  const movedDist = Math.hypot(e.clientX - start.x, e.clientY - start.y);
+                  if (movedDist >= 5) return;
+                }
+                setReadingNote(element);
               }}
               style={{
-                position: 'absolute', left: `${element.x}px`, top: `${element.y}px`,
-                width: '40px', height: '40px',
+                position: 'absolute',
+                left: `${element.x}px`,
+                top: `${element.y}px`,
+                width: `${noteWidth}px`,
+                height: `${noteHeight}px`,
                 background: 'radial-gradient(circle, #f3e5ab 0%, #c5a059 100%)',
-                borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                cursor: 'pointer', border: '2px solid #5c3a21', boxShadow: '0 4px 10px rgba(0,0,0,0.8)',
-                fontSize: '22px', zIndex: 6
+                borderRadius: '7px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: isDragging ? 'grabbing' : 'pointer',
+                border: isDragging
+                  ? '2px dashed #fbbf24'
+                  : (element.isHidden ? '2px dashed #a855f7' : '2px solid #5c3a21'),
+                boxShadow: isDragging
+                  ? '0 8px 20px rgba(245, 158, 11, 0.55)'
+                  : '0 4px 10px rgba(0,0,0,0.8)',
+                color: '#451a03',
+                zIndex: isDragging ? 1000 : 6,
+                userSelect: 'none',
+                opacity: isDragging ? 0.85 : (!isPlayerView && element.isHidden ? 0.48 : 1),
+                transition: isDragging ? 'none' : 'border 0.2s, box-shadow 0.2s, opacity 0.2s'
               }}
-              title="Leer Pergamino"
+              title={`${noteTitle} (Clic para leer · Arrastra para mover · Clic derecho para opciones)`}
             >
-              📜
+              <ScrollText size={18} strokeWidth={2.2} />
+              {!isPlayerView && element.isHidden && (
+                <span style={{ position: 'absolute', top: -5, left: -5, background: '#11141c', border: '1px solid #c084fc', borderRadius: '3px', padding: '1px', display: 'flex', color: '#e9d5ff' }} title="Oculto a jugadores">
+                  <EyeOff size={8} strokeWidth={2.4} />
+                </span>
+              )}
+              {!isPlayerView && element.isLocked && (
+                <span style={{ position: 'absolute', top: -5, right: -5, background: '#11141c', border: '1px solid #f59e0b', borderRadius: '3px', padding: '1px', display: 'flex', color: '#fbbf24' }} title="Posición bloqueada">
+                  <Lock size={8} strokeWidth={2.4} />
+                </span>
+              )}
+              {element.showName !== false && (
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-17px',
+                  left: '50%',
+                  transform: 'translateX(-50%)',
+                  backgroundColor: 'rgba(10, 12, 18, 0.9)',
+                  color: '#fef08a',
+                  fontSize: '9px',
+                  fontWeight: 700,
+                  padding: '1px 5px',
+                  borderRadius: '4px',
+                  border: '1px solid rgba(245, 158, 11, 0.45)',
+                  whiteSpace: 'nowrap',
+                  pointerEvents: 'none',
+                  boxShadow: '0 2px 5px rgba(0,0,0,0.8)'
+                }}>
+                  {noteTitle}
+                </div>
+              )}
             </div>
           );
         }
@@ -464,10 +541,11 @@ const MapLayer = ({
         onToggleLight={onToggleLight}
         onProjectHandout={onProjectHandout}
         onPickUpItem={onPickUpItem}
+        onReadNote={(noteEl) => setReadingNote(noteEl)}
       />
 
       <NoteParchmentModal
-        note={readingNote}
+        note={readingNote ? (maps.find(m => m.id === readingNote.id) || readingNote) : null}
         isPlayerView={isPlayerView}
         onProjectHandout={onProjectHandout}
         onClose={() => setReadingNote(null)}

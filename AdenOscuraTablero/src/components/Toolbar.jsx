@@ -173,7 +173,7 @@ const Toolbar = ({
             gap: '7px',
             boxSizing: 'border-box'
           }}
-          title="Abre el Centro de Mando: Escenas, Notas, Estados y Objetos"
+          title="Abre el Centro de Mando: Escenas, Pistas, Estados y Objetos"
         >
           <Compass size={15} strokeWidth={2.2} style={{ color: 'currentColor' }} />
           <span className="vtt-gothic-title" style={{ fontWeight: 800, fontSize: '12px', letterSpacing: '0.06em' }}>

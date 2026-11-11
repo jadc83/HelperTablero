@@ -16,7 +16,8 @@ import {
   Zap,
   Package,
   DoorClosed,
-  AppWindow
+  AppWindow,
+  ScrollText
 } from 'lucide-react';
 import ContextMenu from '../ui/ContextMenu';
 import SliderControl from '../ui/SliderControl';
@@ -49,17 +50,18 @@ const MapElementContextMenu = ({
   onToggleObject,
   onToggleLight,
   onProjectHandout,
-  onPickUpItem
+  onPickUpItem,
+  onReadNote
 }) => {
   if (!contextMenu.visible || !contextMenu.item) return null;
 
   const activeItem = maps.find(m => m.id === contextMenu.item.id) || contextMenu.item;
   const isHidden = Boolean(activeItem.isHidden);
   const isLocked = Boolean(activeItem.isLocked);
-  const isNameVisible = activeItem.type === 'item'
+  const isNameVisible = (activeItem.type === 'item' || activeItem.type === 'note')
     ? activeItem.showName !== false
     : activeItem.showName === true;
-  const supportsVisibilityAndName = activeItem.type === 'item' || activeItem.type === 'object' || activeItem.type === 'light';
+  const supportsVisibilityAndName = activeItem.type === 'item' || activeItem.type === 'object' || activeItem.type === 'light' || activeItem.type === 'note';
 
   const headerIcon = activeItem.type === 'door'
     ? <DoorClosed size={15} strokeWidth={2.2} style={{ color: '#d4af37' }} />
@@ -67,6 +69,8 @@ const MapElementContextMenu = ({
     ? <AppWindow size={15} strokeWidth={2.2} style={{ color: '#38bdf8' }} />
     : activeItem.type === 'light'
     ? <Flame size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
+    : activeItem.type === 'note'
+    ? <ScrollText size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />
     : <Package size={15} strokeWidth={2.2} style={{ color: '#fbbf24' }} />;
 
   const headerTitle = activeItem.type === 'door'
@@ -75,6 +79,8 @@ const MapElementContextMenu = ({
     ? 'Control de Ventana'
     : activeItem.type === 'light'
     ? (activeItem.name || 'Fuente de Luz')
+    : activeItem.type === 'note'
+    ? (activeItem.title || activeItem.name || 'Pista en el Tablero')
     : activeItem.type === 'item'
     ? (activeItem.name || 'Objeto en el Suelo')
     : (activeItem.name || 'Objeto / Decorado');
@@ -97,8 +103,8 @@ const MapElementContextMenu = ({
             type="button"
             onClick={() => {
               if (!isEditingMenu) {
-                setEditName(activeItem.name || '');
-                setEditNotes(activeItem.notes || '');
+                setEditName(activeItem.type === 'note' ? (activeItem.title || activeItem.name || '') : (activeItem.name || ''));
+                setEditNotes(activeItem.type === 'note' ? (activeItem.content || '') : (activeItem.notes || ''));
                 setIsEditingMenu(true);
               } else {
                 setIsEditingMenu(false);
@@ -195,19 +201,23 @@ const MapElementContextMenu = ({
           </button>
         )}
 
-        {activeItem.type === 'item' && onProjectHandout && (
+        {(activeItem.type === 'item' || activeItem.type === 'note') && onProjectHandout && (
           <button
             type="button"
             onClick={() => {
               onProjectHandout({
                 type: 'note',
-                title: `${activeItem.icon || '📦'} ${activeItem.name || 'Objeto'}`,
-                content: activeItem.notes || 'Objeto encontrado sobre el terreno.'
+                title: activeItem.type === 'note'
+                  ? (activeItem.title || activeItem.name || 'Pista')
+                  : `${activeItem.icon || '📦'} ${activeItem.name || 'Objeto'}`,
+                content: activeItem.type === 'note'
+                  ? (activeItem.content || 'Sin texto adicional registrado para esta pista.')
+                  : (activeItem.notes || 'Objeto encontrado sobre el terreno.')
               });
               onClose();
             }}
             className="vtt-context-icon-btn vtt-context-icon-btn-info"
-            title="Proyectar este objeto y sus notas en la pantalla de jugadores"
+            title={activeItem.type === 'note' ? 'Proyectar esta pista en la pantalla de jugadores' : 'Proyectar este objeto y sus notas en la pantalla de jugadores'}
           >
             <Projector size={16} strokeWidth={2.2} />
           </button>
@@ -228,7 +238,7 @@ const MapElementContextMenu = ({
         )}
       </div>
 
-      {(isEditingMenu || activeItem.type === 'item' || activeItem.type === 'door' || activeItem.type === 'window' || activeItem.type === 'object' || activeItem.type === 'light') && (
+      {(isEditingMenu || activeItem.type === 'item' || activeItem.type === 'note' || activeItem.type === 'door' || activeItem.type === 'window' || activeItem.type === 'object' || activeItem.type === 'light') && (
         <div className="vtt-context-divider" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {isEditingMenu && onUpdateMapElement && (
             <div style={{
@@ -275,10 +285,19 @@ const MapElementContextMenu = ({
                 <button
                   type="button"
                   onClick={() => {
-                    onUpdateMapElement(activeItem.id, {
-                      name: editName.trim() || activeItem.name,
-                      notes: editNotes.trim()
-                    }, 'Objeto actualizado', '💾');
+                    if (activeItem.type === 'note') {
+                      const nextTitle = editName.trim() || activeItem.title || activeItem.name || 'Pista';
+                      onUpdateMapElement(activeItem.id, {
+                        title: nextTitle,
+                        name: nextTitle,
+                        content: editNotes.trim()
+                      }, 'Pista actualizada', '📜');
+                    } else {
+                      onUpdateMapElement(activeItem.id, {
+                        name: editName.trim() || activeItem.name,
+                        notes: editNotes.trim()
+                      }, 'Objeto actualizado', '💾');
+                    }
                     setIsEditingMenu(false);
                   }}
                   className="vtt-primary-cta"
@@ -295,6 +314,38 @@ const MapElementContextMenu = ({
                   Cancelar
                 </button>
               </div>
+            </div>
+          )}
+
+          {activeItem.type === 'note' && !isEditingMenu && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {activeItem.content && (
+                <div style={{
+                  fontSize: '11px',
+                  color: '#cbd5e1',
+                  backgroundColor: '#0e1118',
+                  padding: '7px 9px',
+                  borderRadius: '6px',
+                  borderLeft: '2px solid #f59e0b',
+                  lineHeight: 1.45,
+                  whiteSpace: 'pre-wrap'
+                }}>
+                  {activeItem.content}
+                </div>
+              )}
+              {onReadNote && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onReadNote(activeItem);
+                    onClose();
+                  }}
+                  className="vtt-primary-cta"
+                  style={{ padding: '7px 10px', borderRadius: '6px', cursor: 'pointer', fontWeight: 'bold', fontSize: '11.5px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  <ScrollText size={13} strokeWidth={2.2} /> Leer Pista
+                </button>
+              )}
             </div>
           )}
 

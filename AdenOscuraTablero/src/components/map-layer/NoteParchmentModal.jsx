@@ -52,10 +52,10 @@ const NoteParchmentModal = ({ note, isPlayerView, onProjectHandout, onClose }) =
         }}
       >
         <h2 className="vtt-gothic-title" style={{ margin: '0 0 15px 0', borderBottom: '2px solid #8a6d3b', paddingBottom: '10px', fontSize: '24px', color: '#451a03', textShadow: 'none' }}>
-          {note.title}
+          {note.title || note.name || 'Pista'}
         </h2>
         <p style={{ whiteSpace: 'pre-wrap', lineHeight: '1.7', margin: 0, fontSize: '18px', fontFamily: "'Crimson Text', Georgia, serif" }}>
-          {note.content}
+          {note.content || 'Sin texto adicional registrado para esta pista.'}
         </p>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '24px', gap: '10px' }}>
           {!isPlayerView && onProjectHandout && (

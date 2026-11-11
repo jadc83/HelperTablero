@@ -8,7 +8,7 @@ import AdventureActionModals from './settings/AdventureActionModals';
 
 const TABS = [
   { id: 'escenario', label: 'Escenas', icon: Map },
-  { id: 'notas', label: 'Notas', icon: FileText },
+  { id: 'notas', label: 'Pistas', icon: FileText },
   { id: 'estados', label: 'Estados', icon: Zap },
   { id: 'items', label: 'Objetos', icon: Package }
 ];
@@ -32,6 +32,7 @@ const SettingsDrawer = ({
   onMoveSceneOrder,
   onReorderScenes,
   tokens = [],
+  maps = [],
   activeTurnTokenId = null,
   commonItems = [],
   onGiveItemToCharacter,
@@ -45,6 +46,9 @@ const SettingsDrawer = ({
   onUpdateSceneNotes,
   campaignNotes = '',
   onUpdateCampaignNotes,
+  onStartPlaceClue,
+  onUpdateBoardClue,
+  onRemoveBoardClue,
   initialTab = null
 }) => {
   const [activeTab, setActiveTab] = useState(initialTab || 'escenario');
@@ -258,12 +262,18 @@ const SettingsDrawer = ({
           <SceneNotesTab
             scenes={scenes}
             activeSceneId={activeSceneId}
+            maps={maps}
             selectedNoteSceneId={selectedNoteSceneId}
             setSelectedNoteSceneId={setSelectedNoteSceneId}
             sceneNotes={sceneNotes}
             onUpdateSceneNotes={onUpdateSceneNotes}
             campaignNotes={campaignNotes}
             onUpdateCampaignNotes={onUpdateCampaignNotes}
+            onSelectScene={onSelectScene}
+            onStartPlaceClue={onStartPlaceClue}
+            onUpdateBoardClue={onUpdateBoardClue}
+            onRemoveBoardClue={onRemoveBoardClue}
+            notify={notify}
           />
         )}
 
