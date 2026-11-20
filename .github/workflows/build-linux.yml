@@ -1,4 +1,4 @@
-cd name: Compilar para Linux
+name: Compilar para Linux
 
 on:
   workflow_dispatch: # Permite ejecutar la compilación manualmente desde la pestaña Actions en GitHub
