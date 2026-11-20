@@ -27,6 +27,11 @@ jobs:
       - name: Configurar Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Cache de dependencias de Rust
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "AdenOscuraTablero/src-tauri"
+
       - name: Instalar dependencias del sistema Linux
         run: |
           sudo apt-get update

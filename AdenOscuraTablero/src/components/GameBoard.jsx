@@ -293,6 +293,7 @@ const GameBoard = ({
         cursor: boardCursor,
         userSelect: 'none',
         WebkitUserSelect: 'none',
+        touchAction: 'none',
         background: `${boardSurface.overlay}, url("${boardSurface.image}")`,
         backgroundSize: boardSurface.backgroundSize,
         backgroundPosition: 'center',
@@ -313,7 +314,14 @@ const GameBoard = ({
           100% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
         }
       `}</style>
-      <div style={{ transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`, transformOrigin: '0 0', position: 'absolute', width: '100%', height: '100%' }}>
+      <div style={{
+        transform: `translate(${pan.x}px, ${pan.y}px) scale(${scale})`,
+        transformOrigin: '0 0',
+        position: 'absolute',
+        width: '100%',
+        height: '100%',
+        willChange: isDraggingPan ? 'transform' : 'auto'
+      }}>
         
         <GridLayer snapToGrid={snapToGrid} gridSize={gridSize} />
         

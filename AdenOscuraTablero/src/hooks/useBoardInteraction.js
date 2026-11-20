@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import {
   segmentsIntersect,
   segmentIntersectsRotatedRect,
@@ -83,6 +84,9 @@ export function useBoardInteraction({
   showMasterFeedback
 }) {
   const { settings } = useAppSettings();
+  const lastPanPosRef = useRef({ x: 0, y: 0 });
+  const rafMoveIdRef = useRef(null);
+  const pendingMoveEventRef = useRef(null);
 
   const handleToggleDoor = (doorId) => {
     setMaps(prev => prev.map(el => {
@@ -387,6 +391,14 @@ export function useBoardInteraction({
         setPendingMapSpawn(null);
         return;
       }
+      lastPanPosRef.current = { x: e.clientX, y: e.clientY };
+      try {
+        if (boardRef.current && e.pointerId !== undefined) {
+          boardRef.current.setPointerCapture(e.pointerId);
+        }
+      } catch {
+        // Ignorar si no soporta captura
+      }
       setIsDraggingPan(true);
       return;
     }
@@ -475,6 +487,14 @@ export function useBoardInteraction({
         }, 550);
       }
 
+      lastPanPosRef.current = { x: e.clientX, y: e.clientY };
+      try {
+        if (boardRef.current && e.pointerId !== undefined) {
+          boardRef.current.setPointerCapture(e.pointerId);
+        }
+      } catch {
+        // Ignorar si no soporta captura
+      }
       setIsDraggingPan(true);
     }
   };
@@ -550,12 +570,6 @@ export function useBoardInteraction({
       if (dist > 8) cancelHoldTimer();
     }
 
-    if (rulerMeasure) {
-      const coords = getLogicalCoords(e);
-      setRulerMeasure(prev => (prev ? { ...prev, endX: coords.x, endY: coords.y } : null));
-      return;
-    }
-
     if (isPaintingFow && fowEnabled && fowMode !== 'none') {
       const coords = getLogicalCoords(e);
       const lastPt = lastFowPointRef.current;
@@ -567,110 +581,139 @@ export function useBoardInteraction({
       return;
     }
 
-    if (rotatingToken !== null && boardRef.current) {
-      const coords = getLogicalCoords(e);
-      setTokens(prev =>
-        prev.map(t => {
-          if (t.id !== rotatingToken) return t;
-          const size = t.size || 50;
-          const cx = t.x + size / 2;
-          const cy = t.y + size / 2;
-          const deg = (Math.atan2(coords.y - cy, coords.x - cx) * 180) / Math.PI;
-          return { ...t, rotation: ((Math.round(deg) % 360) + 360) % 360 };
-        })
-      );
-      return;
-    }
+    pendingMoveEventRef.current = {
+      clientX: e.clientX,
+      clientY: e.clientY,
+      ctrlKey: e.ctrlKey
+    };
 
-    if (draggedToken !== null && boardRef.current) {
-      const coords = getLogicalCoords(e);
-      const currentToken = tokens.find(t => t.id === draggedToken);
-      const size = currentToken?.size || 50;
-      let targetX = coords.x - size / 2;
-      let targetY = coords.y - size / 2;
+    if (rafMoveIdRef.current) return;
 
-      const tokenCombat = getTokenCombatContext(currentToken);
-      if (tokenCombat.isCombatActive && movementLimitsEnabled && !e.ctrlKey && tokenDragOriginRef.current && currentToken) {
-        const originX = tokenDragOriginRef.current.x;
-        const originY = tokenDragOriginRef.current.y;
-        const baseSpeed = currentToken.speed || 6;
-        const maxSpeed = currentToken.isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
-        const used = currentToken.turnMovementUsed || 0;
-        const remaining = Math.max(0, maxSpeed - used);
-        const maxPixelDist = remaining * gridSize;
+    rafMoveIdRef.current = requestAnimationFrame(() => {
+      rafMoveIdRef.current = null;
+      const pending = pendingMoveEventRef.current;
+      if (!pending) return;
 
-        const dx = targetX - originX;
-        const dy = targetY - originY;
-        const currentDist = Math.hypot(dx, dy);
-
-        if (currentDist > maxPixelDist && currentDist > 0) {
-          const angle = Math.atan2(dy, dx);
-          targetX = originX + Math.cos(angle) * maxPixelDist;
-          targetY = originY + Math.sin(angle) * maxPixelDist;
-        }
-
-        const currentMovedSquares = Math.round(Math.hypot(targetX - originX, targetY - originY) / gridSize);
-        setTokenDragMeasurement({
-          startX: originX + size / 2,
-          startY: originY + size / 2,
-          currentX: targetX + size / 2,
-          currentY: targetY + size / 2,
-          movedSquares: currentMovedSquares,
-          maxSquares: remaining,
-          totalSpeed: maxSpeed,
-          isGraveWound: Boolean(currentToken.isGraveWound)
-        });
-      } else if (tokenDragMeasurement) {
-        setTokenDragMeasurement(null);
+      if (rulerMeasure) {
+        const coords = getLogicalCoords(pending);
+        setRulerMeasure(prev => (prev ? { ...prev, endX: coords.x, endY: coords.y } : null));
+        return;
       }
 
-      setTokens(prevTokens =>
-        prevTokens.map(t => {
-          if (t.id !== draggedToken) return t;
-          const fromCenterX = t.x + size / 2;
-          const fromCenterY = t.y + size / 2;
-          const toCenterX = targetX + size / 2;
-          const toCenterY = targetY + size / 2;
+      if (rotatingToken !== null && boardRef.current) {
+        const coords = getLogicalCoords(pending);
+        setTokens(prev =>
+          prev.map(t => {
+            if (t.id !== rotatingToken) return t;
+            const size = t.size || 50;
+            const cx = t.x + size / 2;
+            const cy = t.y + size / 2;
+            const deg = (Math.atan2(coords.y - cy, coords.x - cx) * 180) / Math.PI;
+            return { ...t, rotation: ((Math.round(deg) % 360) + 360) % 360 };
+          })
+        );
+        return;
+      }
 
-          if (!isMovementBlocked(fromCenterX, fromCenterY, toCenterX, toCenterY)) {
-            return { ...t, x: targetX, y: targetY };
-          }
-          if (!isMovementBlocked(fromCenterX, fromCenterY, toCenterX, fromCenterY)) {
-            return { ...t, x: targetX };
-          }
-          if (!isMovementBlocked(fromCenterX, fromCenterY, fromCenterX, toCenterY)) {
-            return { ...t, y: targetY };
-          }
-          return t;
-        })
-      );
-      return;
-    }
+      if (draggedToken !== null && boardRef.current) {
+        const coords = getLogicalCoords(pending);
+        const currentToken = tokens.find(t => t.id === draggedToken);
+        const size = currentToken?.size || 50;
+        let targetX = coords.x - size / 2;
+        let targetY = coords.y - size / 2;
 
-    if (draggedMapElement !== null && boardRef.current) {
-      const coords = getLogicalCoords(e);
-      setMaps(prevMaps =>
-        prevMaps.map(m => {
-          if (m.id !== draggedMapElement) return m;
-          const w = m.width || 48;
-          const h = m.height || 48;
-          return {
-            ...m,
-            x: Math.round(coords.x - w / 2),
-            y: Math.round(coords.y - h / 2)
-          };
-        })
-      );
-      return;
-    }
+        const tokenCombat = getTokenCombatContext(currentToken);
+        if (tokenCombat.isCombatActive && movementLimitsEnabled && !pending.ctrlKey && tokenDragOriginRef.current && currentToken) {
+          const originX = tokenDragOriginRef.current.x;
+          const originY = tokenDragOriginRef.current.y;
+          const baseSpeed = currentToken.speed || 6;
+          const maxSpeed = currentToken.isGraveWound ? Math.max(1, Math.floor(baseSpeed / 2)) : baseSpeed;
+          const used = currentToken.turnMovementUsed || 0;
+          const remaining = Math.max(0, maxSpeed - used);
+          const maxPixelDist = remaining * gridSize;
 
-    if (isDraggingPan && draggedToken === null && draggedMapElement === null && rotatingToken === null) {
-      setPan(prev => ({ x: prev.x + e.movementX, y: prev.y + e.movementY }));
-    }
+          const dx = targetX - originX;
+          const dy = targetY - originY;
+          const currentDist = Math.hypot(dx, dy);
+
+          if (currentDist > maxPixelDist && currentDist > 0) {
+            const angle = Math.atan2(dy, dx);
+            targetX = originX + Math.cos(angle) * maxPixelDist;
+            targetY = originY + Math.sin(angle) * maxPixelDist;
+          }
+
+          const currentMovedSquares = Math.round(Math.hypot(targetX - originX, targetY - originY) / gridSize);
+          setTokenDragMeasurement({
+            startX: originX + size / 2,
+            startY: originY + size / 2,
+            currentX: targetX + size / 2,
+            currentY: targetY + size / 2,
+            movedSquares: currentMovedSquares,
+            maxSquares: remaining,
+            totalSpeed: maxSpeed,
+            isGraveWound: Boolean(currentToken.isGraveWound)
+          });
+        } else if (tokenDragMeasurement) {
+          setTokenDragMeasurement(null);
+        }
+
+        setTokens(prevTokens =>
+          prevTokens.map(t => {
+            if (t.id !== draggedToken) return t;
+            const fromCenterX = t.x + size / 2;
+            const fromCenterY = t.y + size / 2;
+            const toCenterX = targetX + size / 2;
+            const toCenterY = targetY + size / 2;
+
+            if (!isMovementBlocked(fromCenterX, fromCenterY, toCenterX, toCenterY)) {
+              return { ...t, x: targetX, y: targetY };
+            }
+            if (!isMovementBlocked(fromCenterX, fromCenterY, toCenterX, fromCenterY)) {
+              return { ...t, x: targetX };
+            }
+            if (!isMovementBlocked(fromCenterX, fromCenterY, fromCenterX, toCenterY)) {
+              return { ...t, y: targetY };
+            }
+            return t;
+          })
+        );
+        return;
+      }
+
+      if (draggedMapElement !== null && boardRef.current) {
+        const coords = getLogicalCoords(pending);
+        setMaps(prevMaps =>
+          prevMaps.map(m => {
+            if (m.id !== draggedMapElement) return m;
+            const w = m.width || 48;
+            const h = m.height || 48;
+            return {
+              ...m,
+              x: Math.round(coords.x - w / 2),
+              y: Math.round(coords.y - h / 2)
+            };
+          })
+        );
+        return;
+      }
+
+      if (isDraggingPan && draggedToken === null && draggedMapElement === null && rotatingToken === null) {
+        const dx = pending.clientX - lastPanPosRef.current.x;
+        const dy = pending.clientY - lastPanPosRef.current.y;
+        lastPanPosRef.current = { x: pending.clientX, y: pending.clientY };
+        if (dx !== 0 || dy !== 0) {
+          setPan(prev => ({ x: prev.x + dx, y: prev.y + dy }));
+        }
+      }
+    });
   };
 
   const handlePointerUp = (e) => {
     cancelHoldTimer();
+    if (rafMoveIdRef.current) {
+      cancelAnimationFrame(rafMoveIdRef.current);
+      rafMoveIdRef.current = null;
+    }
     try {
       if (boardRef.current && e?.pointerId !== undefined && boardRef.current.hasPointerCapture(e.pointerId)) {
         boardRef.current.releasePointerCapture(e.pointerId);
@@ -678,6 +721,7 @@ export function useBoardInteraction({
     } catch {
       // Ignorar si ya fue liberado
     }
+    setIsDraggingPan(false);
     if (rulerMeasure) setRulerMeasure(null);
 
     if (draggedToken !== null) {
