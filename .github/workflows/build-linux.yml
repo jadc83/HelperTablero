@@ -1,0 +1,63 @@
+cd name: Compilar para Linux
+
+on:
+  workflow_dispatch: # Permite ejecutar la compilación manualmente desde la pestaña Actions en GitHub
+  push:
+    tags:
+      - 'v*' # Se ejecuta automáticamente cuando creas una etiqueta de versión (ej. v0.1.0)
+
+jobs:
+  build-linux:
+    permissions:
+      contents: write
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Descargar código fuente
+        uses: actions/checkout@v4
+
+      - name: Instalar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: AdenOscuraTablero/package-lock.json
+
+      - name: Instalar Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Instalar dependencias del sistema Linux (WebKitGTK, GTK3, AppIndicator)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libappindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev
+
+      - name: Instalar dependencias de Node
+        working-directory: ./AdenOscuraTablero
+        run: npm ci
+
+      - name: Compilar aplicación Tauri (Genera .deb y .AppImage)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: ./AdenOscuraTablero
+          tagName: v__VERSION__
+          releaseName: 'Grimorio VTT v__VERSION__'
+          releaseBody: 'Instaladores para Linux (.deb y .AppImage)'
+          releaseDraft: true
+          prerelease: false
+
+      - name: Subir binarios como artefactos descargables
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: grimorio-vtt-linux
+          path: |
+            AdenOscuraTablero/src-tauri/target/release/bundle/deb/*.deb
+            AdenOscuraTablero/src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: warn
